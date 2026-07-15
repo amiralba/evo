@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
 
-test('panel loads and shows the backend status badge', async ({ page }) => {
+test('panel loads and redirects an unauthenticated visitor to /login', async ({ page }) => {
   await page.goto('/')
 
-  const badge = page.getByTestId('status-badge')
-  await expect(badge).toBeVisible()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.locator('#email')).toBeVisible()
 
   await page.screenshot({ path: 'e2e/artifacts/smoke.png' })
 })

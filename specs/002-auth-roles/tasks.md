@@ -167,54 +167,54 @@
 - Files: `panel/src/api/generated/` (generated)
 - Do: with `contracts/openapi.json` updated, run `npm run generate-api-client` from `panel/`.
 - Verify: generated types include the auth + users operations (grep the generated folder for `auth/login`).
-- Status: [ ]
+- Status: [x]
 
 ## Task 26: Auth context/provider
 - Files: `panel/src/auth/AuthContext.tsx`
 - Do: React context holding `accessToken` (in memory only — never localStorage) + `user`; expose `login(email, pw)`, `logout()`, `refresh()`, `isAuthenticated`. On mount attempt a silent `refresh()` to restore session from the httpOnly cookie.
 - Verify: `npm run build` (panel) type-checks; imported without error.
-- Status: [ ]
+- Status: [x]
 
 ## Task 27: Client wrapper — bearer header + credentials + 401 interceptor
 - Files: `panel/src/api/client.ts`
 - Do: extend the spec-001 fetch wrapper to attach `Authorization: Bearer <accessToken>` from the auth store and send `credentials: 'include'` (so the refresh cookie flows). On a 401, attempt one silent `POST /api/v1/auth/refresh`; on success retry the original request; on failure clear auth state and redirect to `/login`.
 - Verify: `npm run build` type-checks (behavior covered by Task 31).
-- Status: [ ]
+- Status: [x]
 
 ## Task 28: Login page
 - Files: `panel/src/pages/Login.tsx`
 - Do: email + password form with Turkish labels (e.g. "E-posta", "Parola", "Giriş yap"); calls `login()`; shows an inline error on 401; redirects to the app root on success.
 - Verify: `npm run dev`, open `/login`, form renders; wrong credentials show an error (against a running backend).
-- Status: [ ]
+- Status: [x]
 
 ## Task 29: Protected-route wrapper + routing
 - Files: `panel/src/auth/ProtectedRoute.tsx`, `panel/src/App.tsx` (or router file)
 - Do: `ProtectedRoute` renders children only when `isAuthenticated`, else `<Navigate to="/login" />`; wire the router so the existing health/status page sits behind it and `/login` is public. Wrap the app in `AuthProvider`.
 - Verify: `npm run dev` — visiting the app root while logged out redirects to `/login`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 30: Logout control
 - Files: `panel/src/App.tsx` (or a header component)
 - Do: a "Çıkış" (logout) button that calls `logout()` (POST /auth/logout + clear in-memory token) and redirects to `/login`.
 - Verify: `npm run dev` — after login, clicking logout returns to `/login` and a reload stays logged out.
-- Status: [ ]
+- Status: [x]
 
 ## Task 31: Vitest — auth context + 401 interceptor
 - Files: `panel/src/auth/AuthContext.test.tsx`, `panel/src/api/client.test.ts`
 - Do: test `login` stores the token in memory and `logout` clears it; test the client interceptor — a 401 triggers one refresh then retry (mocked fetch: 401 → refresh 200 → retry 200), and a failed refresh clears auth + triggers redirect.
 - Verify: `npm test` (panel) → these pass.
-- Status: [ ]
+- Status: [x]
 
 ## Task 32: Playwright — login smoke
 - Files: `panel/e2e/auth.spec.ts`
 - Do: with backend + seeded admin running, navigate to `/login`, log in with the seeded Supervisor, assert the protected page renders; save a screenshot to `e2e/artifacts/` (visual-verification habit).
 - Verify: `npx playwright test auth.spec.ts` → passing; screenshot exists.
-- Status: [ ]
+- Status: [x]
 
 ## Task 33: Update CLAUDE.md commands + docs
 - Files: `CLAUDE.md` (Commands section), `docs/AUTH.md`
 - Do: add the seed-admin env vars + login/run commands and a 1-line "how to log in locally" note; confirm `docs/AUTH.md` panel section (context/provider, protected route, 401 interceptor) matches what was built.
 - Verify: the commands in CLAUDE.md copy-paste-run (seed admin, run backend, run panel, log in).
-- Status: [ ]
+- Status: [x]
 
 **PHASE 4 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (panel tests, Playwright screenshot, manual login), give the human a 1-minute UI test script (open panel logged out → redirected to /login → log in with seeded admin → protected page → logout → reload stays logged out → console clean), commit `feat(002): panel auth integration`, then run /end-session and END TURN. Do NOT start spec 003.**

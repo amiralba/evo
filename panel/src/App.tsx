@@ -1,23 +1,27 @@
-import { useEffect, useState } from 'react'
-import { getHealth } from './api/client'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthContext'
+import { ProtectedRoute } from './auth/ProtectedRoute'
+import { Dashboard } from './pages/Dashboard'
+import { Login } from './pages/Login'
 import './App.css'
 
 function App() {
-  const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading')
-
-  useEffect(() => {
-    getHealth()
-      .then((health) => setStatus(health.status === 'ok' ? 'ok' : 'error'))
-      .catch(() => setStatus('error'))
-  }, [])
-
   return (
-    <section id="center">
-      <h1>EVO</h1>
-      <p data-testid="status-badge" className={`status-badge status-${status}`}>
-        Backend: {status}
-      </p>
-    </section>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
 

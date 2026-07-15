@@ -80,6 +80,8 @@ dotnet build backend/Evo.sln                                # also regenerates c
 dotnet test backend/Evo.sln
 dotnet ef migrations add <Name> --project backend/src/Evo.Infrastructure --startup-project backend/src/Evo.Api
 dotnet run --project backend/src/Evo.Seeder -- --profile demo   # or: --profile scale --wipe
+# seeds the bootstrap Supervisor: admin@evo.local / Demo1234!
+# (override via EVO_SEED_ADMIN_EMAIL / EVO_SEED_ADMIN_PASSWORD)
 
 # panel/ (Vite + React + TS strict)
 cd panel && npm install
@@ -90,6 +92,9 @@ npx playwright test             # e2e smoke
 npm run generate-api-client     # regenerate typed client from contracts/openapi.json
 npm run build
 ```
+
+**Log in locally:** with backend + SQL Server + a seeded Supervisor running, open the panel —
+it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs/AUTH.md).
 
 ## Current focus
 

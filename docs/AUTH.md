@@ -74,6 +74,28 @@ Entra/OIDC code exists. When the customer confirms they want it:
 6. Update the login page's clarifications table entry (`specs/002-auth-roles/spec.md`) and this
    file once real Entra work starts as its own follow-up spec.
 
+## Panel implementation
+
+- `panel/src/auth/session.ts` — framework-agnostic module holding the in-memory access token +
+  current user, plus `refreshSession()` (calls `POST /auth/refresh` with `credentials: 'include'`
+  so the httpOnly cookie flows). Shared by both the React context and the fetch wrapper below so
+  there's exactly one source of truth for "what is the current token."
+- `panel/src/auth/AuthContext.tsx` — `AuthProvider`/`useAuth()`. On mount, attempts a silent
+  `refreshSession()` to restore a session from the cookie (so a page reload while logged in stays
+  logged in). Exposes `login`, `logout`, `isAuthenticated`, `isLoading`, `user`.
+- `panel/src/api/client.ts` — `authorizedFetch` attaches `Authorization: Bearer <token>` and
+  `credentials: 'include'` to every call. On a 401, it calls `refreshSession()` once and retries
+  the original request; if that refresh also fails, it clears the session and redirects to
+  `/login` (`window.location.assign`).
+- `panel/src/auth/ProtectedRoute.tsx` + `panel/src/App.tsx` — `/login` is public, `/` is wrapped
+  in `ProtectedRoute` (redirects to `/login` when not authenticated). `panel/src/pages/Login.tsx`
+  is the Turkish-labeled login form; `panel/src/pages/Dashboard.tsx` has the logout ("Çıkış")
+  button.
+
+To log in locally: seed the bootstrap Supervisor (see Commands in `CLAUDE.md`), run the backend
+and panel, open the panel — it redirects to `/login` — sign in with `admin@evo.local` /
+`Demo1234!`.
+
 ## Local dev signing key
 
 `appsettings.Development.json` commits a well-known, non-sensitive JWT signing key
