@@ -1,4 +1,6 @@
 using Evo.Infrastructure;
+using Evo.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +13,25 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<EvoDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("EvoDb")));
+
+builder.Services.AddDataProtection();
+
+// AddIdentityCore (not AddIdentity) — avoids registering the default cookie auth schemes,
+// since this API uses JWT bearer auth (see Auth/AuthenticationExtensions.cs).
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        options.Lockout.AllowedForNewUsers = true;
+    })
+    .AddRoles<IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<EvoDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
 
 var app = builder.Build();
 

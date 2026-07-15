@@ -1,8 +1,12 @@
 using Bogus;
 using Evo.Infrastructure;
+using Evo.Infrastructure.Identity;
 using Evo.Seeder;
+using Evo.Seeder.Modules;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 var config = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)
@@ -22,12 +26,19 @@ if (!Enum.TryParse<SeedProfile>(profileArg, ignoreCase: true, out var profile))
 var connectionString = config.GetConnectionString("EvoDb")
     ?? "Server=localhost,1433;Database=EvoDb;User Id=sa;Password=Local_dev_only!1;TrustServerCertificate=True;";
 
-var options = new DbContextOptionsBuilder<EvoDbContext>()
-    .UseSqlServer(connectionString)
-    .Options;
+var services = new ServiceCollection();
+services.AddDbContext<EvoDbContext>(options => options.UseSqlServer(connectionString));
+services.AddDataProtection();
+services.AddLogging();
+services.AddIdentityCore<ApplicationUser>()
+    .AddRoles<IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<EvoDbContext>();
 
-using var db = new EvoDbContext(options);
-await db.Database.EnsureCreatedAsync();
+await using var provider = services.BuildServiceProvider();
+await using var scope = provider.CreateAsyncScope();
+
+var db = scope.ServiceProvider.GetRequiredService<EvoDbContext>();
+await db.Database.MigrateAsync();
 
 if (wipe)
 {
@@ -36,14 +47,17 @@ if (wipe)
 
 // SeederModule plug-in interface (see ISeederModule.cs): future specs register their module
 // here as they add tables. CLAUDE.md rule: every spec that adds tables extends this list.
-var modules = new List<ISeederModule>();
+var modules = new List<ISeederModule>
+{
+    new IdentitySeederModule(),
+};
 
 var faker = new Faker("tr");
 
 foreach (var module in modules)
 {
     Console.WriteLine($"Seeding module: {module.Name} (profile={profile})");
-    await module.SeedAsync(db, profile, faker, CancellationToken.None);
+    await module.SeedAsync(db, profile, faker, scope.ServiceProvider, CancellationToken.None);
 }
 
 Console.WriteLine($"{modules.Count} entities registered.");

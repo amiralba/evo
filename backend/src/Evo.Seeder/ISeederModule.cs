@@ -10,7 +10,11 @@ public interface ISeederModule
 {
     string Name { get; }
 
-    Task SeedAsync(EvoDbContext db, SeedProfile profile, Bogus.Faker faker, CancellationToken ct);
+    /// <param name="services">
+    /// Scoped DI container (Identity's UserManager/RoleManager and any future module
+    /// dependencies are resolved from here rather than constructed by hand).
+    /// </param>
+    Task SeedAsync(EvoDbContext db, SeedProfile profile, Bogus.Faker faker, IServiceProvider services, CancellationToken ct);
 }
 
 public enum SeedProfile
