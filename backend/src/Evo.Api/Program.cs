@@ -1,4 +1,5 @@
 using Evo.Api.Auth;
+using Evo.Api.Errors;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -11,6 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = EvoProblemDetails.Customize);
+builder.Services.AddExceptionHandler<EvoExceptionHandler>();
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+    options.InvalidModelStateResponseFactory = ValidationProblem.Factory);
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
@@ -62,6 +68,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
