@@ -63,55 +63,55 @@
 - Files: `backend/src/Evo.Api/Auth/JwtSettings.cs`, `backend/src/Evo.Api/appsettings.json`, `backend/src/Evo.Api/appsettings.Development.json`
 - Do: settings class (`Issuer`, `Audience`, `SigningKey`, `AccessTokenMinutes = 60`, `RefreshTokenDays = 14`); bind from config section `Jwt`; put a dev-only signing key in `appsettings.Development.json` with a comment that production key comes from env/secret (never committed).
 - Verify: `dotnet build` succeeds; add a one-line startup log or assert the bound section is non-empty.
-- Status: [ ]
+- Status: [x]
 
 ## Task 10: JwtTokenService
 - Files: `backend/src/Evo.Api/Auth/IJwtTokenService.cs`, `backend/src/Evo.Api/Auth/JwtTokenService.cs`
 - Do: `GenerateAccessToken(ApplicationUser user, IEnumerable<string> roles)` → signed JWT with `sub`, `email`/`name`, one `role` claim per role, `exp = now + AccessTokenMinutes`. Register in DI.
 - Verify: `dotnet build` succeeds (behavior covered by Task 17 tests).
-- Status: [ ]
+- Status: [x]
 
 ## Task 11: RefreshTokenService (issue / rotate / revoke)
 - Files: `backend/src/Evo.Api/Auth/IRefreshTokenService.cs`, `backend/src/Evo.Api/Auth/RefreshTokenService.cs`
 - Do: `IssueAsync(userId)` → generate cryptographically-random raw token, store its SHA-256 hash with `ExpiresAt = now + RefreshTokenDays`, return the raw token; `ValidateAndRotateAsync(rawToken)` → look up active token by hash, mark it revoked + set `ReplacedByTokenHash`, issue a new one; `RevokeAsync(rawToken)`; `RevokeAllForUserAsync(userId)`. Register in DI.
 - Verify: `dotnet build` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 12: Auth DTOs
 - Files: `backend/src/Evo.Api/Auth/Dtos/LoginRequest.cs`, `LoginResponse.cs`, `MeResponse.cs`, `ChangePasswordRequest.cs`
 - Do: `record` types with data annotations — `LoginRequest(Email, Password)`; `LoginResponse(AccessToken, ExpiresAt, MeResponse User)`; `MeResponse(Guid Id, string Email, string DisplayName, string[] Roles)`; `ChangePasswordRequest(CurrentPassword, NewPassword)`.
 - Verify: `dotnet build` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 13: Refresh-cookie helper
 - Files: `backend/src/Evo.Api/Auth/RefreshCookie.cs`
 - Do: constant cookie name `evo_rt`; `Set(HttpResponse, rawToken, expiresAt)` writing httpOnly + Secure + `SameSite=Strict` + `Path=/api/v1/auth`; `Clear(HttpResponse)`; `TryRead(HttpRequest, out string)`.
 - Verify: `dotnet build` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 14: AuthController — login
 - Files: `backend/src/Evo.Api/Controllers/AuthController.cs`
 - Do: `[AllowAnonymous] POST /api/v1/auth/login`: find user by email; if not found / `!IsActive` → 401 ProblemDetails; `SignInManager.CheckPasswordSignInAsync(user, pw, lockoutOnFailure: true)`; on lockout → 423/401 ProblemDetails; on success issue access token, `RefreshCookie.Set` with an issued refresh token, return `LoginResponse`. Use built-in `Problem(...)` (interim shape — flag spec 003).
 - Verify: `dotnet build` succeeds (behavior in Task 17).
-- Status: [ ]
+- Status: [x]
 
 ## Task 15: AuthController — refresh + logout
 - Files: `backend/src/Evo.Api/Controllers/AuthController.cs`
 - Do: `[AllowAnonymous] POST /api/v1/auth/refresh`: read cookie via `RefreshCookie.TryRead`; `ValidateAndRotateAsync`; on failure clear cookie + 401; on success set new cookie + return new access token. `[Authorize] POST /api/v1/auth/logout`: revoke current refresh token + `RefreshCookie.Clear`, return 204.
 - Verify: `dotnet build` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 16: Configure authentication + authorization (with Entra seam)
 - Files: `backend/src/Evo.Api/Auth/AuthenticationExtensions.cs`, `backend/src/Evo.Api/Program.cs`
 - Do: `AddEvoAuthentication(this IServiceCollection, IConfiguration)` calling `AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(...)` (validate issuer/audience/signing key/lifetime, read bearer from Authorization header). Add a clearly-commented `// EXTENSION SEAM: register additional schemes (e.g. Entra/OIDC via .AddMicrosoftIdentityWebApi) here — no OIDC code in v1`. Call it from Program.cs; ensure `app.UseAuthentication()` before `app.UseAuthorization()`.
-- Verify: `dotnet run` starts; `curl -i localhost:<port>/api/v1/auth/me` without a token → 401.
-- Status: [ ]
+- Verify: `dotnet run` starts; `curl -i localhost:<port>/api/v1/auth/me` without a token → 401. (Substituted `/auth/logout`, since `/me` isn't implemented until Task 18 — the already-built `[Authorize]` `/auth/logout` endpoint confirms the auth pipeline: 401 without a token.)
+- Status: [x]
 
 ## Task 17: Backend tests — login / refresh / lockout / logout
 - Files: `backend/tests/Evo.Tests/Auth/AuthEndpointTests.cs`
 - Do: `WebApplicationFactory` (test DB — sqlite or the compose SQL) seeding a known Supervisor: login success returns access token + `Set-Cookie: evo_rt`; wrong password → 401; 5 wrong attempts → lockout; refresh with the cookie rotates (old token then rejected); logout then refresh → 401.
 - Verify: `dotnet test backend/Evo.sln` → these tests pass.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 2 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (test output showing login/refresh/lockout/logout), commit `feat(002): jwt auth endpoints`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 
