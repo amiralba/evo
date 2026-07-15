@@ -94,10 +94,6 @@ npm run build
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0 — Platform foundation (not started; no production code exists yet)
-- Active feature: none — next step is `/plan` for platform specs, in order:
-  001-solution-scaffold (repo layout, CI, OpenAPI pipeline, docker) →
-  002-auth-roles (ASP.NET Identity, 2 roles, AD/Entra option) →
-  003-error-audit (ProblemDetails shape, RouteChangeLog) →
-  004-store-sync (EVO sales sync ingestion) — then feature modules per ROADMAP.
-- Last session summary: OS installed and CLAUDE.md customized from design docs (design v0.5, tech stack Rev. 2). Prototype v0.5 is the UI reference. 9 customer-IT questions from the tech-stack PDF are still OPEN — answers may change deployment, SQL Server version, and identity details.
+- Milestone: M0 — Platform foundation (in progress). Spec 001-solution-scaffold COMPLETE (all 18 tasks done, 3 phases committed to main).
+- Active feature: none in progress — next step is `/plan` for spec 002-auth-roles (ASP.NET Identity, 2 roles, AD/Entra option), then 003-error-audit (ProblemDetails shape, RouteChangeLog), then 004-store-sync (EVO sales sync ingestion) — then feature modules per ROADMAP.
+- Last session summary: Built the full 001-solution-scaffold: .NET 10 backend (Api/Domain/Infrastructure/Tests, health endpoint, EF Core+SQL Server wiring, docker-compose dev deps, Swashbuckle→contracts/openapi.json), Vite+React+TS-strict panel (eslint+prettier, generated API client via openapi-typescript, Vitest, Playwright smoke test), design tokens from the v0.5 prototype, CI workflow (build/test/lint/contract-drift check), root README, and an Evo.Seeder scaffold (Bogus, demo/scale profiles, ISeederModule plug-in interface). 4 deviations from CLAUDE.md logged in docs/DECISIONS.md: .NET 10 (not 8), MinIO ports 9010/9011, Swashbuckle over NSwag, TS ~5.9 + eslint/prettier over Vite template defaults. 9 customer-IT questions from the tech-stack PDF remain OPEN.
