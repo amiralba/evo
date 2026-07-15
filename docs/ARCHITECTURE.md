@@ -29,7 +29,7 @@ React panel (planner SPA)      [mobile: DEFERRED — seeded/mocked]
 | Panel | Single-page workspace: Map \| Schedule \| Table over ONE shared filter/selection state (design §6.0) | React + TS, generated client |
 | Mobile | **DEFERRED.** Field behavior simulated: seeder writes visit outcomes/check-ins to DB; agent-facing APIs mocked where the panel needs them | (later: React Native/Expo) |
 | Seeder | `Evo.Seeder` console app — realistic Turkish fake data (stores, routes, merchandisers, visits, outcomes) written directly to DB; profiles: `demo` (small, readable) and `scale` (~hundreds of stores) | .NET console + Bogus |
-| Identity | 2 roles (Supervisor all-regions, Field agent read-only) | ASP.NET Identity, AD/Entra option |
+| Identity | 2 roles (Supervisor all-regions, Field agent read-only); JWT + rotating refresh cookie | ASP.NET Identity, AD/Entra extension seam (spec 002, COMPLETE) |
 
 ## Data flow
 Planner edit → validation (live) → draft state → Yayınla (publish gate: errors need written justification) → atomic apply → Plan Generator regenerates affected future visits → batched FCM notify → agents' apps sync.
@@ -39,12 +39,15 @@ Planner edit → validation (live) → draft state → Yayınla (publish gate: e
 backend/
   Evo.sln
   src/Evo.Api/             ASP.NET Core Web API (controllers, Program.cs, Swashbuckle)
+  src/Evo.Api/Auth/        JWT/refresh-token services, JwtSettings, AuthenticationExtensions (Entra seam)
   src/Evo.Domain/          Entities, domain logic (no infra dependencies)
   src/Evo.Infrastructure/  EF Core (EvoDbContext), external service clients
   src/Evo.Seeder/          Bogus-based console app — writes test data directly to DB
   tests/Evo.Tests/         xUnit (WebApplicationFactory integration tests)
 panel/
   src/api/                 Thin fetch wrappers + api/generated/ (gitignored, never hand-edited)
+  src/auth/                AuthContext, ProtectedRoute, in-memory session store
+  src/pages/               Login, Dashboard
   src/theme/                Design tokens extracted from evo-planner-prototype-v0.5.html
   e2e/                      Playwright specs + artifacts/ (baseline screenshots)
 contracts/  openapi.json (committed, source of truth) + README.md (regeneration steps)
@@ -55,8 +58,8 @@ Backend targets **.NET 10**, not the .NET 8 named in the Stack section above —
 was available when spec 001 was scaffolded (see `docs/DECISIONS.md`, 2026-07-15).
 
 ## Cross-cutting concerns (platform specs — build first)
-- Auth: spec 002 — ASP.NET Identity, 2 roles, AD/Entra option
-- Error handling: spec 003 — shared ProblemDetails shape everywhere
+- Auth: spec 002 — COMPLETE. ASP.NET Identity, 2 roles, AD/Entra extension seam (see docs/AUTH.md).
+- Error handling: spec 003 — shared ProblemDetails shape everywhere (spec 002 uses built-in `Problem(...)` as an interim shape pending this)
 - Audit: spec 003 — RouteChangeLog (route-level) + admin_audit_log (Turkey-wide mutations); append-only
 - Contract pipeline: spec 001 — OpenAPI → generated TS clients, regenerated on API change
 - Config/secrets: appsettings + env vars; never committed
