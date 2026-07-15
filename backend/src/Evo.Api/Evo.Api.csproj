@@ -25,7 +25,7 @@
        WorkingDirectory must stay at backend/ (where the dotnet-tools.json manifest lives), but the app
        itself needs its content root at Evo.Api/ to find appsettings.json — ASPNETCORE_CONTENTROOT bridges that. -->
   <Target Name="GenerateOpenApiDoc" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
-    <Exec Command="dotnet tool run swagger tofile --output &quot;$(MSBuildThisFileDirectory)../../../contracts/openapi.json&quot; &quot;$(TargetDir)$(AssemblyName).dll&quot; v1" WorkingDirectory="$(MSBuildThisFileDirectory)../.." EnvironmentVariables="ASPNETCORE_CONTENTROOT=$(MSBuildThisFileDirectory)" />
+    <Exec Command="dotnet tool run swagger tofile --output &quot;$(MSBuildThisFileDirectory)../../../contracts/openapi.json&quot; &quot;$(TargetDir)$(AssemblyName).dll&quot; v1" WorkingDirectory="$(MSBuildThisFileDirectory)../.." EnvironmentVariables="ASPNETCORE_CONTENTROOT=$(MSBuildThisFileDirectory);ASPNETCORE_ENVIRONMENT=Development" />
   </Target>
 
 </Project>

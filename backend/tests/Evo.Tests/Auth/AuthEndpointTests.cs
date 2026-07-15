@@ -130,6 +130,50 @@ public class AuthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task Refresh_ReusingAnAlreadyRotatedToken_RevokesAllSessionsForThatUser()
+    {
+        const string email = "auth-test-reuse@evo.local";
+        await EnsureUserAsync(email, "Passw0rd!");
+
+        // Manual cookie handling (no automatic jar) so the OLD refresh token can be replayed
+        // deliberately after rotation, simulating a leaked/stolen token being reused.
+        // HandleCookies MUST be false here — the default jar auto-updates to the latest cookie
+        // on every response, which would silently override the deliberately-stale header below.
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
+        var loginResponse = await client.PostAsJsonAsync("/api/v1/auth/login", new { Email = email, Password = "Passw0rd!" });
+        var oldCookie = ExtractCookie(loginResponse);
+
+        var firstRefreshRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
+        firstRefreshRequest.Headers.Add("Cookie", $"evo_rt={oldCookie}");
+        var firstRefreshResponse = await client.SendAsync(firstRefreshRequest);
+        Assert.Equal(HttpStatusCode.OK, firstRefreshResponse.StatusCode);
+        var newCookie = ExtractCookie(firstRefreshResponse);
+
+        // Reuse the OLD (already-rotated) token — this should be rejected AND revoke everything.
+        var reuseRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
+        reuseRequest.Headers.Add("Cookie", $"evo_rt={oldCookie}");
+        var reuseResponse = await client.SendAsync(reuseRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, reuseResponse.StatusCode);
+
+        // The NEW token (issued by the legitimate first refresh) must now be revoked too.
+        var newTokenRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/refresh");
+        newTokenRequest.Headers.Add("Cookie", $"evo_rt={newCookie}");
+        var newTokenResponse = await client.SendAsync(newTokenRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, newTokenResponse.StatusCode);
+    }
+
+    private static string ExtractCookie(HttpResponseMessage response)
+    {
+        var setCookie = response.Headers.NonValidated.TryGetValues("Set-Cookie", out var values)
+            ? values.First()
+            : throw new InvalidOperationException("No Set-Cookie header present.");
+        var start = setCookie.IndexOf("evo_rt=", StringComparison.Ordinal) + "evo_rt=".Length;
+        var end = setCookie.IndexOf(';', start);
+        return setCookie[start..end];
+    }
+
+    [Fact]
     public async Task Logout_ThenRefresh_Returns401()
     {
         const string email = "auth-test-logout@evo.local";

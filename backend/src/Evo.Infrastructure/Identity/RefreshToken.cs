@@ -14,5 +14,12 @@ public class RefreshToken
     public DateTimeOffset? RevokedAt { get; set; }
     public string? ReplacedByTokenHash { get; set; }
 
+    /// <summary>
+    /// Optimistic-concurrency token. Two concurrent requests presenting the same refresh token
+    /// race to revoke it; without this, both can win, doubling the active-token count. EF Core
+    /// throws DbUpdateConcurrencyException on the loser's SaveChanges, which is treated as reuse.
+    /// </summary>
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
     public bool IsActive => RevokedAt is null && ExpiresAt > DateTimeOffset.UtcNow;
 }

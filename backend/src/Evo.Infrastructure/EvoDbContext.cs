@@ -21,6 +21,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         {
             entity.HasIndex(t => t.TokenHash).IsUnique();
             entity.HasIndex(t => t.UserId);
+            entity.Property(t => t.RowVersion).IsRowVersion();
         });
     }
 }

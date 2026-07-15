@@ -47,6 +47,14 @@ if (string.IsNullOrEmpty(jwtSettings.Issuer) || string.IsNullOrEmpty(jwtSettings
 {
     throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
 }
+if (string.IsNullOrEmpty(jwtSettings.SigningKey) || System.Text.Encoding.UTF8.GetByteCount(jwtSettings.SigningKey) < 32)
+{
+    throw new InvalidOperationException("Jwt:SigningKey must be configured and at least 256 bits (32 bytes).");
+}
+if (!app.Environment.IsDevelopment() && jwtSettings.SigningKey == JwtSettings.WellKnownDevSigningKey)
+{
+    throw new InvalidOperationException("Jwt:SigningKey is still set to the committed dev placeholder — set a real secret (env var / secret store) outside Development.");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
