@@ -9,43 +9,43 @@
 - Files: `backend/Evo.sln`, `backend/src/Evo.Api/`, `backend/src/Evo.Domain/`, `backend/src/Evo.Infrastructure/`, `backend/tests/Evo.Tests/`
 - Do: `dotnet new sln` + webapi (Api), classlib (Domain, Infrastructure), xunit (Tests); add all to sln; Api → Infrastructure → Domain references; Tests references Api.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 2: Root gitignore + editorconfig
 - Files: `.gitignore`, `.editorconfig`
 - Do: .NET + node ignores (bin/ obj/ node_modules/ dist/ appsettings.*.local.json .env); .editorconfig with dotnet defaults + 2-space TS.
 - Verify: `git status` shows no bin/obj noise after build.
-- Status: [ ]
+- Status: [x]
 
 ## Task 3: Health endpoint
 - Files: `backend/src/Evo.Api/Program.cs`, `backend/src/Evo.Api/Controllers/HealthController.cs`
 - Do: minimal API bootstrap with controllers; `GET /api/v1/health` returns `{ status: "ok", version }`.
 - Verify: `dotnet run --project backend/src/Evo.Api` then `curl localhost:<port>/api/v1/health` → 200 JSON.
-- Status: [ ]
+- Status: [x]
 
 ## Task 4: First xUnit test
 - Files: `backend/tests/Evo.Tests/HealthTests.cs`
 - Do: WebApplicationFactory integration test: GET /api/v1/health → 200 + status ok.
 - Verify: `dotnet test backend/Evo.sln` → 1 passing.
-- Status: [ ]
+- Status: [x]
 
 ## Task 5: EF Core + SQL Server wiring
 - Files: `backend/src/Evo.Infrastructure/EvoDbContext.cs`, `backend/src/Evo.Api/appsettings.Development.json`, `backend/src/Evo.Api/Program.cs`
 - Do: add EF Core SqlServer packages; empty EvoDbContext registered with connection string `EvoDb`; no entities yet.
 - Verify: `dotnet build` succeeds; app starts without DB present (context registered lazily).
-- Status: [ ]
+- Status: [x]
 
 ## Task 6: docker-compose for dev dependencies
 - Files: `docker-compose.dev.yml`
 - Do: services — SQL Server (mcr.microsoft.com/mssql/server, SA password via .env.example) and MinIO; volumes; ports documented in comments.
 - Verify: `docker compose -f docker-compose.dev.yml up -d` → both containers healthy; `dotnet ef dbcontext info` connects (after `docker compose` up).
-- Status: [ ]
+- Status: [x]
 
 ## Task 7: OpenAPI generation at build
 - Files: `backend/src/Evo.Api/Program.cs`, `backend/src/Evo.Api/Evo.Api.csproj`
 - Do: add Swashbuckle; serve swagger JSON in Development; add build step (or `dotnet swagger tofile`) emitting `contracts/openapi.json`. Log Swashbuckle-vs-NSwag choice in docs/DECISIONS.md.
 - Verify: `contracts/openapi.json` exists after build and contains /api/v1/health.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 1 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence, commit `feat(001): backend skeleton`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 

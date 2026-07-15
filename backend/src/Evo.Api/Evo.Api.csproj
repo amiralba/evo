@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Evo.Infrastructure\Evo.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Emits contracts/openapi.json after build — source of truth for TS client generation (see contracts/README.md). -->
+  <Target Name="GenerateOpenApiDoc" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <Exec Command="dotnet tool run swagger tofile --output &quot;$(MSBuildThisFileDirectory)../../../contracts/openapi.json&quot; &quot;$(TargetDir)$(AssemblyName).dll&quot; v1" WorkingDirectory="$(MSBuildThisFileDirectory)../.." />
+  </Target>
+
+</Project>

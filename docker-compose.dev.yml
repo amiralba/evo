@@ -1,0 +1,44 @@
+services:
+  # SQL Server — dev database. Connect via localhost:1433, user "sa".
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: evo-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Local_dev_only!1}
+    ports:
+      - "1433:1433" # backend/src/Evo.Api/appsettings.Development.json ConnectionStrings:EvoDb points here
+    volumes:
+      - evo-sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # MinIO — S3-compatible object storage for merchandiser visit photos (spec: photo upload, later).
+  minio:
+    image: minio/minio:latest
+    container_name: evo-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-evo_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-Local_dev_only!1}
+    ports:
+      - "9010:9000" # S3 API (9000 shared with other local projects' MinIO)
+      - "9011:9001" # Web console
+    volumes:
+      - evo-minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  evo-sqlserver-data:
+  evo-minio-data:

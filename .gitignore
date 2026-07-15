@@ -4,4 +4,23 @@ dist/
 bin/
 obj/
 .env
+.env.local
 appsettings.*.local.json
+
+# .NET
+*.user
+.vs/
+
+# Panel / Node
+.vite/
+coverage/
+playwright-report/
+test-results/
+
+# Generated (contracts pipeline regenerates these — see contracts/README.md)
+panel/src/api/generated/
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
