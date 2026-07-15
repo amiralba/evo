@@ -89,36 +89,36 @@
 - Files: `panel/src/theme/tokens.ts` (or tokens.css)
 - Do: read `evo-planner-prototype-v0.5.html` styles; extract used colors (incl. category/chain/severity colors 🟢🔵🟠🔴🟡), spacing scale, font sizes into named tokens with comments mapping to prototype usage.
 - Verify: tokens file compiles; spot-check 5 values against prototype CSS (list them in the commit message).
-- Status: [ ]
+- Status: [x]
 
 ## Task 14 [P]: CI workflow
 - Files: `.github/workflows/ci.yml`
 - Do: on push/PR — backend build+test; panel lint+test+build; client-generation drift check (regenerate, fail if git diff).
 - Verify: `act` run or push → green pipeline (drift check catches a deliberate local change, then revert).
-- Status: [ ]
+- Status: [x]
 
 ## Task 15 [P]: Root README
 - Files: `README.md`
 - Do: prerequisites, run backend/panel/compose, test commands, client regeneration, repo layout, links to CLAUDE.md + docs/.
 - Verify: follow it top-to-bottom on a clean checkout mentally; every command exists.
-- Status: [ ]
+- Status: [x]
 
 ## Task 16: Update docs + CLAUDE.md commands
 - Files: `CLAUDE.md` (Commands section), `docs/ARCHITECTURE.md` (folder structure), `docs/DECISIONS.md`
 - Do: fill real commands; confirm folder structure; log tooling decisions made (Swashbuckle/NSwag, openapi-typescript, monorepo).
 - Verify: commands in CLAUDE.md copy-paste-run successfully.
-- Status: [ ]
+- Status: [x]
 
 ## Task 17: Seeder scaffold
 - Files: `backend/src/Evo.Seeder/` (console project), `backend/Evo.sln`
 - Do: .NET console project referencing Infrastructure; add Bogus package; CLI args `--profile demo|scale` and `--wipe`; connects via `EvoDb` connection string; seeds nothing yet (no entities exist) — prints "0 entities registered" and exits 0. Add `seed` command to CLAUDE.md Commands.
 - Verify: `dotnet run --project backend/src/Evo.Seeder -- --profile demo` runs against the compose SQL Server and exits 0.
-- Status: [ ]
+- Status: [x]
 
 ## Task 18: Seeder growth rule
 - Files: `specs/_template/spec.md` note not needed — rule already in CLAUDE.md; this task just verifies
 - Do: confirm CLAUDE.md contains the "every spec that adds tables must extend the seeder" rule; add a `SeederModule` interface in Evo.Seeder (RegisterEntities/Seed(profile)) so future specs plug in modules.
 - Verify: `dotnet build` passes; interface exists with XML doc comment naming the rule.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 3 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence, commit `feat(001): tokens, CI, docs`, then run /end-session and END TURN. Do NOT start spec 002.**

@@ -10,7 +10,7 @@ Modular monolith on a single strong VM. ASP.NET Core Web API serves a React sing
 React panel (planner SPA)      [mobile: DEFERRED — seeded/mocked]
         │  generated TS client
         ▼
-        ASP.NET Core Web API (.NET 8, OpenAPI)
+        ASP.NET Core Web API (.NET 10 — see Folder structure note; OpenAPI via Swashbuckle)
         ├─ Store Sync worker (nightly + on-demand, from EVO sales DB)
         ├─ Plan Generator (baseline ⊕ patches → PlannedVisits; expires patches)
         ├─ Validation service (same rules live in UI + enforced at write)
@@ -36,13 +36,23 @@ Planner edit → validation (live) → draft state → Yayınla (publish gate: e
 
 ## Folder structure
 ```
-(decided in spec 001-solution-scaffold; expected shape)
-backend/    ASP.NET Core solution (Api, Domain, Infrastructure, Tests)
-panel/      React + TS planner SPA
-mobile/     React Native (Expo) app
-contracts/  OpenAPI output + client generation config
+backend/
+  Evo.sln
+  src/Evo.Api/             ASP.NET Core Web API (controllers, Program.cs, Swashbuckle)
+  src/Evo.Domain/          Entities, domain logic (no infra dependencies)
+  src/Evo.Infrastructure/  EF Core (EvoDbContext), external service clients
+  src/Evo.Seeder/          Bogus-based console app — writes test data directly to DB
+  tests/Evo.Tests/         xUnit (WebApplicationFactory integration tests)
+panel/
+  src/api/                 Thin fetch wrappers + api/generated/ (gitignored, never hand-edited)
+  src/theme/                Design tokens extracted from evo-planner-prototype-v0.5.html
+  e2e/                      Playwright specs + artifacts/ (baseline screenshots)
+contracts/  openapi.json (committed, source of truth) + README.md (regeneration steps)
 docs/ specs/ .claude/
+(mobile/ deferred — see docs/DECISIONS.md)
 ```
+Backend targets **.NET 10**, not the .NET 8 named in the Stack section above — only .NET 10 SDK
+was available when spec 001 was scaffolded (see `docs/DECISIONS.md`, 2026-07-15).
 
 ## Cross-cutting concerns (platform specs — build first)
 - Auth: spec 002 — ASP.NET Identity, 2 roles, AD/Entra option

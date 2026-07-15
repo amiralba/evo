@@ -1,6 +1,11 @@
 # Decisions Log
 
 <!-- Newest first — insert new entries directly below this line -->
+## 2026-07-15 — Panel pins TypeScript ~5.9, uses eslint+prettier (not the Vite template defaults)
+- **Decision:** `npm create vite@latest -- --template react-ts` (current version) scaffolds `oxlint` and a TypeScript 6.0.x pre-release. Replaced with eslint (flat config) + prettier per CLAUDE.md conventions, and pinned `typescript` to `^5.9` (stable).
+- **Why:** `openapi-typescript`'s peer dependency requires `typescript ^5.x`; TS 6.0.x isn't out of preview and broke `npm install`. eslint+prettier is the CLAUDE.md-mandated toolchain.
+- **Consequences:** Revisit the TS pin when 6.x stabilizes and `openapi-typescript` supports it.
+
 ## 2026-07-15 — Swashbuckle for OpenAPI generation (not NSwag)
 - **Decision:** `Swashbuckle.AspNetCore` (+ `Swashbuckle.AspNetCore.Cli` as a local dotnet tool) generates the OpenAPI doc. A post-build MSBuild target (`GenerateOpenApiDoc` in `Evo.Api.csproj`, Debug config only) runs `dotnet tool run swagger tofile` to emit `contracts/openapi.json` on every build. Replaced ASP.NET Core's built-in `Microsoft.AspNetCore.OpenApi`/`AddOpenApi()` (which was in the webapi template) since it duplicates Swashbuckle's job.
 - **Why:** Most common ASP.NET Core OpenAPI generator, broad tooling support, plays cleanly with `openapi-typescript` on the panel side (Task 9) rather than coupling client generation to NSwag's own templates.

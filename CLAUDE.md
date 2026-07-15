@@ -70,10 +70,25 @@
 ## Commands
 
 ```
-# To be filled when the solution/repos are scaffolded (spec 001).
-# Expected shape:
-# backend:  dotnet run / dotnet test / dotnet ef migrations add
-# panel:    npm run dev / npm test / npm run generate-api-client
+# Dev dependencies (SQL Server + MinIO)
+cp .env.example .env                                       # first time only
+docker compose -f docker-compose.dev.yml up -d
+
+# backend/ (.NET 10 — see docs/DECISIONS.md for the .NET 8→10 deviation)
+dotnet run --project backend/src/Evo.Api                   # http://localhost:5076
+dotnet build backend/Evo.sln                                # also regenerates contracts/openapi.json
+dotnet test backend/Evo.sln
+dotnet ef migrations add <Name> --project backend/src/Evo.Infrastructure --startup-project backend/src/Evo.Api
+dotnet run --project backend/src/Evo.Seeder -- --profile demo   # or: --profile scale --wipe
+
+# panel/ (Vite + React + TS strict)
+cd panel && npm install
+npm run dev                     # http://localhost:5173, proxies /api → backend :5076
+npm run lint
+npm test                        # Vitest
+npx playwright test             # e2e smoke
+npm run generate-api-client     # regenerate typed client from contracts/openapi.json
+npm run build
 ```
 
 ## Current focus

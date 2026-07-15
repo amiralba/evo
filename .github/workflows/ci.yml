@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - run: dotnet build backend/Evo.sln
+      - run: dotnet test backend/Evo.sln
+
+  panel:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: panel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: panel/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+
+  contract-drift:
+    # panel/src/api/generated/ is gitignored and always freshly regenerated (see panel job),
+    # so the only committed artifact that can drift is contracts/openapi.json itself.
+    runs-on: ubuntu-latest
+    needs: [backend, panel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Regenerate contracts/openapi.json
+        run: dotnet build backend/Evo.sln
+      - name: Fail if the committed OpenAPI contract is out of date
+        run: |
+          git diff --exit-code -- contracts/openapi.json \
+            || (echo "::error::contracts/openapi.json is out of date — run 'dotnet build backend/Evo.sln' and commit the result." && exit 1)
