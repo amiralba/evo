@@ -1,6 +1,26 @@
 # Decisions Log
 
 <!-- Newest first — insert new entries directly below this line -->
+## 2026-07-16 — Local ASP.NET Identity now; AD/Entra as an extension seam; JWT + rotating refresh
+- **Decision:** Spec 002 implements local ASP.NET Identity auth (JWT bearer access token in
+  panel memory, rotating refresh token in an httpOnly cookie) as the must-have baseline. AD/Entra
+  SSO gets a documented extension seam (`AddEvoAuthentication` in
+  `backend/src/Evo.Api/Auth/AuthenticationExtensions.cs`) — zero real Entra/OIDC code. Auth
+  errors use ASP.NET Core's built-in `ProblemDetails` as an interim shape; spec 003 (error-audit)
+  will unify it project-wide — this is a known, accepted cross-spec dependency, not a silent gap.
+- **Why:** Whether the customer wants AD/Entra is one of the 9 open customer-IT questions;
+  building it now risks throwaway work. Local Identity unblocks everything downstream (roles,
+  authorization, seeded test accounts) without waiting on that answer.
+- **Alternatives rejected:** Building a working Entra OIDC flow now (premature — no customer
+  confirmation); third-party IdP/IdentityServer (overkill for 2 roles on a single VM);
+  cookie-only session auth (bearer semantics are reusable by the deferred mobile app later).
+- **Consequences:** See `docs/AUTH.md` for the full token model, endpoint list, and the
+  step-by-step Entra plug-in guide. Field agents have no account-creation API — seeder-only,
+  since mobile is deferred (consistent with the mobile-deferred decision below). The committed
+  dev JWT signing key (`JwtSettings.WellKnownDevSigningKey`) follows the same "commit a
+  clearly-labeled, code-enforced dev-only secret" pattern already used for the dev SQL Server
+  password (spec 001) — `Program.cs` refuses to start with that value outside `Development`.
+
 ## 2026-07-15 — MinIO remapped to host ports 9010/9011
 - **Decision:** `docker-compose.dev.yml` maps MinIO to host ports 9010 (API) / 9011 (console) instead of the default 9000/9001.
 - **Why:** Ports 9000/9001 were already bound by another local project's container on the dev machine.

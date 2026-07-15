@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Evo.Api.Auth;
 using Evo.Api.Auth.Dtos;
 using Evo.Infrastructure.Identity;
@@ -93,6 +94,46 @@ public class AuthController : ControllerBase
         {
             await _refreshTokenService.RevokeAsync(rawToken);
         }
+        RefreshCookie.Clear(Response);
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<MeResponse>> Me()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var user = userId is null ? null : await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "User not found.");
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return new MeResponse(user.Id, user.Email ?? string.Empty, user.DisplayName, roles.ToArray());
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var user = userId is null ? null : await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "User not found.");
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Could not change password.",
+                detail: string.Join(" ", result.Errors.Select(e => e.Description)));
+        }
+
+        await _refreshTokenService.RevokeAllForUserAsync(user.Id);
         RefreshCookie.Clear(Response);
         return NoContent();
     }

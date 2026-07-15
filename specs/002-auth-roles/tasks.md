@@ -121,43 +121,43 @@
 - Files: `backend/src/Evo.Api/Controllers/AuthController.cs`
 - Do: `[Authorize] GET /api/v1/auth/me` → resolve current user from `User` claims; return `MeResponse` (id, email, displayName, roles).
 - Verify: `dotnet build`; covered by Task 23 test.
-- Status: [ ]
+- Status: [x]
 
 ## Task 19: AuthController — change-password
 - Files: `backend/src/Evo.Api/Controllers/AuthController.cs`
 - Do: `[Authorize] POST /api/v1/auth/change-password`: `UserManager.ChangePasswordAsync(currentUser, current, new)` (enforces policy); on Identity failure return ProblemDetails with the error list; on success revoke all refresh tokens for the user (`RevokeAllForUserAsync`) + clear cookie, return 204. No email-reset endpoint.
 - Verify: `dotnet build`; covered by Task 23 test.
-- Status: [ ]
+- Status: [x]
 
 ## Task 20 [P]: UsersController — create + read (supervisor-only)
 - Files: `backend/src/Evo.Api/Controllers/UsersController.cs`, `backend/src/Evo.Api/Auth/Dtos/CreateUserRequest.cs`, `UserSummary.cs`
 - Do: `[Authorize(Roles = Roles.Supervisor)]`. `POST /api/v1/users` creates a **Supervisor only** (Field agents are seeder-only — reject any other role) with a temporary password; `GET /api/v1/users` (list summaries), `GET /api/v1/users/{id}`. Return `UserSummary(Id, Email, DisplayName, Roles, IsActive)`.
 - Verify: `dotnet build`; covered by Task 23 test.
-- Status: [ ]
+- Status: [x]
 
 ## Task 21 [P]: UsersController — update + activate/deactivate (no delete)
 - Files: `backend/src/Evo.Api/Controllers/UsersController.cs`
 - Do: `PATCH /api/v1/users/{id}` (update `DisplayName`); `POST /api/v1/users/{id}/activate` and `.../deactivate` toggle `IsActive` (deactivate also revokes that user's refresh tokens). No DELETE endpoint exists.
 - Verify: `dotnet build`; covered by Task 23 test.
-- Status: [ ]
+- Status: [x]
 
 ## Task 22: Entra extension-point documentation
 - Files: `docs/AUTH.md` (new), `docs/DECISIONS.md`
 - Do: in `docs/AUTH.md` document the token model (60 min access in memory, 14-day rotating refresh cookie), role model, and a step-by-step "How to add AD/Entra later" using the `AddEvoAuthentication` seam (register `.AddMicrosoftIdentityWebApi`, map Entra groups→roles) — noting it is blocked on the 9 open customer-IT questions. Log the decision in `docs/DECISIONS.md` (local Identity now, Entra as extension seam; JWT+refresh; built-in ProblemDetails interim pending 003).
 - Verify: both docs updated; `docs/AUTH.md` names the exact extension method and file (`AuthenticationExtensions.cs`).
-- Status: [ ]
+- Status: [x]
 
 ## Task 23: Backend tests — authorization + user CRUD + me + change-password
 - Files: `backend/tests/Evo.Tests/Auth/UsersEndpointTests.cs`, `backend/tests/Evo.Tests/Auth/MeAndPasswordTests.cs`
 - Do: Field agent token → any `/users` call returns 403; Supervisor creates a Supervisor (201) then GET lists it; deactivate → user cannot log in; `GET /me` returns correct roles; change-password with correct current succeeds and with wrong current fails (ProblemDetails).
 - Verify: `dotnet test backend/Evo.sln` → all these pass.
-- Status: [ ]
+- Status: [x]
 
 ## Task 24: Regenerate contract + update API docs
 - Files: `contracts/openapi.json`, `docs/API.md`
 - Do: rebuild so Swashbuckle emits auth + users endpoints into `contracts/openapi.json`; add an `Auth` row and `Users` row to the endpoint inventory in `docs/API.md`; update the Conventions line to record JWT bearer + rotating refresh cookie as the decided scheme (spec 002).
 - Verify: `contracts/openapi.json` contains `/api/v1/auth/login` and `/api/v1/users`; `docs/API.md` lists them.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 3 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (test output, regenerated contract diff), commit `feat(002): user management + entra seam + docs`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 

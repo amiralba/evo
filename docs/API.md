@@ -6,8 +6,13 @@
 
 ## Conventions
 - Base URL: `/api/v1`
-- Auth: cookie or JWT via ASP.NET Identity (decided in spec 002); two roles — `Supervisor`, `FieldAgent`
-- Error format: RFC 7807 ProblemDetails, one shape everywhere (defined in spec 003):
+- Auth: JWT bearer access token (60 min, in the `Authorization` header) + rotating httpOnly
+  refresh cookie (14 days, path-scoped to `/api/v1/auth`) via ASP.NET Identity — decided in spec
+  002, see `docs/AUTH.md` for the full token model. Two roles — `Supervisor` (full), `FieldAgent`
+  (read-only + notes, seeder-only — no account-creation API).
+- Error format (interim, spec 002 auth endpoints): ASP.NET Core's built-in `ProblemDetails`
+  (`application/problem+json`). The unified shape below is spec 003's job — auth endpoints will
+  move onto it when 003 lands rather than staying a one-off:
 ```json
 { "type": "...", "title": "...", "status": 422, "detail": "...", "errors": { "field": ["msg"] }, "traceId": "..." }
 ```
@@ -18,6 +23,8 @@
 ## Endpoint inventory (from design §9 — implement per module spec)
 | Area | Endpoints | Spec |
 |---|---|---|
+| Auth | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password` | 002 |
+| Users | `POST /users` (Supervisor only), `GET /users`, `GET /users/{id}`, `PATCH /users/{id}`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` (no delete) | 002 |
 | Stores/map | `GET /stores` (bbox/polygon/unassigned filters), `GET /stores/{id}/summary`, `GET /stores/{id}/task-plan` | 004 + M1 |
 | Routes | `POST /routes`, `POST /routes/{id}/stops:bulk`, `POST /routes/{id}/stops/{sid}:move` (atomic), `PATCH .../stops/{sid}`, `GET /routes/{id}/plan?from&to`, `GET /routes/{id}/health` | M1 |
 | Patches/assignment | `POST /routes/{id}/patches` (expiry REQUIRED), `POST /routes/{id}/assignment` (reason REQUIRED) | M1 |
