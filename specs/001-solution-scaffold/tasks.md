@@ -47,7 +47,7 @@
 - Verify: `contracts/openapi.json` exists after build and contains /api/v1/health.
 - Status: [ ]
 
-**PHASE 1 CHECKPOINT — STOP: summarize, commit `feat(001): backend skeleton`, wait for human.**
+**PHASE 1 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence, commit `feat(001): backend skeleton`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 
 ## Phase 2 — Contract pipeline + panel
 
@@ -81,7 +81,7 @@
 - Verify: `npx playwright test` → passing, screenshot exists.
 - Status: [ ]
 
-**PHASE 2 CHECKPOINT — STOP: summarize, commit `feat(001): panel + contract pipeline`, wait for human.**
+**PHASE 2 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence, commit `feat(001): panel + contract pipeline`, give the human a 1-minute UI test script (open panel, check status badge renders, check console clean), numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 
 ## Phase 3 — Tokens, CI, docs
 
@@ -121,4 +121,4 @@
 - Verify: `dotnet build` passes; interface exists with XML doc comment naming the rule.
 - Status: [ ]
 
-**PHASE 3 CHECKPOINT — STOP: summarize, commit `feat(001): tokens, CI, docs`, run /end-session.**
+**PHASE 3 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence, commit `feat(001): tokens, CI, docs`, then run /end-session and END TURN. Do NOT start spec 002.**

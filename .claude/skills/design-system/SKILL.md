@@ -45,3 +45,4 @@ description: EVO UI/UX consistency playbook. Use when building or changing ANY p
 - [ ] Interaction states checked (hover/drag/selected/disabled/focus)
 - [ ] Cross-pane state sync verified
 - [ ] Turkish strings via i18n keys
+- [ ] **Human eye test requested** — at the phase checkpoint, give the human a 1-minute manual test script: exact URL/clicks, what the screen should look like, which prototype section to compare against. AI visual checks miss what humans catch (spacing feel, jank, wrong emphasis); the human is the final visual gate.

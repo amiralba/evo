@@ -37,7 +37,12 @@
 3. **Proportional process.** Small tasks (bug fixes, tweaks, under ~30 min, no API/DB/architecture change) are done DIRECTLY — implement, verify, go. The full pipeline (brainstorm → spec → plan → review) only for features/modules, triggered via `/brainstorm`, `/plan`, `/review`. When unsure, ask.
 3b. **Evidence over claims.** Follow the `verification` skill: nothing is "done" without run proof in this session.
 3c. **Cross-cutting concerns are platform specs.** Auth/roles, error shape, audit logging (RouteChangeLog), the OpenAPI contract pipeline, and offline sync framework are platform specs (`specs/00X-...`) built BEFORE feature modules; module specs reference them.
-3d. **Checkpoints.** Mark tasks `[x]` in `specs/NNN-slug/tasks.md` as verified — not batched. STOP at each phase end (or ~10 tasks): summarize, commit, wait for human.
+3d. **Checkpoints — HARD STOPS.** Claude Code runs in danger mode (no permission prompts), so these are the ONLY brakes. Mark tasks `[x]` in `specs/NNN-slug/tasks.md` as verified — not batched. At each phase end (or ~10 tasks) you MUST end your turn with the checkpoint protocol:
+   1. Summarize what was built + show verification evidence
+   2. Commit
+   3. If anything UI changed: give the human a 1-minute manual test script (exact clicks + what it should look like) and ask them to run it
+   4. Ask any open questions (numbered)
+   5. Say "CHECKPOINT — waiting for your go/feedback" and END THE TURN. Never start the next phase in the same response, even if everything passed. At the final phase of a spec, run /end-session instead.
 4. **Tests required.** Backend: xUnit; every endpoint and the scheduling engine get tests (baseline ⊕ patch resolution, 450-min rule, task-rule arithmetic are test-critical). Frontend: Vitest + Playwright for planner flows.
 5. **Log decisions.** Significant choices → `docs/DECISIONS.md`. The design doc §10 already has a decisions log — never contradict it silently; flag conflicts.
 6. **Update docs with code.** API/DB/architecture changes update the matching doc in the same session.
