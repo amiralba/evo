@@ -30,7 +30,7 @@ public class UsersController : ControllerBase
         if (request.Role != Roles.Supervisor)
         {
             return Problem(
-                statusCode: StatusCodes.Status400BadRequest,
+                statusCode: StatusCodes.Status403Forbidden,
                 title: "Only Supervisor accounts can be created via this API.",
                 detail: "Field agents are provisioned by the seeder only (see docs/AUTH.md).");
         }

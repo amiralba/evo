@@ -58,7 +58,7 @@ public class UsersEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Supervisor_CreatingFieldAgentViaApi_Returns400()
+    public async Task Supervisor_CreatingFieldAgentViaApi_Returns403()
     {
         const string supervisorEmail = "users-test-reject-fieldagent@evo.local";
         await TestAuthHelper.EnsureUserAsync(_factory, supervisorEmail, "Passw0rd!", Roles.Supervisor);
@@ -72,7 +72,7 @@ public class UsersEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             TemporaryPassword = "Passw0rd!",
         });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
