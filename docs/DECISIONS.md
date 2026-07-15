@@ -5,6 +5,12 @@
      decisions (roles, grid style, patch model, no-delete lifecycle, publish gate, table mode…).
      This file records BUILD decisions made after design v0.5. Never contradict §10 silently. -->
 
+## 2026-07-15 — Mobile app deferred; field behavior seeded/mocked; direct-to-DB seeder
+- **Decision:** No React Native app in current scope. Field-agent behavior (check-ins, visit outcomes, task results, notes) is produced by the `Evo.Seeder` console app writing realistic fake data directly to the DB (Bogus, Turkish locale, `demo`/`scale` profiles); agent-facing API responses are mocked where the panel needs live interaction. Every spec that adds tables extends the seeder in the same spec.
+- **Why:** Focus the build on the planner panel — the product's core; the mobile surface is read-only and can be simulated cheaply.
+- **Alternatives rejected:** Building mobile in parallel (splits focus, needs device testing); API-level fixtures only (doesn't exercise real DB constraints/queries the way seeded rows do).
+- **Consequences:** Planned-vs-realized, analytics, and Onarım develop against seeded outcomes; mobile revived from backlog later — its API contract already exists in docs/API.md so nothing blocks it.
+
 ## 2026-07-15 — SQL Server replaces PostgreSQL/PostGIS from the design doc
 - **Decision:** Database is SQL Server (tech stack Rev. 2, customer standard). Design doc §5 was written assuming PostgreSQL + PostGIS + JSONB.
 - **Why:** Customer corporate standard; their team maintains it (EVO-Teknoloji-Yigini.pdf).

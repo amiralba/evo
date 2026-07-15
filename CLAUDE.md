@@ -23,10 +23,10 @@
 - Database: SQL Server
 - API contract: OpenAPI (Swashbuckle/NSwag); TypeScript clients GENERATED from the contract — clients never hand-write API types
 - Web panel: React + TypeScript (heavy drag-drop calendar/map UI)
-- Mobile (field agents): React Native (Expo), Android; offline-first with SQLite (WatermelonDB) + sync queue; background photo upload; GPS check-in
+- Mobile (field agents): **DEFERRED — out of current scope.** Field-agent behavior (check-ins, visit outcomes, task results) is simulated: seed data writes realistic values directly to the DB; any agent-facing API is mocked when the panel needs it. (Planned stack when revived: React Native/Expo, WatermelonDB, FCM.)
+- Test data: `Evo.Seeder` console app (Bogus) writes realistic fake data DIRECTLY to the DB — Turkish store names/provinces, routes, merchandisers, visits with outcomes. **Every spec that adds tables must extend the seeder in the same spec.**
 - Photo storage: MinIO (S3-compatible) on own server
 - Travel time: OSRM + OSM Turkey data (self-hosted, free)
-- Push notifications: FCM (content-free messages for KVKK)
 - Identity/AuthZ: ASP.NET Identity + AD/Entra SSO option; two roles only — Supervisor (full, all regions), Field agent (read-only + notes)
 - Deployment: Docker (Linux) or customer IIS/Windows — keep both working
 

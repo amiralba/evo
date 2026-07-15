@@ -10,6 +10,7 @@ Single-page planning workspace where a supervisor designs and repairs merchandis
 - No auto-deciding: the system ranks and previews; humans choose
 - No delete/archive for routes and stores (activate/deactivate only)
 - Mobile app is read-only + notes — no structural edits from the field
+- **No mobile app in current scope** — field-agent behavior is seeded/mocked; mobile revived later from backlog
 
 ## Milestones
 
@@ -33,8 +34,10 @@ Goal: a supervisor can build and publish a valid plan.
 - [ ] Rule Inspector + aggregate impact preview
 - [ ] One-off targeted tasks (target + valid_until)
 
-### M3 — Field agent mobile (read-only)
-- [ ] Week view, offline-first sync, notes/messages, FCM notifications
+### M3 — Field execution simulation
+Goal: everything downstream of the field (planned-vs-realized, task results, notes) works against seeded/mocked data.
+- [ ] Seeder generates realistic visit outcomes (done/missed/skipped + reasons, GPS check-in times, task results)
+- [ ] Mocked agent-facing responses where the panel needs them (notes inbox, notification receipts)
 
 ### M4 — Analytics & Onarım
 - [ ] Planning Evidence panel, plan-health metrics

@@ -109,10 +109,16 @@
 - Verify: commands in CLAUDE.md copy-paste-run successfully.
 - Status: [ ]
 
-## Task 17: mobile/ placeholder
-- Files: `mobile/README.md`
-- Do: one paragraph: scaffolded in M3; stack = React Native (Expo) Android, WatermelonDB offline sync.
-- Verify: file exists; nothing else in mobile/.
+## Task 17: Seeder scaffold
+- Files: `backend/src/Evo.Seeder/` (console project), `backend/Evo.sln`
+- Do: .NET console project referencing Infrastructure; add Bogus package; CLI args `--profile demo|scale` and `--wipe`; connects via `EvoDb` connection string; seeds nothing yet (no entities exist) — prints "0 entities registered" and exits 0. Add `seed` command to CLAUDE.md Commands.
+- Verify: `dotnet run --project backend/src/Evo.Seeder -- --profile demo` runs against the compose SQL Server and exits 0.
+- Status: [ ]
+
+## Task 18: Seeder growth rule
+- Files: `specs/_template/spec.md` note not needed — rule already in CLAUDE.md; this task just verifies
+- Do: confirm CLAUDE.md contains the "every spec that adds tables must extend the seeder" rule; add a `SeederModule` interface in Evo.Seeder (RegisterEntities/Seed(profile)) so future specs plug in modules.
+- Verify: `dotnet build` passes; interface exists with XML doc comment naming the rule.
 - Status: [ ]
 
 **PHASE 3 CHECKPOINT — STOP: summarize, commit `feat(001): tokens, CI, docs`, run /end-session.**

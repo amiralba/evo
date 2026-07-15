@@ -17,7 +17,7 @@ No production code exists. Create the repo skeleton every later spec builds on: 
 - [ ] `docker-compose.dev.yml`: SQL Server + MinIO for local dev
 - [ ] CI (GitHub Actions or equivalent): build + test both sides on push
 - [ ] Root README: how to run everything
-- [ ] mobile/ deferred to M3 (folder placeholder only) — logged as a non-goal here
+- [ ] `Evo.Seeder` console project scaffolded: Bogus wired, `--profile demo|scale` + `--wipe` args, `SeederModule` plug-in interface for future specs (no entities to seed yet)
 
 ## Clarifications
 | # | Question | Answer |
@@ -28,7 +28,7 @@ No production code exists. Create the repo skeleton every later spec builds on: 
 
 ## Non-goals
 - No auth (spec 002), no error shape (spec 003), no domain entities beyond health check
-- No mobile scaffold (M3), no OSRM/FCM/MinIO integration code (compose service only)
+- NO mobile app (deferred indefinitely — field behavior seeded/mocked); no OSRM/FCM/MinIO integration code (compose service only)
 
 ## Open questions
 - Customer IT answers may change: deployment target (Docker vs IIS), SQL Server version, .NET internal standards

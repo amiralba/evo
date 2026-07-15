@@ -8,6 +8,7 @@
 - Meeting questions (design §10, Turkish): holidays/bayram handling, concurrent editing by multiple supervisors, rollout strategy (parallel vs region-by-region), Saturday work / week shape
 
 ## Backlog (post-M4 / designed-only from v0.5 §11.4)
+- **Field agent mobile app** (deferred from scope 2026-07-15): React Native (Expo) Android, WatermelonDB offline sync, GPS check-in, photo upload, FCM — design §6.7; until then field behavior is seeded/mocked
 - Items listed in design §11.4 "Deliberately not built" — revisit after M4
 - SheetJS Excel export upgrade (prototype uses CSV/BOM)
 - Sequence optimization button (nearest-neighbor suggest, never forced)
