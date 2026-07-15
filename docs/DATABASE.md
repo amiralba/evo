@@ -1,0 +1,39 @@
+# Database Design
+
+<!-- Owned by: architect. Kept current by: coordinator.
+     AUTHORITATIVE SCHEMA: EVO-Route-Planning-Design.md §5 (tables, columns, constraints, "why this shape").
+     This file records the SQL Server adaptation layer + what's actually migrated. -->
+
+## Engine & conventions
+- Engine: SQL Server (version TBD — customer-IT question #5). Design §5 was written for PostgreSQL; see DECISIONS.md 2026-07-15 for the adaptation mapping.
+- ORM/Migrations: EF Core migrations (`dotnet ef migrations add`), one migration per spec task
+- Naming: snake_case tables/columns (matches design doc); English identifiers
+
+## PostgreSQL → SQL Server mapping (apply when migrating each table)
+| Design §5 uses | SQL Server equivalent |
+|---|---|
+| `geography(Point/MultiPolygon)` + GIST | `geography` type + spatial index |
+| `jsonb` + GIN | `nvarchar(max)` + `ISJSON` check; computed columns + index for hot keys (rule.condition) |
+| partial unique index | filtered unique index (`WHERE end_date IS NULL` etc.) — supported |
+| `text[]` (route.districts) | JSON array or child table (decide in spec 001) |
+| enums | tinyint + C# enum, or check-constrained varchar (decide once in spec 001, apply everywhere) |
+
+## Schema status
+| Table (design §5) | Migrated | Spec |
+|---|---|---|
+| store, store_revenue, store_flag, store_type | ☐ | 004-store-sync |
+| merchandiser | ☐ | 002-auth-roles |
+| route, route_stop | ☐ | M1 |
+| assignment, patch, planned_visit | ☐ | M1 |
+| route_change_log, admin_audit_log | ☐ | 003-error-audit |
+| task_template, rule, task_instance | ☐ | M2 |
+| note, notification | ☐ | M3 |
+| settings | ☐ | M1 |
+| agent_location (read-only reuse) | ☐ | M4 |
+
+## Non-negotiable constraints (from design §5 — DB-enforced, not app-enforced)
+- One active route per store: filtered unique index on `route_stop.store_id WHERE effective_to IS NULL`
+- One active assignment per route AND per merchandiser (two filtered unique indexes)
+- `route_change_log` / `admin_audit_log` append-only
+- Dated rows everywhere (`effective_from/to`, `start/end_date`) — history is queries, never snapshot tables
+- No delete anywhere: `active` flags only

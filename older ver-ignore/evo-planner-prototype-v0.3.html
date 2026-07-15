@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<!--
+═══════════════════════════════════════════════════════════════════
+EVO RUT PLANLAYICI — PROTOTİP v0.3 (SPEC NOTLARI)
+v0.3 ekleri: Yönetim sayfası (görev kataloğu: süre+saha talimatı+aktif/pasif;
+kurallar: kapsam+tarih; presetler: ruttan kaydet; ayarlar: kota canlı etkiler)
++ Gelen kutusu (not/talep/geciken; talep uygula = normal taslak akışına girer;
+bağlama git = planlayıcıda mağazayı odaklar). Katalog düzenlemeleri mağaza
+Görevler sekmesine anında yansır (tek veri kaynağı: taskTemplates+rulesData).
+Tam tasarım dokümanı: EVO-Route-Planning-Design.md (kaynak gerçek odur)
+Bu dosya UX davranışlarını kanıtlamak içindir; gerçek build'de React +
+MapLibre/Leaflet + gerçek backend kullanılacak.
+
+TEMEL PRENSIPLER (gerçek build'de korunmalı):
+1. TEK SAYFA: Harita | Takvim split + Tablo çekmecesi. Rut tasarlarken
+   sayfa değişmez. Katalog/Ayarlar ayrı sayfadır (nadir kullanım).
+2. PAYLAŞILAN DURUM: filter + selection + focus + draft changes tek
+   katmandır; üç bölüm de aynı durumu okur/yazar. Önce bunu inşa et.
+3. BAZ + YAMA: Rut = kalıcı haftalık patern (Baz). Haftalar üretilir,
+   asla kopyalanmaz. Geçici değişiklik = yama (bitiş tarihi ZORUNLU,
+   süresi dolunca otomatik Baz'a döner). Efektif = Baz ⊕ yamalar.
+4. KURAL MERDİVENİ: ziyaret > mağaza > rut > format > zincir > genel.
+   Her kural kalıcı VEYA tarihli olabilir. Süre değişikliğinde toast
+   kapsam sorar (bu dosyada startResize toast'ı).
+5. TASLAK → YAYINLA: hiçbir edit anında sahaya gitmez. Publish modalı
+   kişi/güne gruplu diff gösterir, kalem kalem geri alınabilir,
+   onayda atomik uygula + TOPLU bildirim.
+6. 450dk KOTA: sadece UYARI, asla bloklamaz (yayın dahil).
+7. KİLİTLER: geçmiş günler + bugün check-in yapılmış ziyaretler kilitli;
+   bugünün kalanını düzenlerken onay sorulur (bu prototipte yok).
+8. ROLLER: Süpervizör (tam yetki, tüm bölgeler) / Saha temsilcisi
+   (salt okunur hafta + not/talep yazma). Başka rol yok.
+9. SIRA NUMARALARI: mağaza sırası = haftadaki ilk ziyaretin (gün,saat)
+   sırası. Sidebar ↔ harita ↔ takvim üçü de aynı sayıyı gösterir;
+   birinde değişince hepsi güncellenir (tek kaynak: visits dizisi).
+10. GERİ AL: her değişiklik undo fn taşır (changes[]); Cmd/Ctrl-Z.
+
+GERÇEK BUILD'DE EKLENECEK (prototipte yok/alert):
+- Görev kataloğu sayfası (şablonlar: süre + saha talimatı + kanıt tipi)
+- Kural yönetim sayfası (kapsam + tarih aralığı + GIN condition match)
+- Rut preset'leri, Ayarlar sayfası (tüm eşikler DB'de, hardcode yok)
+- Yama türleri: SKIP_STORE / SKIP_RANGE / ADD_STORE / REASSIGN_TEMP /
+  TIME_SHIFT; mağaza yasağı (banned_until)
+- Sonuç kodları: COMPLETED/STORE_CLOSED/REFUSED/NO_GPS_CONFIRM/PARTIAL
+- Geçmiş sekmesi gerçek veriden (dated tablolar + route_change_log)
+- Canlı konum katmanı (mevcut takip beslemesi, sadece farkındalık)
+- Tatil/bayram takvimi (toplantı sorusu bekleniyor)
+- Bildirim: aynı güne çoklu edit = tek toplu bildirim (batch window)
+═══════════════════════════════════════════════════════════════════
+-->
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVO Rut Planlayıcı — Prototip</title>
+<style>
+:root{
+  --bg:#FAFAF7; --card:#FFFFFF; --border:#E3E1D9; --border2:#CBC9BF;
+  --tx:#2C2C2A; --tx2:#6B6A64; --tx3:#98968D;
+  --blue:#378ADD; --blue-d:#185FA5; --blue-l:#E6F1FB;
+  --teal:#1D9E75; --teal-d:#0F6E56; --teal-l:#E1F5EE;
+  --amber:#EF9F27; --amber-d:#854F0B; --amber-l:#FAEEDA;
+  --red:#E24B4A; --red-d:#A32D2D; --red-l:#FCEBEB;
+  --green:#639922; --green-l:#EAF3DE;
+  --gray-l:#F1EFE8; --gray-m:#B4B2A9;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;}
+body{background:var(--bg);color:var(--tx);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+button{cursor:pointer;border:1px solid var(--border2);background:var(--card);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--tx);}
+button:hover{background:var(--gray-l);}
+button.primary{background:var(--blue-d);color:#fff;border-color:var(--blue-d);}
+button.primary:hover{background:var(--blue);}
+.topbar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;}
+.topbar .logo{font-weight:600;font-size:15px;margin-right:6px;}
+.seg{display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;}
+.seg button{border:none;border-radius:0;background:var(--card);}
+.seg button.on{background:var(--blue-l);color:var(--blue-d);font-weight:600;}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--blue-l);color:var(--blue-d);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:500;}
+.chip .x{cursor:pointer;font-weight:700;}
+.spacer{flex:1;}
+.main{flex:1;display:flex;overflow:hidden;}
+.rail{width:170px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.rail .tabs{display:flex;border-bottom:1px solid var(--border);}
+.rail .tabs div{flex:1;text-align:center;padding:8px 0;cursor:pointer;color:var(--tx2);font-size:12px;}
+.rail .tabs div.on{color:var(--tx);font-weight:600;border-bottom:2px solid var(--blue-d);}
+.rail .list{flex:1;overflow-y:auto;padding:8px;}
+.route-item{border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;}
+.route-item:hover{border-color:var(--border2);background:var(--gray-l);}
+.route-item.on{border-color:var(--blue-d);background:var(--blue-l);}
+.route-item .code{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;}
+.route-item .sub{color:var(--tx2);font-size:11px;margin-top:3px;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.pool-item{border:1px dashed var(--border2);border-radius:8px;padding:8px;margin-bottom:6px;cursor:grab;background:var(--card);}
+.pool-item .nm{font-weight:600;font-size:12px;}
+.pool-item .sub{color:var(--tx2);font-size:11px;margin-top:2px;}
+.pool-item:active{cursor:grabbing;}
+.pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;}
+.pane-head{padding:6px 10px;font-size:11px;color:var(--tx3);border-bottom:1px solid var(--border);background:var(--card);display:flex;align-items:center;gap:8px;flex-shrink:0;}
+#mapPane{border-right:2px solid var(--border2);}
+#mapSvgWrap{flex:1;overflow:hidden;background:#EDEFE6;position:relative;}
+#mapSvg{width:100%;height:100%;display:block;}
+.map-tools{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:5px;z-index:5;}
+.map-tools button{font-size:11px;padding:4px 8px;}
+.map-tools button.on{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue-d);}
+.popover{position:absolute;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.13);z-index:10;width:220px;}
+.popover .nm{font-weight:600;margin-bottom:3px;}
+.popover .row{color:var(--tx2);font-size:11px;margin-bottom:2px;}
+.popover .actions{margin-top:7px;display:flex;gap:4px;flex-wrap:wrap;}
+.popover .actions button{font-size:11px;padding:3px 8px;white-space:nowrap;flex:0 0 auto;}
+#schedPane{background:var(--bg);}
+.sched-scroll{flex:1;overflow:auto;padding:10px;}
+.sched-grid{display:grid;grid-template-columns:110px 36px repeat(5,minmax(120px,1fr));column-gap:4px;row-gap:26px;}
+.time-axis{position:relative;height:510px;}
+.time-axis span{position:absolute;right:4px;font-size:9px;color:var(--tx3);transform:translateY(-50%);}
+.hline{position:absolute;left:0;right:0;border-top:1px dashed var(--gray-l);pointer-events:none;z-index:0;}
+.day-head{text-align:center;font-size:11px;color:var(--tx2);padding:3px 0;position:sticky;top:0;background:var(--bg);z-index:2;}
+.person-cell{padding:8px 6px;font-size:12px;}
+.person-cell .nm{font-weight:600;cursor:pointer;}
+.person-cell .nm:hover{color:var(--blue-d);}
+.person-cell .meta{color:var(--tx2);font-size:11px;margin-top:3px;}
+.loadbar{height:5px;background:var(--gray-l);border-radius:3px;margin-top:5px;overflow:hidden;}
+.loadbar div{height:100%;border-radius:3px;}
+.day-cell{position:relative;background:var(--card);border:1px solid var(--border);border-radius:8px;height:510px;overflow:hidden;}
+.day-cell.dragover{border-color:var(--blue-d);background:var(--blue-l);}
+.day-total{position:absolute;top:2px;right:5px;font-size:10px;font-weight:600;z-index:3;color:var(--tx3);}
+.day-total.ok{color:var(--green);}
+.day-total.over{color:var(--red);}
+.day-total.under{color:var(--amber-d);}
+.vblock{position:absolute;left:4px;right:4px;border-radius:5px;padding:2px 6px;font-size:10px;overflow:hidden;cursor:grab;user-select:none;border:1px solid transparent;z-index:1;}
+.vblock .t{font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;}
+.vblock .s{opacity:.8;font-size:9px;white-space:nowrap;}
+.vblock.catP{background:var(--teal-l);color:var(--teal-d);border-color:#9FE1CB;}
+.vblock.catV{background:var(--amber-l);color:var(--amber-d);border-color:#FAC775;}
+.vblock.catS{background:var(--gray-l);color:var(--tx2);border-color:var(--border2);}
+.vblock.patched{border-style:dashed;border-color:var(--blue-d);}
+.vblock.sel{outline:2px solid var(--blue-d);}
+.vblock.dragging{opacity:.4;}
+.vblock .rz{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize;}
+.vblock .rzT{position:absolute;left:0;right:0;top:0;height:6px;cursor:ns-resize;}
+.brk{position:absolute;left:4px;right:4px;background:repeating-linear-gradient(45deg,var(--gray-l),var(--gray-l) 4px,#E9E7DF 4px,#E9E7DF 8px);border-radius:4px;font-size:9px;color:var(--tx3);text-align:center;pointer-events:none;z-index:0;}
+.panel{width:250px;background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.panel-head{padding:10px 12px;border-bottom:1px solid var(--border);}
+.panel-head .ttl{font-weight:600;font-size:14px;}
+.panel-head .sub{color:var(--tx2);font-size:11px;margin-top:2px;}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);}
+.panel-tabs div{flex:1;text-align:center;padding:7px 0;font-size:12px;color:var(--tx2);cursor:pointer;}
+.panel-tabs div.on{color:var(--tx);font-weight:600;border-bottom:2px solid var(--blue-d);}
+.panel-body{flex:1;overflow-y:auto;padding:12px;font-size:12px;}
+.kv{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--gray-l);}
+.kv .k{color:var(--tx2);}
+.hist-item{border-left:2px solid var(--border2);padding:2px 0 10px 10px;margin-left:4px;position:relative;}
+.hist-item::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--gray-m);position:absolute;left:-4.5px;top:6px;}
+.hist-item .d{color:var(--tx3);font-size:10px;}
+.task-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--gray-l);}
+.task-row .src{font-size:10px;color:var(--tx3);}
+.badge{font-size:10px;border-radius:8px;padding:1px 7px;font-weight:600;}
+.badge.P{background:var(--teal-l);color:var(--teal-d);}
+.badge.V{background:var(--amber-l);color:var(--amber-d);}
+.badge.S{background:var(--gray-l);color:var(--tx2);}
+.statusbar{display:flex;align-items:center;gap:14px;padding:6px 14px;background:var(--card);border-top:1px solid var(--border);font-size:12px;color:var(--tx2);flex-shrink:0;}
+.statusbar .warn{color:var(--amber-d);cursor:pointer;}
+.statusbar .err{color:var(--red-d);cursor:pointer;}
+.drawer{background:var(--card);border-top:2px solid var(--border2);max-height:0;transition:max-height .25s;overflow:hidden;flex-shrink:0;}
+.drawer.open{max-height:240px;}
+.drawer-inner{padding:10px 14px;max-height:240px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;color:var(--tx2);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--border2);font-size:11px;}
+td{padding:4px 8px;border-bottom:1px solid var(--gray-l);}
+td input{width:52px;border:1px solid var(--border2);border-radius:4px;padding:2px 5px;font-size:12px;}
+tr:hover td{background:var(--gray-l);cursor:pointer;}
+.actionbar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:10px;font-size:12px;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.25);}
+.actionbar button{background:rgba(255,255,255,.14);border:none;color:#fff;font-size:12px;}
+.actionbar button:hover{background:rgba(255,255,255,.26);}
+.toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:12px;z-index:60;box-shadow:0 6px 18px rgba(0,0,0,.3);}
+.toast button{background:rgba(255,255,255,.14);border:none;color:#fff;font-size:12px;}
+.toast button:hover{background:rgba(255,255,255,.28);}
+.toast button.act{background:var(--blue);}
+.modal-bg{position:fixed;inset:0;background:rgba(20,20,18,.45);z-index:80;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--card);border-radius:12px;width:480px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:15px;}
+.modal-body{padding:12px 18px;overflow-y:auto;flex:1;}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.chg-group{margin-bottom:12px;}
+.chg-group .g{font-weight:600;font-size:12px;margin-bottom:5px;}
+.chg-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--gray-l);border-radius:6px;margin-bottom:4px;font-size:12px;}
+.chg-item button{font-size:11px;padding:2px 8px;}
+.pill{font-size:10px;border-radius:8px;padding:1px 7px;background:var(--blue-l);color:var(--blue-d);font-weight:600;margin-left:6px;}
+.empty{color:var(--tx3);text-align:center;padding:30px 10px;font-size:12px;}
+kbd{background:var(--gray-l);border:1px solid var(--border2);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:10.5px;font-family:inherit;}
+.hlp h3{font-size:13px;margin:16px 0 6px;color:var(--blue-d);}
+.hlp h3:first-child{margin-top:0;}
+.hlp p{font-size:12px;line-height:1.65;margin:0 0 6px;color:var(--tx);}
+.hlp .tip{background:var(--teal-l);color:var(--teal-d);border-radius:6px;padding:5px 9px;font-size:11px;margin:4px 0 8px;}
+.marquee{position:absolute;border:1.5px dashed var(--blue-d);background:rgba(55,138,221,.1);z-index:8;pointer-events:none;}
+.page{position:fixed;top:0;right:-620px;bottom:0;width:600px;max-width:92vw;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);z-index:75;border-left:1px solid var(--border2);box-shadow:-8px 0 24px rgba(0,0,0,.14);transition:right .22s;}
+.page.on{right:0;}
+.page-top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border);}
+.page-top .ttl{font-weight:600;font-size:15px;}
+.admin-tabs{display:flex;gap:2px;padding:0 16px;background:var(--card);border-bottom:1px solid var(--border);}
+.admin-tabs div{padding:9px 14px;font-size:12px;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;}
+.admin-tabs div.on{color:var(--blue-d);font-weight:600;border-bottom-color:var(--blue-d);}
+.page-body{flex:1;overflow-y:auto;padding:14px 18px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+.card .hd{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;margin-bottom:6px;}
+.frow{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;flex-wrap:wrap;}
+.frow label{color:var(--tx2);min-width:180px;}
+.frow input[type=text],.frow input[type=number],.frow select,.frow textarea{border:1px solid var(--border2);border-radius:5px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--tx);}
+.frow textarea{width:100%;min-height:44px;resize:vertical;}
+.inbox-item{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:8px;}
+.inbox-item.done{opacity:.5;}
+.inbox-item .bd{flex:1;font-size:12px;}
+.inbox-item .who{font-weight:600;}
+.inbox-item .anchor{font-size:11px;color:var(--blue-d);cursor:pointer;}
+.inbox-item .acts{display:flex;gap:5px;}
+.inbox-item .acts button{font-size:11px;padding:3px 8px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">EVO · Rut Planlayıcı <span class="pill">v0.3</span></span>
+  <button>Ankara ▾</button>
+  <button id="wkPrev">‹</button><span id="wkLabel" style="font-size:12px;color:var(--tx2);">Hafta 28 · 6–10 Tem</span><button id="wkNext">›</button>
+  <div class="seg" id="layoutSeg">
+    <button data-l="map">Harita</button>
+    <button data-l="split" class="on">Bölünmüş</button>
+    <button data-l="sched">Takvim</button>
+  </div>
+  <div class="seg" id="modeSeg">
+    <button data-m="eff" class="on">Efektif</button>
+    <button data-m="base">Baz</button>
+  </div>
+  <span id="filterChip"></span>
+  <div class="spacer"></div>
+  <div style="position:relative;">
+    <input id="globalSearch" placeholder="🔍 mağaza, rut, kişi ara…" style="border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:12px;width:190px;background:var(--card);color:var(--tx);">
+    <div id="searchResults" style="display:none;position:absolute;top:28px;left:0;width:250px;background:var(--card);border:1px solid var(--border2);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);z-index:70;max-height:260px;overflow-y:auto;"></div>
+  </div>
+  <button id="publishBtn" class="primary">Yayınla (<span id="chgCount">0</span>)</button>
+  <button title="Kampanya görevi gönder" id="campBtn">📣</button>
+  <button title="Kullanım kılavuzu" id="helpBtn">❔</button>
+  <button title="Gelen kutusu" id="inboxBtn">🔔 <span id="inboxCount">3</span></button>
+  <button title="Yönetim: katalog + ayarlar" id="adminBtn">⚙</button>
+</div>
+
+<div id="draftBanner" style="display:none;background:var(--amber-l);color:var(--amber-d);padding:6px 14px;font-size:12px;border-bottom:1px solid var(--amber);align-items:center;gap:10px;"></div>
+
+<div class="main">
+  <div class="rail">
+    <div class="tabs">
+      <div class="on" data-t="routes">Rutlar</div>
+      <div data-t="pool">Havuz <span class="pill" id="poolCount"></span></div>
+    </div>
+    <div class="list" id="railList"></div>
+  </div>
+
+  <div class="pane" id="mapPane">
+    <div class="pane-head">HARİTA <span style="color:var(--tx3)">— pin: tıkla · boş alan: sürükleyerek seç</span><div class="spacer"></div><span id="mapInfo"></span></div>
+    <div id="mapSvgWrap">
+      <div class="map-tools">
+        <button id="lassoBtn" class="on" title="Sürükleyerek seçim">▭ Seç</button>
+        <button id="layersBtn" title="Katmanlar">≡ Katman</button>
+        <button id="whatifBtn" title="Simülasyon">⚗ Simüle</button>
+      </div>
+      <svg id="mapSvg" viewBox="0 0 600 520"></svg>
+    </div>
+  </div>
+
+  <div class="pane" id="schedPane">
+    <div class="pane-head">TAKVİM <span style="color:var(--tx3)">— blok: sürükle / alt kenar: süre uzat · 5dk adım</span></div>
+    <div class="sched-scroll" id="schedScroll"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head" id="panelHead"><div class="ttl">Detay</div><div class="sub">Bir mağaza, rut veya kişi seç</div></div>
+    <div class="panel-tabs" id="panelTabs">
+      <div class="on" data-t="info">Bilgi</div><div data-t="tasks">Görevler</div><div data-t="hist">Geçmiş</div>
+    </div>
+    <div class="panel-body" id="panelBody"><div class="empty">Haritadan bir pine, takvimden bir bloğa veya soldan bir ruta tıkla.</div></div>
+  </div>
+</div>
+
+<!-- YÖNETİM SAYFASI: görev kataloğu + kurallar + presetler + ayarlar.
+     Gerçek build notu: kural/şablon değişiklikleri blast-radius önizlemesi
+     göstermeli (kaç mağaza/rut etkileniyor, hangi günler kota aşıyor - V10). -->
+<div class="page" id="adminPage">
+  <div class="page-top">
+    <span class="ttl">Yönetim</span>
+    <span style="font-size:11px;color:var(--tx3);">Türkiye genelini etkiler — Kaydet + onay gerekir, kayda geçer</span>
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="showPage('planner')">✕ Kapat</button>
+  </div>
+  <div class="admin-tabs" id="adminTabs">
+    <div class="on" data-t="templates">Görev şablonları</div>
+    <div data-t="rules">Mağaza tipi kuralları</div>
+  </div>
+  <div class="page-body" id="adminBody"></div>
+  <div style="padding:8px 16px;border-top:1px solid var(--border);background:var(--card);display:flex;gap:8px;align-items:center;">
+    <button class="primary" id="adminSave" disabled style="opacity:.5;">Kaydet</button>
+    <button id="adminDiscard">Vazgeç</button>
+    <span id="adminDirty" style="font-size:11px;color:var(--tx3);"></span>
+    <span class="spacer" style="flex:1"></span>
+    <button id="adminHist" style="font-size:11px;">📜 Denetim kaydı</button>
+    <button onclick="showPage('settings')" style="font-size:11px;">⚠ Sistem ayarları →</button>
+  </div>
+</div>
+
+<!-- SİSTEM AYARLARI: bilerek ayrı sayfa — nadiren dokunulur, hata önlemek için. -->
+<div class="page" id="settingsPage">
+  <div class="page-top">
+    <span class="ttl">Sistem ayarları</span>
+    <span style="font-size:11px;color:var(--amber-d);">nadiren değişir — dikkatli düzenle</span>
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="showPage('admin')">← Yönetim</button>
+    <button onclick="showPage('planner')">✕ Kapat</button>
+  </div>
+  <div class="page-body" id="settingsBody"></div>
+</div>
+
+<!-- GELEN KUTUSU: saha notları + değişiklik talepleri + geciken görevler.
+     "Bağlama git" = planlayıcıya dön + ilgili mağazayı odakla. -->
+<div class="page" id="inboxPage">
+  <div class="page-top">
+    <span class="ttl">Gelen kutusu</span>
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="showPage('planner')">✕ Kapat</button>
+  </div>
+  <div class="page-body" id="inboxBody"></div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="drawer-inner">
+    <table id="tbl"></table>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="statusWarns"></span>
+  <span>⚖ Adalet: <span id="fairness"></span></span>
+  <div class="spacer"></div>
+  <button id="undoBtn">↶ Geri al</button>
+  <button id="drawerBtn">▤ Tablo</button>
+</div>
+
+<div id="overlay"></div>
+
+<script>
+'use strict';
+/* ---------- data ----------
+   Gerçek build: stores EVO sync'ten gelir (format/kategori/koordinat dahil,
+   manuel kurulum yok). visits = PlannedVisit tablosu (motor üretir).
+   Rut = koltuk YOK; Assignment(route↔person, tarihli) ile doğrudan atama. */
+const DAY_START=360, DAY_END=1380, CELL_H=510, PXMIN=CELL_H/(DAY_END-DAY_START);
+const DAYS=['Pzt','Sal','Çar','Per','Cum'];
+const BREAKS=[];
+let QUOTA=450; /* ayarlar sayfasından değiştirilebilir (settingsData.quota) */
+const people=[
+  {id:'p1',name:'Ayşe K.'},
+  {id:'p2',name:'Mehmet D.'},
+  {id:'p3',name:'Zeynep A.'} /* henüz rutu yok — yeni rut kurulumu için aday */
+];
+const routes=[
+  {id:'r1',code:'ANK-01',name:'Çankaya Merkez',person:'p1',color:'#185FA5',target:1250},
+  {id:'r2',code:'ANK-02',name:'Keçiören Hattı',person:'p2',color:'#0F6E56',target:1250}
+];
+const stores=[
+  {id:'s1',name:'Migros 4M Çankaya',chain:'Migros',format:'4M',cat:'V',rev:412,x:150,y:140,route:'r1'},
+  {id:'s2',name:'Carrefour Kızılay',chain:'Carrefour',format:'3M',cat:'V',rev:365,x:210,y:210,route:'r1'},
+  {id:'s3',name:'Kantin A (lojman)',chain:'—',format:'Jet',cat:'S',rev:22,x:120,y:250,route:'r1'},
+  {id:'s4',name:'ŞOK Etlik',chain:'ŞOK',format:'M',cat:'P',rev:158,x:260,y:120,route:'r1'},
+  {id:'s5',name:'Kantin B (askeri)',chain:'—',format:'Jet',cat:'S',rev:15,x:380,y:300,route:'r2'},
+  {id:'s6',name:'A101 Batı',chain:'A101',format:'M',cat:'P',rev:190,x:430,y:220,route:'r2'},
+  {id:'s7',name:'Kantin C',chain:'—',format:'Jet',cat:'S',rev:18,x:470,y:330,route:'r2'},
+  {id:'s8',name:'BİM Sincan',chain:'BİM',format:'MM',cat:'P',rev:205,x:520,y:260,route:'r2'},
+  {id:'s9',name:'Migros MM Bahçeli',chain:'Migros',format:'MM',cat:'V',rev:388,x:90,y:340,route:null},
+  {id:'s10',name:'A101 Keçiören',chain:'A101',format:'M',cat:'P',rev:176,x:330,y:80,route:null},
+  {id:'s11',name:'Lojman kantini D',chain:'—',format:'Jet',cat:'S',rev:12,x:250,y:400,route:null}
+];
+let vseq=0;
+function V(st,p,day,start,dur){return {id:'v'+(++vseq),storeId:st,personId:p,day,start,dur,patched:false};}
+let visits=[
+  V('s1','p1',0,540,45),V('s2','p1',0,660,60),V('s3','p1',1,600,30),V('s1','p1',3,540,45),
+  V('s4','p1',4,840,40),V('s2','p1',2,900,60),V('s3','p1',3,660,30),V('s4','p1',1,900,40),
+  V('s5','p2',0,570,30),V('s6','p2',1,690,45),V('s7','p2',1,540,30),V('s5','p2',3,570,30),
+  V('s8','p2',2,600,45),V('s6','p2',4,540,45)
+];
+/* ===== HAFTA MODELİ =====
+   baseVisits = Baz (kalıcı haftalık patern, "Kalıcı yap" buraya yazar).
+   weekData[h] = o haftanın efektif kopyası (Baz projeksiyonu + o haftanın
+   yamaları). Hafta ilk açıldığında Baz'dan üretilir; 2 haftada bir
+   mağazalar tek haftalarda düşer. Geçmiş haftalar salt okunur. */
+let baseVisits=JSON.parse(JSON.stringify(visits));
+let currentWeek=28, weekData={28:visits};
+const WEEK_RO_BEFORE=28;
+function isRO(){return currentWeek<WEEK_RO_BEFORE;}
+function projectWeek(w){
+  return JSON.parse(JSON.stringify(baseVisits)).filter(v=>{
+    const s=stores.find(x=>x.id===v.storeId);
+    if(s&&(s.freq||'hf')==='2hf'&&w%2===1)return false;
+    return true;
+  });
+}
+function clearFutureWeeks(){for(const k of Object.keys(weekData))if(+k>currentWeek)delete weekData[k];}
+function setWeek(w){
+  w=Math.max(26,Math.min(34,w));
+  if(w===currentWeek)return;
+  currentWeek=w;
+  if(!weekData[w])weekData[w]=projectWeek(w);
+  visits=weekData[w];
+  renderAll();
+  if(isRO())toast('Geçmiş hafta — salt okunur (plan vs gerçekleşen burada raporlanır)',[]);
+}
+function weekLabel(w){
+  const mon=new Date(2026,6,6+(w-28)*7),fri=new Date(mon);fri.setDate(mon.getDate()+4);
+  const ay=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  return `Hafta ${w} · ${mon.getDate()}–${fri.getDate()} ${ay[fri.getMonth()]}`;
+}
+function makePermanent(v){
+  const bv=baseVisits.find(x=>x.id===v.id);
+  if(bv)Object.assign(bv,{day:v.day,start:v.start,dur:v.dur,personId:v.personId});
+  else baseVisits.push({...v,patched:false});
+  clearFutureWeeks();
+}
+/* ---------- state ---------- */
+let filter=null;            // {type:'route'|'person', id}
+let focus=null;             // {type:'store'|'route'|'person', id}
+let panelTab='info';
+let selection=new Set();    // store ids
+let changes=[];             // {id,desc,personId,day,undo:fn,patch:bool}
+let mode='eff', layout='split', railTab='routes';
+let expandedRoutes=new Set();
+let chgSeq=0;
+/* ---------- helpers ---------- */
+const $=q=>document.querySelector(q);
+const store=id=>stores.find(s=>s.id===id);
+const route=id=>routes.find(r=>r.id===id);
+const person=id=>people.find(p=>p.id===id);
+const fmtT=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+function personRoute(pid){return routes.find(r=>r.person===pid);}
+function dayVisits(pid,day,list){return (list||visits).filter(v=>v.personId===pid&&v.day===day).sort((a,b)=>a.start-b.start);}
+function dayTotal(pid,day){return dayVisits(pid,day).reduce((s,v)=>s+v.dur,0);}
+function weekTotal(pid){return visits.filter(v=>v.personId===pid).reduce((s,v)=>s+v.dur,0);}
+function skipBreaks(t){for(const b of BREAKS){if(t>=b.s&&t<b.e)return b.e;}return t;}
+function reflow(pid,day){
+  const list=dayVisits(pid,day);let cur=DAY_START;
+  for(const v of list){
+    let st=Math.max(v.start,cur);st=skipBreaks(st);
+    for(const b of BREAKS){if(st<b.s&&st+v.dur>b.s){st=b.e;}}
+    v.start=st;cur=st+v.dur;
+  }
+}
+/* ---------- sıra numaraları ----------
+   Sıra = haftadaki İLK ziyaretin (gün*10000+dakika) sırası. Tek kaynak
+   visits olduğundan takvim/harita/sidebar otomatik senkron kalır.
+   resequenceRoute: sidebar'da sürükle-sırala → her günün ziyaretleri
+   yeni sıraya göre aynı ilk saatten itibaren yeniden dizilir. */
+function routeStoreOrder(rid){
+  const r=route(rid);if(!r)return [];
+  const pts=stores.filter(s=>s.route===rid);
+  const key=s=>{
+    const vs=r.person?visits.filter(v=>v.storeId===s.id&&v.personId===r.person):[];
+    if(!vs.length)return 1e6+(s.draftSeq||999);
+    return Math.min(...vs.map(v=>v.day*10000+v.start));
+  };
+  return pts.slice().sort((a,b)=>key(a)-key(b)).map(s=>s.id);
+}
+/* ===== YENİ RUT KURULUMU =====
+   Küçük kimlik modalı → çalışma alanı "taslak modu": harita kapsama
+   kilitlenir, atanmamışlar eklenir, sağ panel kurulum kartına döner.
+   Kişi seçilince hafta otomatik üretilir (görev sürelerinden, kota
+   gözetilerek). Aktifleştir = normal rut; Vazgeç = tam geri alma.
+   Taslak gerçek build'de DRAFT statüslü rut satırıdır (kalıcı). */
+let draftMode=null, draftSeqC=0;
+function storeDur(s){return storeTaskList(s).reduce((a,t)=>a+resolveTaskMin(s,t).m,0);}
+window.openNewRouteModal=function(){
+  const code='ANK-'+String(routes.length+1).padStart(2,'0');
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='nrModal';
+  bg.innerHTML=`<div class="modal" style="width:360px;">
+    <div class="modal-head">Yeni rut</div>
+    <div class="modal-body">
+      <div class="frow"><label>Rut kodu</label><b>${code}</b> <span style="font-size:10px;color:var(--tx3);">(otomatik)</span></div>
+      <div class="frow"><label>Ad</label><input type="text" id="nrName" value="Sincan Hattı" style="width:170px;"></div>
+      <div class="frow"><label>Coğrafi kapsam</label><span>Ankara ▾ · <span style="color:var(--tx3);">ilçe seç (prototipte tümü)</span></span></div>
+      <div class="frow"><label>Ciro hedefi (bin ₺)</label><input type="number" id="nrTarget" value="${settingsData.target}" step="50" style="width:80px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('nrModal').remove()">Vazgeç</button>
+      <button class="primary" id="nrGo">Haritada kur →</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  $('#nrGo').onclick=()=>{
+    const r={id:'r'+Date.now(),code,name:$('#nrName').value||code,person:null,color:'#993C1D',target:+$('#nrTarget').value||settingsData.target,draft:true};
+    routes.push(r);draftMode=r.id;draftSeqC=0;
+    filter={type:'routes',ids:new Set([r.id])};focus=null;
+    bg.remove();renderAll();
+    toast('Taslak modu: haritadan atanmamış noktalara tıkla veya lasso ile seç',[]);
+  };
+};
+function draftRoute(){return draftMode?route(draftMode):null;}
+/* Havuz seçici: haritaya alternatif — aranabilir liste ile ruta ekleme */
+window.openPoolPicker=function(rid){
+  const r=route(rid);
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='ppModal';
+  bg.innerHTML=`<div class="modal" style="width:430px;">
+    <div class="modal-head">Havuzdan mağaza ekle → ${r.code}${r.draft?' 📝':''}</div>
+    <div class="modal-body">
+      <input type="text" id="ppSearch" placeholder="🔍 mağaza ara…" style="width:100%;border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;margin-bottom:8px;background:var(--card);color:var(--tx);">
+      <div id="ppList"></div>
+    </div>
+    <div class="modal-foot"><button class="primary" onclick="document.getElementById('ppModal').remove()">Bitti</button></div></div>`;
+  document.body.appendChild(bg);
+  const renderList=()=>{
+    const q=$('#ppSearch').value.trim().toLowerCase();
+    const pool=stores.filter(s=>!s.route&&(!q||s.name.toLowerCase().includes(q)||s.chain.toLowerCase().includes(q)));
+    $('#ppList').innerHTML=pool.length?pool.map(s=>`<div class="task-row">
+      <span><b>${s.name}</b><br><span style="font-size:10.5px;color:var(--tx3);">${s.chain} · ${s.format} · <span class="badge ${s.cat}">${catL(s.cat)}</span> · ${s.rev}K/6ay</span></span>
+      <button class="ppAdd" data-s="${s.id}" style="font-size:11px;">+ Ekle</button></div>`).join(''):
+      `<div class="empty">${q?'Eşleşen mağaza yok':'Havuz boş 🎉'}</div>`;
+    $('#ppList').querySelectorAll('.ppAdd').forEach(b=>b.onclick=()=>{
+      assignStore(b.dataset.s,rid);renderList();
+      toast(store(b.dataset.s).name+' → '+r.code,[]);
+    });
+  };
+  $('#ppSearch').oninput=renderList;
+  renderList();$('#ppSearch').focus();
+};
+/* Yeni mağaza modalı: havuza manuel ekleme (gerçekte EVO sync/import;
+   bu manuel yol istisnadır). Kaydet → haritada konum tıklanır. */
+let pendingNewStore=null;
+window.openNewStoreModal=function(){
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='nsModal';
+  bg.innerHTML=`<div class="modal" style="width:380px;">
+    <div class="modal-head">Yeni mağaza (havuza)</div>
+    <div class="modal-body">
+      <div class="frow"><label>Ad</label><input type="text" id="nsName" placeholder="örn. BİM Etimesgut" style="width:190px;"></div>
+      <div class="frow"><label>Zincir</label><input type="text" id="nsChain" placeholder="BİM" style="width:110px;">
+        <label style="min-width:auto;">Tip</label><select id="nsType">${STORE_TYPES.map(t=>`<option value="${t.key}">${t.key}</option>`).join('')}</select></div>
+      <div class="frow"><label>Kategori</label><select id="nsCat"><option value="P">Potansiyel</option><option value="V">Değerli</option><option value="S">Servis</option></select>
+        <label style="min-width:auto;">Ciro (6 ay, bin ₺)</label><input type="number" id="nsRev" value="100" style="width:70px;"></div>
+      <div style="font-size:11px;color:var(--tx3);">Kaydet'ten sonra haritada konumuna tıkla. Gerçek sistemde mağazalar EVO'dan senkronize gelir; bu manuel yol istisnadır ve denetim kaydına yazılır.</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('nsModal').remove()">Vazgeç</button>
+      <button class="primary" id="nsSave">Kaydet → konum seç</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  $('#nsSave').onclick=()=>{
+    if(!$('#nsName').value.trim()){toast('Mağaza adı gerekli',[]);return;}
+    pendingNewStore={name:$('#nsName').value.trim(),chain:$('#nsChain').value.trim()||'—',format:$('#nsType').value,cat:$('#nsCat').value,rev:+$('#nsRev').value||0};
+    bg.remove();
+    toast('📍 Şimdi haritada mağazanın konumuna tıkla',[]);
+  };
+};
+function generateDraftSchedule(r){
+  /* aday listesi rutu olmayanlarla sınırlı → kişinin eski ziyareti yok */
+  visits=visits.filter(v=>!(r.person&&v.personId===r.person));
+  baseVisits=baseVisits.filter(v=>!(r.person&&v.personId===r.person));
+  let day=0,cur=DAY_START;
+  for(const sid of routeStoreOrder(r.id)){
+    const s=store(sid),d=storeDur(s);
+    if(cur+d-DAY_START>QUOTA&&day<4){day++;cur=DAY_START;}
+    const nv=V(sid,r.person,day,cur,d);
+    visits.push(nv);baseVisits.push({...nv});
+    cur+=d+10;
+  }
+  clearFutureWeeks();
+}
+/* Mağazayı ruta ekle / başka ruta taşı / havuza çıkar — panelden.
+   Gerçek build: aranabilir combobox (yüzlerce rut), atomik taşıma
+   (eski üyelik kapat + yeni aç), her iki rutun etkisi onayda gösterilir. */
+/* Ziyaret sıklığı: günlük / haftada 2 / haftalık / 2 haftada bir.
+   Değişince Baz'da mağazanın ziyaret deseni yeniden üretilir;
+   2 haftada bir = tek haftalarda düşer (projectWeek filtreler). */
+const FREQS=[{k:'g',l:'Günlük'},{k:'2x',l:'Haftada 2 (Pzt+Per)'},{k:'hf',l:'Haftalık'},{k:'2hf',l:'2 haftada bir'}];
+window.setStoreFreq=function(sid,f){
+  const s=store(sid);if(!s.route||(s.freq||'hf')===f)return;
+  const r=route(s.route);if(!r.person){s.freq=f;renderPanel();return;}
+  const oldF=s.freq||'hf';
+  const oldBase=baseVisits.filter(v=>v.storeId===sid).map(v=>({...v}));
+  baseVisits=baseVisits.filter(v=>v.storeId!==sid);
+  const days=f==='g'?[0,1,2,3,4]:f==='2x'?[0,3]:[0];
+  const d=storeDur(s);
+  for(const day of days){
+    const dayEnd=baseVisits.filter(v=>v.personId===r.person&&v.day===day).reduce((m,v)=>Math.max(m,v.start+v.dur),DAY_START);
+    baseVisits.push(V(sid,r.person,day,skipBreaks(dayEnd),d));
+  }
+  s.freq=f;
+  weekData={};weekData[currentWeek]=projectWeek(currentWeek);visits=weekData[currentWeek];
+  logChange(`${s.name}: sıklık ${FREQS.find(x=>x.k===oldF).l} → ${FREQS.find(x=>x.k===f).l}`,r.person,null,
+    ()=>{s.freq=oldF;baseVisits=baseVisits.filter(v=>v.storeId!==sid);for(const o of oldBase)baseVisits.push({...o});weekData={};weekData[currentWeek]=projectWeek(currentWeek);visits=weekData[currentWeek];});
+  renderAll();
+  toast(`Sıklık güncellendi — Baz deseni yeniden üretildi${f==='2hf'?' (tek haftalarda görünmez)':''}`,[]);
+};
+/* Yama yönetimi: tek yamayı veya rutun tüm haftasını Baz'a döndür */
+window.revertPatch=function(vid){
+  const v=visits.find(x=>x.id===vid);if(!v)return;
+  const before=snapshotVisit(v);
+  const bv=baseVisits.find(x=>x.id===vid);
+  if(bv){Object.assign(v,{day:bv.day,start:bv.start,dur:bv.dur,personId:bv.personId});v.patched=false;}
+  else visits=visits.filter(x=>x.id!==vid);
+  logChange(`Yama geri alındı: ${store(before.storeId).name}`,before.personId,before.day,
+    ()=>{const vv=visits.find(x=>x.id===vid);if(vv){restoreVisit(vv,before);}else visits.push(before);});
+  renderAll();
+};
+window.revertWeekRoute=function(rid){
+  const r=route(rid);if(!r.person)return;
+  const patched=visits.filter(v=>v.patched&&v.personId===r.person);
+  if(!patched.length){toast('Bu haftada yama yok',[]);return;}
+  const snaps=patched.map(v=>({id:v.id,s:snapshotVisit(v)}));
+  for(const v of patched){
+    const bv=baseVisits.find(x=>x.id===v.id);
+    if(bv){Object.assign(v,{day:bv.day,start:bv.start,dur:bv.dur,personId:bv.personId});v.patched=false;}
+  }
+  logChange(`${r.code}: H${currentWeek} Baz'a döndürüldü (${patched.length} yama)`,r.person,null,
+    ()=>{for(const {id,s} of snaps){const vv=visits.find(x=>x.id===id);if(vv)restoreVisit(vv,s);}});
+  renderAll();
+  toast(`H${currentWeek} Baz'a döndürüldü — ${patched.length} yama kaldırıldı`,[]);
+};
+/* Kişi değiştir: aranabilir kişi listesi + zorunlu sebep (atama geçmişi
+   ve devir analitiği bu sebeplerden beslenir). Meşgul kişiler devre dışı
+   gösterilir — çift atama imkânsız (DB kısıtıyla uyumlu). */
+window.openPersonPicker=function(rid){
+  const r=route(rid);
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='pkModal';
+  bg.innerHTML=`<div class="modal" style="width:400px;">
+    <div class="modal-head">Kişi değiştir — ${r.code} <span style="font-size:11px;color:var(--tx3);font-weight:400;">şu an: ${r.person?person(r.person).name:'kimse'}</span></div>
+    <div class="modal-body">
+      <input type="text" id="pkSearch" placeholder="🔍 kişi ara…" style="width:100%;border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:12px;margin-bottom:8px;background:var(--card);color:var(--tx);">
+      <div id="pkList"></div>
+      <div class="frow" style="margin-top:10px;"><label>Sebep (zorunlu)</label>
+        <select id="pkReason" style="flex:1;">
+          <option value="">seç…</option>
+          <option>İstifa / işten ayrılma</option>
+          <option>Bölge değişimi</option>
+          <option>Geçici kapsama</option>
+          <option>Yeniden yapılanma</option>
+          <option>Performans</option>
+        </select></div>
+      <div style="font-size:10.5px;color:var(--tx3);">Sebep, atama geçmişine yazılır — devir/stabilite analitiği buradan beslenir ("koltuk yılda 6 kez değişti" sinyali).</div>
+    </div>
+    <div class="modal-foot"><button onclick="document.getElementById('pkModal').remove()">Vazgeç</button></div></div>`;
+  document.body.appendChild(bg);
+  let selP=null;
+  const renderList=()=>{
+    const q=$('#pkSearch').value.trim().toLowerCase();
+    const list=people.filter(p=>p.id!==r.person&&(!q||p.name.toLowerCase().includes(q)));
+    $('#pkList').innerHTML=list.map(p=>{
+      const pr=personRoute(p.id);
+      const busy=pr&&pr.id!==rid;
+      return `<div class="pkRow" data-p="${p.id}" style="padding:5px 8px;border:1px solid ${selP===p.id?'var(--blue-d)':'var(--gray-l)'};border-radius:5px;margin-bottom:3px;font-size:11.5px;display:flex;justify-content:space-between;${busy?'opacity:.45;':'cursor:pointer;'}${selP===p.id?'background:var(--blue-l);':''}">
+        <span><b>${p.name}</b></span>
+        <span style="color:var(--tx3);">${busy?'meşgul: '+pr.code:'uygun · yük %'+Math.round(weekTotal(p.id)/(QUOTA*5)*100)}${busy?'':' · seç'}</span>
+      </div>`;
+    }).join('')||'<div class="empty">Kişi yok</div>';
+    $('#pkList').querySelectorAll('.pkRow').forEach(el2=>{
+      const p=people.find(x=>x.id===el2.dataset.p);
+      const pr=personRoute(p.id);
+      if(pr&&pr.id!==rid)return;
+      el2.onclick=()=>{selP=el2.dataset.p;renderList();tryCommit();};
+    });
+  };
+  const tryCommit=()=>{
+    const reason=$('#pkReason').value;
+    if(!selP)return;
+    if(!reason){toast('Sebep seçmeden atama yapılamaz',[]);return;}
+    const oldP=r.person;const np=selP;
+    const retarget=arr=>{for(const v of arr)if(oldP&&v.personId===oldP)v.personId=np;};
+    retarget(visits);retarget(baseVisits);
+    for(const k of Object.keys(weekData))retarget(weekData[k]);
+    r.person=np;
+    logChange(`${r.code}: ${oldP?person(oldP).name:'—'} → ${person(np).name} (${reason})`,np,null,
+      ()=>{const back=arr=>{for(const v of arr)if(v.personId===np)v.personId=oldP;};back(visits);back(baseVisits);for(const k of Object.keys(weekData))back(weekData[k]);r.person=oldP;});
+    bg.remove();renderAll();
+    toast(`${r.code} → ${person(np).name} · sebep kayıtlı — Yayınla ile bildirilir`,[]);
+  };
+  $('#pkSearch').oninput=renderList;
+  $('#pkReason').onchange=()=>tryCommit();
+  renderList();$('#pkSearch').focus();
+};
+/* Rut yaşam döngüsü */
+window.renameRoute=function(rid){
+  const r=route(rid);const n=prompt('Yeni rut adı:',r.name);
+  if(n&&n.trim()){const old=r.name;r.name=n.trim();logChange(`${r.code}: ad "${old}" → "${r.name}"`,null,null,()=>{r.name=old;});renderAll();}
+};
+window.setRouteTarget=function(rid){
+  const r=route(rid);const n=prompt('Ciro hedefi (bin ₺):',r.target);
+  if(n&&+n){const old=r.target;r.target=+n;logChange(`${r.code}: hedef ${old}K → ${r.target}K`,null,null,()=>{r.target=old;});renderAll();}
+};
+window.archiveRoute=function(rid){
+  const r=route(rid);
+  if(!confirm(`${r.code} arşivlensin mi? Mağazalar havuza döner, geçmiş korunur.`))return;
+  const pts=stores.filter(s=>s.route===rid);
+  const oldV=visits.filter(v=>v.personId===r.person).map(v=>({...v}));
+  const oldB=baseVisits.filter(v=>v.personId===r.person).map(v=>({...v}));
+  for(const s of pts){s.route=null;delete s.draftSeq;}
+  if(r.person){visits=visits.filter(v=>v.personId!==r.person);baseVisits=baseVisits.filter(v=>v.personId!==r.person);}
+  const idx=routes.indexOf(r);routes.splice(idx,1);
+  clearFutureWeeks();
+  if(filter&&filter.type==='routes'&&filter.ids.has(rid))filter=null;
+  if(focus&&focus.type==='route'&&focus.id===rid)focus=null;
+  logChange(`${r.code} arşivlendi (${pts.length} mağaza havuza döndü)`,null,null,
+    ()=>{routes.splice(idx,0,r);for(const s of pts)s.route=rid;for(const o of oldV)visits.push({...o});for(const o of oldB)baseVisits.push({...o});});
+  renderAll();
+  toast(`${r.code} arşivlendi — geçmişi denetim kaydında korunur`,[]);
+};
+window.moveStoreTo=function(sid,val){
+  if(!val)return;
+  const s=store(sid);const prev=s.route;
+  const oldVisits=visits.filter(v=>v.storeId===sid).map(v=>({...v}));
+  const oldBase=baseVisits.filter(v=>v.storeId===sid).map(v=>({...v}));
+  visits=visits.filter(v=>v.storeId!==sid);
+  baseVisits=baseVisits.filter(v=>v.storeId!==sid);
+  clearFutureWeeks();
+  delete s.draftSeq;
+  if(val==='POOL'){
+    s.route=null;
+    logChange(`${s.name}: ${prev?route(prev).code:''} → havuz`,null,null,
+      ()=>{s.route=prev;for(const o of oldVisits)visits.push({...o});for(const o of oldBase)baseVisits.push({...o});});
+    renderAll();toast(s.name+' havuza çıkarıldı',[]);
+  } else {
+    s.route=null;
+    assignStore(sid,val);
+    if(prev)changes[changes.length-1].desc=`${s.name}: ${route(prev).code} → ${route(val).code} (taşındı)`;
+    setFocus({type:'store',id:sid});
+  }
+};
+window.setDraftPerson=function(pid){
+  const r=draftRoute();if(!r)return;
+  r.person=pid||null;
+  if(r.person)generateDraftSchedule(r);
+  renderAll();
+  if(r.person)toast(person(pid).name+' atandı — hafta önizlemesi takvimde oluşturuldu',[]);
+};
+window.activateDraft=function(){
+  const r=draftRoute();if(!r)return;
+  const pts=stores.filter(s=>s.route===r.id);
+  if(!pts.length){toast('En az bir mağaza ekle',[]);return;}
+  if(!r.person){toast('Önce kişi ata',[]);return;}
+  delete r.draft;
+  const rid=r.id;
+  logChange(`${r.code} aktifleştirildi (${pts.length} nokta · ${person(r.person).name})`,r.person,null,
+    ()=>{const rr=route(rid);if(rr){for(const s of stores)if(s.route===rid)s.route=null;visits=visits.filter(v=>v.personId!==rr.person);routes.splice(routes.indexOf(rr),1);}});
+  draftMode=null;
+  renderAll();
+  toast(`${r.code} aktif ✓ — Yayınla ile sahaya bildirilir`,[]);
+};
+window.cancelDraft=function(){
+  const r=draftRoute();if(!r)return;
+  if(!confirm('Taslak silinsin mi? Eklenen noktalar havuza döner.'))return;
+  for(const s of stores)if(s.route===r.id){s.route=null;delete s.draftSeq;}
+  if(r.person)visits=visits.filter(v=>v.personId!==r.person);
+  routes.splice(routes.indexOf(r),1);
+  draftMode=null;filter=null;
+  renderAll();
+};
+function renderDraftBanner(){
+  const b=$('#draftBanner');
+  const r=draftRoute();
+  if(!r){b.style.display='none';return;}
+  const pts=stores.filter(s=>s.route===r.id);
+  b.style.display='flex';
+  b.innerHTML=`⬤ <b>TASLAK: ${r.code} kuruluyor</b> — ${pts.length} nokta · atanmamışlara tıkla/lasso ile ekle
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="cancelDraft()" style="font-size:11px;">Vazgeç</button>`;
+}
+function storeOrderNum(sid){
+  const s=store(sid);if(!s||!s.route)return null;
+  const i=routeStoreOrder(s.route).indexOf(sid);
+  return i<0?null:i+1;
+}
+function resequenceRoute(rid,newOrder){
+  const r=route(rid);
+  const snaps=visits.filter(v=>v.personId===r.person).map(v=>({v,s:snapshotVisit(v)}));
+  for(let d=0;d<5;d++){
+    const dv=dayVisits(r.person,d);
+    if(dv.length<2)continue;
+    const first=Math.min(...dv.map(v=>v.start));
+    dv.sort((a,b)=>newOrder.indexOf(a.storeId)-newOrder.indexOf(b.storeId));
+    let cur=first;
+    for(const v of dv){v.start=skipBreaks(cur);cur=v.start+v.dur;}
+  }
+  for(const {v} of snaps){const bv=baseVisits.find(x=>x.id===v.id);if(bv){bv.start=v.start;bv.day=v.day;}}
+  clearFutureWeeks();
+  logChange(`${r.code}: ziyaret sırası değiştirildi (Baz)`,r.person,null,
+    ()=>{for(const {v,s} of snaps){restoreVisit(v,s);const bv=baseVisits.find(x=>x.id===v.id);if(bv){bv.start=s.start;bv.day=s.day;}}});
+}
+function logChange(desc,pid,day,undoFn,patch){
+  changes.push({id:'c'+(++chgSeq),desc,personId:pid,day,undo:undoFn,patch:!!patch});
+  renderAll();
+}
+function snapshotVisit(v){return {...v};}
+function restoreVisit(v,snap){Object.assign(v,snap);}
+/* ---------- filtering ---------- */
+function filterRouteIds(){
+  if(!filter)return null;
+  if(filter.type==='routes')return filter.ids;
+  if(filter.type==='person'){const r=personRoute(filter.id);return new Set(r?[r.id]:[]);}
+  return null;
+}
+function visibleStores(){
+  const ids=filterRouteIds();
+  if(!ids)return stores;
+  return stores.filter(s=>(s.route&&ids.has(s.route))||!s.route);
+}
+function visiblePeople(){
+  if(!filter)return people;
+  if(filter.type==='person')return people.filter(p=>p.id===filter.id);
+  const ids=filterRouteIds();
+  if(ids){const ps=new Set([...ids].map(id=>route(id).person));return people.filter(p=>ps.has(p.id));}
+  return people;
+}
+function toggleRouteFilter(rid,additive){
+  let ids=(filter&&filter.type==='routes')?new Set(filter.ids):new Set();
+  if(!additive){
+    if(ids.size===1&&ids.has(rid)){setFilter(null);return;}
+    ids=new Set([rid]);
+  } else {
+    if(ids.has(rid))ids.delete(rid);else ids.add(rid);
+  }
+  if(!ids.size){setFilter(null);return;}
+  setFilter({type:'routes',ids});
+  setFocus(ids.size===1?{type:'route',id:[...ids][0]}:{type:'routes'});
+}
+function setFilter(f){filter=f;renderAll();}
+function setFocus(f){focus=f;panelTab='info';renderPanel();}
+/* ---------- rail ---------- */
+function renderRail(){
+  const el=$('#railList');el.innerHTML='';
+  $('#poolCount').textContent=stores.filter(s=>!s.route).length;
+  document.querySelectorAll('.rail .tabs div').forEach(t=>t.classList.toggle('on',t.dataset.t===railTab));
+  if(railTab==='routes'){
+    for(const r of routes){
+      const rev=stores.filter(s=>s.route===r.id).reduce((a,s)=>a+s.rev,0);
+      const ok=rev>=r.target;
+      const d=document.createElement('div');
+      const fids=filterRouteIds();
+      const exp=expandedRoutes.has(r.id);
+      const pts=stores.filter(s=>s.route===r.id);
+      d.className='route-item'+(fids&&fids.has(r.id)?' on':'');
+      d.innerHTML=`<div class="code"><span class="dot" style="background:${r.color}"></span>${r.code}${r.draft?' <span class="pill" style="background:var(--amber-l);color:var(--amber-d);">taslak</span>':''}
+          <span class="spacer"></span><span class="exp" style="cursor:pointer;color:var(--tx3);padding:0 3px;">${exp?'▾':'▸'}</span></div>
+        <div class="sub">${r.person?person(r.person).name:'kişi yok'} · ${rev}K ${ok?'✅':'⚠️'} · ${pts.length} nokta</div>
+        ${exp?`<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:4px;">
+          ${routeStoreOrder(r.id).map((sid,i)=>{const s=store(sid);return `<div class="rstore" draggable="true" data-s="${s.id}" data-r="${r.id}" style="padding:3px 2px;font-size:11px;display:flex;align-items:center;gap:5px;color:${focus&&focus.type==='store'&&focus.id===s.id?'var(--blue-d)':'var(--tx2)'};cursor:grab;${focus&&focus.type==='store'&&focus.id===s.id?'font-weight:700;':''}"><span style="min-width:16px;height:16px;border-radius:50%;background:${r.color};color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${i+1}</span>${s.name}</div>`;}).join('')}
+          <div style="font-size:9px;color:var(--tx3);padding:2px;">sıralamak için sürükle</div>
+        </div>`:''}`;
+      d.querySelector('.exp').onclick=e=>{e.stopPropagation();exp?expandedRoutes.delete(r.id):expandedRoutes.add(r.id);renderRail();};
+      d.querySelectorAll('.rstore').forEach(rs=>{
+        rs.onclick=e=>{e.stopPropagation();setFocus({type:'store',id:rs.dataset.s});renderAll();};
+        rs.ondragstart=e=>{e.stopPropagation();e.dataTransfer.setData('text/reorder',rs.dataset.s+'|'+rs.dataset.r);};
+        rs.ondragover=e=>{e.preventDefault();rs.style.borderTop='2px solid var(--blue-d)';};
+        rs.ondragleave=()=>rs.style.borderTop='';
+        rs.ondrop=e=>{
+          e.preventDefault();e.stopPropagation();rs.style.borderTop='';
+          const dt=e.dataTransfer.getData('text/reorder');if(!dt)return;
+          const [srcId,srcR]=dt.split('|');
+          if(srcR!==rs.dataset.r||srcId===rs.dataset.s)return;
+          const ord=routeStoreOrder(srcR).filter(x=>x!==srcId);
+          ord.splice(ord.indexOf(rs.dataset.s),0,srcId);
+          resequenceRoute(srcR,ord);
+          toast('Ziyaret sırası güncellendi — takvim saatleri yeniden dizildi',[{t:'Geri al',f:undoLast}]);
+        };
+      });
+      d.onclick=e=>toggleRouteFilter(r.id,e.shiftKey);
+      el.appendChild(d);
+    }
+    const nb=document.createElement('div');
+    nb.className='pool-item';nb.style.textAlign='center';nb.style.cursor='pointer';
+    nb.innerHTML='<span style="color:var(--tx2)">+ Yeni rut</span>';
+    nb.onclick=()=>{if(draftMode){toast('Önce mevcut taslağı bitir veya iptal et',[]);return;}openNewRouteModal();};
+    el.appendChild(nb);
+  } else {
+    for(const s of stores.filter(s=>!s.route)){
+      const d=document.createElement('div');
+      d.className='pool-item';d.draggable=true;
+      d.innerHTML=`<div class="nm">${s.name}</div><div class="sub"><span class="badge ${s.cat}">${catL(s.cat)}</span> ${s.rev}K/6ay</div>`;
+      d.ondragstart=e=>{e.dataTransfer.setData('text/pool',s.id);};
+      d.onclick=()=>setFocus({type:'store',id:s.id});
+      el.appendChild(d);
+    }
+    const na=document.createElement('div');
+    na.className='pool-item';na.style.textAlign='center';na.style.cursor='pointer';
+    na.innerHTML='<span style="color:var(--tx2)">+ Yeni mağaza</span>';
+    na.onclick=openNewStoreModal;
+    el.appendChild(na);
+    if(!stores.filter(s=>!s.route).length&&el.children.length===1)el.insertAdjacentHTML('afterbegin','<div class="empty">Havuz boş 🎉</div>');
+  }
+}
+function catL(c){return c==='P'?'Potansiyel':c==='V'?'Değerli':'Servis';}
+/* ---------- map ---------- */
+const MAP_BG=`<g pointer-events="none">
+  <rect x="0" y="0" width="600" height="520" fill="#EDEFE6"/>
+  <path d="M-10 470 C 120 430, 200 480, 330 445 S 540 470, 620 430 L 620 530 L -10 530 Z" fill="#C9DFF0"/>
+  <path d="M-10 470 C 120 430, 200 480, 330 445 S 540 470, 620 430" fill="none" stroke="#AECBE4" stroke-width="3"/>
+  <rect x="330" y="30" width="110" height="80" rx="6" fill="#D9E8CF"/>
+  <rect x="40" y="290" width="90" height="70" rx="6" fill="#D9E8CF"/>
+  <rect x="490" y="120" width="80" height="60" rx="6" fill="#D9E8CF"/>
+  <g stroke="#FFFFFF" stroke-width="7" stroke-linecap="round">
+    <path d="M0 100 H600"/><path d="M0 190 H600"/><path d="M0 275 H600"/><path d="M0 365 H600"/>
+    <path d="M80 0 V520"/><path d="M185 0 V520"/><path d="M295 0 V520"/><path d="M405 0 V520"/><path d="M510 0 V520"/>
+  </g>
+  <g stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" opacity="0.9">
+    <path d="M0 55 H600"/><path d="M0 145 H600"/><path d="M0 232 H600"/><path d="M0 320 H600"/><path d="M0 410 H600"/>
+    <path d="M35 0 V520"/><path d="M132 0 V520"/><path d="M240 0 V520"/><path d="M350 0 V520"/><path d="M460 0 V520"/><path d="M558 0 V520"/>
+    <path d="M80 100 L 295 275"/><path d="M405 190 L 510 365"/>
+  </g>
+  <g fill="#E3E4DA">
+    <rect x="90" y="110" width="35" height="28" rx="2"/><rect x="195" y="112" width="30" height="24" rx="2"/>
+    <rect x="92" y="200" width="28" height="22" rx="2"/><rect x="305" y="200" width="34" height="26" rx="2"/>
+    <rect x="415" y="112" width="30" height="24" rx="2"/><rect x="415" y="285" width="32" height="24" rx="2"/>
+    <rect x="195" y="288" width="30" height="22" rx="2"/><rect x="520" y="200" width="28" height="22" rx="2"/>
+    <rect x="92" y="375" width="30" height="22" rx="2"/><rect x="305" y="375" width="32" height="24" rx="2"/>
+  </g>
+  <g font-size="9" fill="#A9A79D" font-style="italic">
+    <text x="345" y="75">Gençlik Parkı</text><text x="55" y="325">Kuğulu Park</text>
+    <text x="250" y="500">Ankara Çayı</text>
+  </g>
+</g>`;
+function renderMap(){
+  const svg=$('#mapSvg');svg.innerHTML=MAP_BG;
+  const vs=new Set(visibleStores().map(s=>s.id));
+  const fids=filterRouteIds();
+  for(const r of routes){
+    const pts=stores.filter(s=>s.route===r.id);
+    const ptsStr=pts.map(p=>p.x+','+p.y).join(' ');
+    const active=!fids||fids.has(r.id);
+    const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    line.setAttribute('points',ptsStr);
+    line.setAttribute('fill','none');line.setAttribute('stroke',r.color);
+    line.setAttribute('stroke-width',active?3:1.5);line.setAttribute('opacity',active?0.9:0.25);
+    svg.appendChild(line);
+    const hit=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    hit.setAttribute('points',ptsStr);
+    hit.setAttribute('fill','none');hit.setAttribute('stroke','rgba(0,0,0,0)');
+    hit.setAttribute('stroke-width',14);hit.style.cursor='pointer';
+    hit.addEventListener('click',e=>{e.stopPropagation();hidePopover();toggleRouteFilter(r.id,e.shiftKey);});
+    hit.addEventListener('pointerdown',e=>e.stopPropagation());
+    svg.appendChild(hit);
+  }
+  for(const s of stores){
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',s.x);c.setAttribute('cy',s.y);
+    c.setAttribute('r',selection.has(s.id)?10:7);
+    if(s.route){
+      const r=route(s.route);const active=!filter||vs.has(s.id);
+      c.setAttribute('fill',r.color);c.setAttribute('opacity',active?1:0.25);
+      if(visits.some(v=>v.storeId===s.id&&v.patched)){c.setAttribute('stroke','#378ADD');c.setAttribute('stroke-width',2);c.setAttribute('stroke-dasharray','3,2');}
+    } else {
+      c.setAttribute('fill','#FAFAF7');c.setAttribute('stroke','#6B6A64');c.setAttribute('stroke-width',2);
+    }
+    if(selection.has(s.id)){c.setAttribute('stroke','#185FA5');c.setAttribute('stroke-width',3);c.setAttribute('stroke-dasharray','');}
+    if(focus&&focus.type==='store'&&focus.id===s.id){c.setAttribute('r',11);c.setAttribute('stroke','#2C2C2A');c.setAttribute('stroke-width',3);c.setAttribute('stroke-dasharray','');}
+    c.style.cursor='pointer';
+    c.onclick=e=>{e.stopPropagation();showPopover(s,e);};
+    g.appendChild(c);
+    const num=storeOrderNum(s.id);
+    if(num!==null){
+      const nt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      nt.setAttribute('x',s.x);nt.setAttribute('y',s.y+3);
+      nt.setAttribute('text-anchor','middle');nt.setAttribute('font-size','9');
+      nt.setAttribute('font-weight','bold');nt.setAttribute('fill','#FFFFFF');
+      nt.setAttribute('pointer-events','none');
+      nt.textContent=num;g.appendChild(nt);
+    }
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',s.x+11);t.setAttribute('y',s.y+4);
+    t.setAttribute('font-size','10');t.setAttribute('fill','#6B6A64');
+    t.textContent=s.name.split(' ').slice(0,2).join(' ');
+    g.appendChild(t);
+    svg.appendChild(g);
+  }
+  $('#mapInfo').textContent=`${stores.filter(s=>!s.route).length} atanmamış nokta`;
+}
+function showPopover(s,e){
+  hidePopover();
+  const wrap=$('#mapSvgWrap');const rect=wrap.getBoundingClientRect();
+  const d=document.createElement('div');d.className='popover';d.id='mapPopover';
+  const r=s.route?route(s.route):null;
+  d.innerHTML=`<div class="nm">${s.name}</div>
+    <div class="row"><span class="badge ${s.cat}">${catL(s.cat)}</span> ${s.chain} · ${s.format}</div>
+    <div class="row">Ciro (6 ay): <b>${s.rev}K ₺</b> ▁▂▄▃▅▆</div>
+    <div class="row">Rut: ${r?r.code+' · '+person(r.person).name:'<b style="color:var(--amber-d)">atanmamış</b>'}</div>
+    <div class="actions">
+      ${r?'':`<select onchange="if(this.value)assignStore('${s.id}',this.value)" style="font-size:11px;border:1px solid var(--border2);border-radius:5px;padding:3px;max-width:120px;">
+        <option value="">→ Ruta ekle…</option>
+        ${routes.map(rt=>`<option value="${rt.id}">${rt.code}${rt.draft?' 📝':''} · ${rt.name}</option>`).join('')}
+      </select>`}
+      <button onclick="expandStore('${s.id}')">Genişlet →</button>
+    </div>`;
+  let x=e.clientX-rect.left+12,y=e.clientY-rect.top-10;
+  if(x>rect.width-240)x=rect.width-240; if(y>rect.height-150)y=rect.height-150;
+  d.style.left=x+'px';d.style.top=y+'px';
+  wrap.appendChild(d);
+}
+function hidePopover(){const p=$('#mapPopover');if(p)p.remove();}
+window.expandStore=id=>{hidePopover();setFocus({type:'store',id});};
+window.assignStore=(sid,rid)=>{
+  hidePopover();
+  const s=store(sid);const r=route(rid);const prev=s.route;
+  if(r.draft){
+    s.route=rid;s.draftSeq=++draftSeqC;
+    if(r.person)generateDraftSchedule(r);
+    renderAll();
+    return;
+  }
+  s.route=rid;
+  let best=0,min=1e9;
+  for(let d=0;d<5;d++){const t=dayTotal(r.person,d);if(t<min){min=t;best=d;}}
+  const dv=dayVisits(r.person,best);
+  const st=dv.length?dv[dv.length-1].start+dv[dv.length-1].dur:DAY_START;
+  const nv=V(sid,r.person,best,skipBreaks(st),30);
+  visits.push(nv);baseVisits.push({...nv});clearFutureWeeks();reflow(r.person,best);
+  logChange(`${s.name} → ${r.code} (${DAYS[best]} eklendi)`,r.person,best,
+    ()=>{s.route=prev;visits=visits.filter(v=>v.id!==nv.id);baseVisits=baseVisits.filter(v=>v.id!==nv.id);});
+  toast(`${s.name} ${r.code} rutuna eklendi (${DAYS[best]})`,[]);
+};
+/* ---------- marquee selection ---------- */
+(function(){
+  const svg=$('#mapSvg'),wrap=$('#mapSvgWrap');let mq=null,sx=0,sy=0;
+  svg.addEventListener('pointerdown',e=>{
+    if(e.target.tagName==='circle')return;
+    hidePopover();
+    const r=wrap.getBoundingClientRect();sx=e.clientX-r.left;sy=e.clientY-r.top;
+    mq=document.createElement('div');mq.className='marquee';wrap.appendChild(mq);
+    const move=ev=>{
+      const x=ev.clientX-r.left,y=ev.clientY-r.top;
+      mq.style.left=Math.min(x,sx)+'px';mq.style.top=Math.min(y,sy)+'px';
+      mq.style.width=Math.abs(x-sx)+'px';mq.style.height=Math.abs(y-sy)+'px';
+    };
+    const up=ev=>{
+      document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+      const x=ev.clientX-r.left,y=ev.clientY-r.top;
+      const box=svg.getBoundingClientRect();
+      const scaleX=600/box.width, scaleY=520/box.height;
+      const x1=Math.min(x,sx)*scaleX,x2=Math.max(x,sx)*scaleX,y1=Math.min(y,sy)*scaleY,y2=Math.max(y,sy)*scaleY;
+      mq.remove();mq=null;
+      if(Math.abs(x-sx)<6&&Math.abs(y-sy)<6){
+        if(pendingNewStore){
+          const ns={id:'s'+Date.now(),...pendingNewStore,x:Math.round(x*scaleX),y:Math.round(y*scaleY),route:null};
+          stores.push(ns);pendingNewStore=null;
+          renderAll();setFocus({type:'store',id:ns.id});
+          toast(ns.name+' havuza eklendi ✓ (denetim kaydına yazıldı)',[]);
+          return;
+        }
+        selection.clear();renderAll();return;
+      }
+      selection.clear();
+      for(const s of stores){if(s.x>=x1&&s.x<=x2&&s.y>=y1&&s.y<=y2)selection.add(s.id);}
+      if(selection.size){focus={type:'selection'};panelTab='info';}
+      else if(focus&&focus.type==='selection')focus=null;
+      renderAll();
+    };
+    document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+  });
+})();
+/* ---------- action bar ---------- */
+function renderActionBar(){
+  let bar=$('#actionBar');if(bar)bar.remove();
+  if(!selection.size)return;
+  bar=document.createElement('div');bar.className='actionbar';bar.id='actionBar';
+  bar.innerHTML=`<b>${selection.size} nokta seçili</b>
+    ${routes.map(rt=>`<button onclick="bulkAssign('${rt.id}')">→ ${rt.code}${rt.draft?' 📝':''}</button>`).join('')}
+    <button onclick="openDrawer(true)">▤ Tabloda gör</button>
+    <button onclick="clearSel()">✕</button>`;
+  $('#mapPane').appendChild(bar);
+}
+window.clearSel=()=>{selection.clear();if(focus&&focus.type==='selection')focus=null;renderAll();};
+window.bulkAssign=rid=>{
+  const ids=[...selection].filter(id=>!store(id).route);
+  if(!ids.length){toast('Seçimde atanmamış nokta yok',[]);return;}
+  for(const id of ids)assignStore(id,rid);
+  selection.clear();renderAll();
+};
+/* ---------- schedule ---------- */
+function renderSched(){
+  const el=$('#schedScroll');el.innerHTML='';
+  if(isRO())el.innerHTML='<div style="background:var(--gray-l);color:var(--tx2);border-radius:6px;padding:5px 10px;font-size:11px;margin-bottom:8px;">🔒 Geçmiş hafta — salt okunur. Gerçek sistemde burada plan vs gerçekleşen (sonuç kodlarıyla) görünür.</div>';
+  const grid=document.createElement('div');grid.className='sched-grid';
+  grid.appendChild(document.createElement('div'));
+  grid.appendChild(document.createElement('div'));
+  for(const d of DAYS){const h=document.createElement('div');h.className='day-head';h.textContent=d;grid.appendChild(h);}
+  const src=mode==='base'?baseVisits:visits;
+  for(const p of visiblePeople()){
+    const pc=document.createElement('div');pc.className='person-cell';
+    const wk=weekTotal(p.id),cap=QUOTA*5,pct=Math.round(wk/cap*100);
+    const r=personRoute(p.id);
+    const val=visits.filter(v=>v.personId===p.id&&store(v.storeId).cat!=='S').reduce((s,v)=>s+v.dur,0);
+    const valPct=wk?Math.round(val/wk*100):0;
+    pc.innerHTML=`<div class="nm">${p.name}</div>
+      <div class="meta">${r?r.code:'—'} · %${valPct} değerli</div>
+      <div class="loadbar"><div style="width:${Math.min(pct,100)}%;background:${pct>100?'var(--red)':pct<80?'var(--amber)':'var(--green)'}"></div></div>
+      <div class="meta">%${pct} yük</div>`;
+    pc.querySelector('.nm').onclick=()=>{ if(filter&&filter.type==='person'&&filter.id===p.id){setFilter(null);}else{setFilter({type:'person',id:p.id});setFocus({type:'person',id:p.id});} };
+    grid.appendChild(pc);
+    const ax=document.createElement('div');ax.className='time-axis';
+    for(let h=DAY_START;h<=DAY_END;h+=60){
+      const sp=document.createElement('span');
+      sp.style.top=((h-DAY_START)*PXMIN)+'px';sp.textContent=fmtT(h);ax.appendChild(sp);
+    }
+    grid.appendChild(ax);
+    for(let day=0;day<5;day++){
+      const cell=document.createElement('div');cell.className='day-cell';cell.dataset.p=p.id;cell.dataset.d=day;
+      for(let h=DAY_START+60;h<DAY_END;h+=60){
+        const hl=document.createElement('div');hl.className='hline';
+        hl.style.top=((h-DAY_START)*PXMIN)+'px';cell.appendChild(hl);
+      }
+      for(const b of BREAKS){
+        const bd=document.createElement('div');bd.className='brk';
+        bd.style.top=((b.s-DAY_START)*PXMIN)+'px';bd.style.height=((b.e-b.s)*PXMIN)+'px';
+        bd.textContent=b.l;cell.appendChild(bd);
+      }
+      const tot=dayVisits(p.id,day,src).reduce((s,v)=>s+v.dur,0);
+      const td=document.createElement('div');td.className='day-total '+(tot>QUOTA?'over':tot<QUOTA*0.6?'under':'ok');
+      td.textContent=tot+"'";cell.appendChild(td);
+      for(const v of dayVisits(p.id,day,src)){
+        const s=store(v.storeId);
+        const b=document.createElement('div');
+        b.className='vblock cat'+s.cat+(v.patched&&mode==='eff'?' patched':'')+(focus&&focus.type==='store'&&focus.id===s.id?' sel':'');
+        b.style.top=((v.start-DAY_START)*PXMIN)+'px';
+        b.style.height=Math.max(v.dur*PXMIN-2,14)+'px';
+        b.innerHTML=`<div class="t">${s.name}</div><div class="s">${fmtT(v.start)} · ${v.dur}dk</div><div class="rz"></div><div class="rzT"></div>`;
+        if(mode==='eff'&&!isRO())attachBlock(b,v);
+        else{b.style.cursor='default';b.style.opacity='.7';
+          if(isRO())b.onclick=()=>setFocus({type:'store',id:v.storeId});}
+        cell.appendChild(b);
+      }
+      if(mode==='eff'&&!isRO()){
+        cell.ondragover=e=>{e.preventDefault();cell.classList.add('dragover');};
+        cell.ondragleave=()=>cell.classList.remove('dragover');
+        cell.ondrop=e=>{
+          e.preventDefault();cell.classList.remove('dragover');
+          const sid=e.dataTransfer.getData('text/pool');if(!sid)return;
+          const s=store(sid);const prev=s.route;
+          const r=personRoute(p.id);if(!r){toast('Bu kişiye atanmış rut yok',[]);return;}
+          s.route=r.id;
+          const dv=dayVisits(p.id,day);
+          const st=dv.length?dv[dv.length-1].start+dv[dv.length-1].dur:DAY_START;
+          const nv=V(sid,p.id,day,skipBreaks(st),30);
+          visits.push(nv);baseVisits.push({...nv});clearFutureWeeks();reflow(p.id,day);
+          logChange(`${s.name} → ${r.code} (${DAYS[day]})`,p.id,day,()=>{s.route=prev;visits=visits.filter(x=>x.id!==nv.id);baseVisits=baseVisits.filter(x=>x.id!==nv.id);});
+          toast(`${s.name} havuzdan eklendi → ${p.name} · ${DAYS[day]}`,[]);
+        };
+      }
+      grid.appendChild(cell);
+    }
+  }
+  el.appendChild(grid);
+}
+/* ---------- blok sürükle + boyutlandır ----------
+   Sürükleme = varsayılan YAMA (bu hafta), toast'tan kalıcıya çevrilir.
+   Kenar sürükleme = süre (5dk snap) + canlı reflow; bırakınca kapsam
+   toast'ı: ziyaret(tarihli) / mağaza / rut / format. Format seçeneği
+   GERÇEKTEN tüm aynı zincir+format ziyaretlerini günceller (kural). */
+function attachBlock(el,v){
+  el.addEventListener('pointerdown',e=>{
+    if(e.target.classList.contains('rz')){startResize(e,el,v);return;}
+    if(e.target.classList.contains('rzT')){startResizeTop(e,el,v);return;}
+    startMove(e,el,v);
+  });
+}
+/* Üst kenar: başlangıç saatini kaydırır, BİTİŞ sabit kalır (takvim standardı). */
+function startResizeTop(e,el,v){
+  e.preventDefault();e.stopPropagation();
+  const startY=e.clientY,origStart=v.start,end=v.start+v.dur;const before=snapshotVisit(v);
+  const move=ev=>{
+    let ns=origStart+Math.round((ev.clientY-startY)/PXMIN/5)*5;
+    ns=Math.max(DAY_START,Math.min(ns,end-10));
+    if(ns!==v.start){v.start=ns;v.dur=end-ns;renderSched();}
+  };
+  const up=()=>{
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+    if(v.start===origStart)return;
+    const s=store(v.storeId);
+    v.patched=true;
+    logChange(`${s.name}: başlangıç ${fmtT(origStart)} → ${fmtT(v.start)} (${v.dur}dk)`,v.personId,v.day,
+      ()=>{restoreVisit(v,before);reflow(v.personId,v.day);},true);
+    toast(`${s.name}: ${fmtT(v.start)}–${fmtT(end)} — sadece H${currentWeek}`,[
+      {t:'Kalıcı yap (Baz)',f:()=>{v.patched=false;makePermanent(v);changes[changes.length-1].patch=false;renderAll();}},
+      {t:'Geri al',f:undoLast}
+    ]);
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+function startMove(e,el,v){
+  e.preventDefault();
+  const startX=e.clientX,startY=e.clientY;let moved=false,ghost=null,dropInd=null;
+  /* Drop göstergesi: gün DEĞİL, tam saat hedeflenir — imlecin altındaki
+     5dk'ya yuvarlanmış yeni saat, çizgi + etiketle canlı gösterilir. */
+  const snapAt=(cell,clientY)=>{
+    const rect=cell.getBoundingClientRect();
+    let m=DAY_START+Math.round(((clientY-rect.top)/PXMIN)/5)*5;
+    return Math.max(DAY_START,Math.min(m,DAY_END-v.dur));
+  };
+  const move=ev=>{
+    if(!moved&&(Math.abs(ev.clientX-startX)>5||Math.abs(ev.clientY-startY)>5)){
+      moved=true;el.classList.add('dragging');
+      ghost=el.cloneNode(true);ghost.style.position='fixed';ghost.style.width=el.offsetWidth+'px';
+      ghost.style.pointerEvents='none';ghost.style.zIndex=100;ghost.style.opacity=.85;document.body.appendChild(ghost);
+      dropInd=document.createElement('div');
+      dropInd.style.cssText='position:absolute;left:2px;right:2px;border-radius:4px;border:2px dashed var(--blue-d);background:rgba(55,138,221,.12);z-index:4;pointer-events:none;display:none;';
+      dropInd.innerHTML='<span style="position:absolute;top:-1px;left:3px;font-size:9px;font-weight:700;color:var(--blue-d);background:var(--card);border-radius:3px;padding:0 3px;"></span>';
+    }
+    if(ghost){ghost.style.left=(ev.clientX+8)+'px';ghost.style.top=(ev.clientY+8)+'px';}
+    document.querySelectorAll('.day-cell').forEach(c=>c.classList.remove('dragover'));
+    const t=document.elementFromPoint(ev.clientX,ev.clientY);
+    const cell=t&&t.closest?t.closest('.day-cell'):null;
+    if(cell&&moved){
+      cell.classList.add('dragover');
+      if(dropInd){
+        if(dropInd.parentElement!==cell)cell.appendChild(dropInd);
+        const m=snapAt(cell,ev.clientY);
+        dropInd.style.display='block';
+        dropInd.style.top=((m-DAY_START)*PXMIN)+'px';
+        dropInd.style.height=Math.max(v.dur*PXMIN-2,12)+'px';
+        dropInd.querySelector('span').textContent=fmtT(m)+'–'+fmtT(m+v.dur)+' · '+v.dur+'dk';
+      }
+    } else if(dropInd){dropInd.style.display='none';}
+  };
+  const up=ev=>{
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+    if(ghost)ghost.remove();if(dropInd)dropInd.remove();el.classList.remove('dragging');
+    document.querySelectorAll('.day-cell').forEach(c=>c.classList.remove('dragover'));
+    if(!moved){setFocus({type:'store',id:v.storeId});return;}
+    const t=document.elementFromPoint(ev.clientX,ev.clientY);
+    const cell=t&&t.closest?t.closest('.day-cell'):null;
+    if(!cell)return;
+    const np=cell.dataset.p,nd=+cell.dataset.d;
+    const before=snapshotVisit(v);
+    const ns=snapAt(cell,ev.clientY);
+    if(np===v.personId&&nd===v.day&&ns===v.start)return;
+    v.personId=np;v.day=nd;v.start=skipBreaks(ns);v.patched=true;
+    reflow(np,nd);
+    const s=store(v.storeId);
+    logChange(`${s.name}: ${DAYS[before.day]}→${DAYS[nd]}${np!==before.personId?' · '+person(np).name:''}`,np,nd,
+      ()=>restoreVisit(v,before),true);
+    toast(`${s.name} taşındı — sadece H${currentWeek}`,[
+      {t:'Kalıcı yap (Baz)',f:()=>{v.patched=false;makePermanent(v);changes[changes.length-1].patch=false;changes[changes.length-1].desc+=' (kalıcı→Baz)';renderAll();}},
+      {t:'Geri al',f:()=>{undoLast();}}
+    ]);
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+function startResize(e,el,v){
+  e.preventDefault();e.stopPropagation();
+  const startY=e.clientY,origDur=v.dur;const before=snapshotVisit(v);
+  const move=ev=>{
+    let nd=origDur+Math.round((ev.clientY-startY)/PXMIN/5)*5;
+    nd=Math.max(10,Math.min(nd,240));
+    if(nd!==v.dur){v.dur=nd;reflow(v.personId,v.day);renderSched();}
+  };
+  const up=()=>{
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+    if(v.dur===origDur)return;
+    const s=store(v.storeId);
+    logChange(`${s.name}: ${origDur}dk → ${v.dur}dk`,v.personId,v.day,()=>{restoreVisit(v,before);reflow(v.personId,v.day);});
+    const vr=personRoute(v.personId);
+    toast(`${s.name}: ${origDur}dk → ${v.dur}dk. Nereye uygulansın?`,[
+      {t:'Sadece bu ziyaret (tarihli)',f:()=>{v.patched=true;changes[changes.length-1].patch=true;renderAll();}},
+      {t:'Bu mağaza hep',f:()=>{applyDur(x=>x.storeId===v.storeId,v.dur,`${s.name} tüm ziyaretler → ${v.dur}dk (mağaza kuralı)`);}},
+      {t:vr?`Bu rutta (${vr.code})`:'Bu rutta',f:()=>{if(vr)applyDur(x=>{const xr=personRoute(x.personId);return xr&&xr.id===vr.id;},v.dur,`${vr.code} tüm ziyaretler → ${v.dur}dk (rut kuralı)`);}},
+      {t:`Tüm ${s.format} tipi`,f:()=>{applyDur(x=>{const xs=store(x.storeId);return xs.format===s.format;},v.dur,`Tüm ${s.format} tipi → ${v.dur}dk (tip kuralı)`);}}
+    ]);
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+function applyDur(pred,dur,desc){
+  const snaps=visits.filter(pred).map(v=>({v,s:snapshotVisit(v)}));
+  for(const {v} of snaps){v.dur=dur;const bv=baseVisits.find(x=>x.id===v.id);if(bv)bv.dur=dur;}
+  clearFutureWeeks();
+  const days=new Set(snaps.map(({v})=>v.personId+'|'+v.day));
+  for(const k of days){const [p,d]=k.split('|');reflow(p,+d);}
+  logChange(desc,null,null,()=>{for(const {v,s} of snaps){restoreVisit(v,s);const bv=baseVisits.find(x=>x.id===v.id);if(bv)bv.dur=s.dur;}});
+}
+/* ---------- panel ---------- */
+function renderPanel(){
+  const head=$('#panelHead'),body=$('#panelBody');
+  const dr=draftRoute();
+  if(dr){
+    const pts=stores.filter(s=>s.route===dr.id);
+    const rev=pts.reduce((a,s)=>a+s.rev,0);
+    const mix={P:0,V:0,S:0};pts.forEach(s=>mix[s.cat]++);
+    const mins=pts.reduce((a,s)=>a+storeDur(s),0);
+    const cands=people.filter(p=>!personRoute(p.id)||personRoute(p.id).id===dr.id);
+    const ck=(ok,txt)=>`<div style="padding:4px 0;font-size:12px;">${ok===true?'<span style="color:var(--green)">✓</span>':ok===false?'<span style="color:var(--amber-d)">⚠</span>':'<span style="color:var(--tx3)">○</span>'} ${txt}</div>`;
+    head.innerHTML=`<div class="ttl">📝 ${dr.code} · ${dr.name}</div><div class="sub">kurulum kartı — taslak</div>`;
+    body.innerHTML=
+      ck(pts.length>0,`<b>${pts.length}</b> nokta ${pts.length?'seçildi':'— haritadan ekle (tık / lasso)'}`)+
+      ck(pts.length?rev>=dr.target:null,`Ciro <b>${rev}K</b> / ${dr.target}K`)+
+      ck(pts.length?(mins<=QUOTA*5):null,`Tahmini <b>${mins}dk</b>/hafta (görev sürelerinden)`)+
+      ck(pts.length?mix.S/Math.max(pts.length,1)<=0.4:null,`Karışım 🟢${mix.P} 🟡${mix.V} ⚪${mix.S}`)+
+      `<div style="padding:6px 0;font-size:12px;">${dr.person?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--tx3)">○</span>'} Kişi:
+        <select onchange="setDraftPerson(this.value)" style="font-size:11px;border:1px solid var(--border2);border-radius:5px;padding:2px;">
+          <option value="">seç…</option>
+          ${cands.map(p=>`<option value="${p.id}" ${dr.person===p.id?'selected':''}>${p.name} (yük %${Math.round(weekTotal(p.id)/(QUOTA*5)*100)})</option>`).join('')}
+        </select></div>`+
+      ck(dr.person?true:null,dr.person?'Hafta önizlemesi takvimde — blokları düzenleyebilirsin':'Hafta önizleme (kişi seçince otomatik)')+
+      `<div style="margin-top:8px;"><button onclick="openPoolPicker('${dr.id}')" style="font-size:11px;width:100%;">🔍 Havuzdan listeyle ekle (haritaya alternatif)</button></div>`+
+      `<div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+        <button class="primary" onclick="activateDraft()">Aktifleştir</button>
+        <button onclick="cancelDraft()">Vazgeç (taslağı sil)</button>
+      </div>
+      <div style="margin-top:10px;font-size:10.5px;color:var(--tx3);">Ciro/karışım uyarıları engellemez (450 kuralı gibi). Aktifleşince normal rut olur ve Yayınla akışına girer.</div>`;
+    return;
+  }
+  document.querySelectorAll('#panelTabs div').forEach(t=>t.classList.toggle('on',t.dataset.t===panelTab));
+  if(!focus){head.innerHTML='<div class="ttl">Detay</div><div class="sub">Bir mağaza, rut veya kişi seç</div>';body.innerHTML='<div class="empty">Haritadan bir pine, takvimden bir bloğa veya soldan bir ruta tıkla.</div>';return;}
+  if(focus.type==='selection'){
+    const sel=[...selection].map(store);
+    const rev=sel.reduce((a,s)=>a+s.rev,0);
+    const un=sel.filter(s=>!s.route);
+    const mix={P:0,V:0,S:0};sel.forEach(s=>mix[s.cat]++);
+    head.innerHTML=`<div class="ttl">${sel.length} nokta seçili</div><div class="sub">toplu görünüm</div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Toplam ciro (6 ay)</span><b>${rev}K ₺</b></div>
+        <div class="kv"><span class="k">Karışım</span><span>🟢${mix.P} 🟡${mix.V} ⚪${mix.S}</span></div>
+        <div class="kv"><span class="k">Atanmamış</span><b style="color:${un.length?'var(--amber-d)':'var(--green)'}">${un.length} / ${sel.length}</b></div>
+        <div style="margin:10px 0 6px;font-weight:600;font-size:12px;">Noktalar</div>
+        ${sel.map(s=>`<div class="task-row"><span style="cursor:pointer" onclick="expandStore('${s.id}')">${s.name}</span><span>${s.rev}K ${s.route?route(s.route).code:'<b style=color:var(--amber-d)>—</b>'}</span></div>`).join('')}
+        ${un.length?`<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="bulkAssign('r1')">${un.length} atanmamışı → ANK-01</button>
+          <button onclick="bulkAssign('r2')">→ ANK-02</button></div>`:''}`;
+    } else if(panelTab==='tasks'){
+      body.innerHTML=sel.map(s=>`<div class="task-row"><span>${s.name}</span><span>${s.format==='MM'?'80dk':'65dk'} görev</span></div>`).join('')+
+        `<div style="margin-top:8px;color:var(--tx2);font-size:11px;">Süreler kurallardan türetildi (format bazlı).</div>`;
+    } else {
+      body.innerHTML=`<div class="empty">Toplu geçmiş yok — tek nokta seç.</div>`;
+    }
+  } else if(focus.type==='store'){
+    const s=store(focus.id);const r=s.route?route(s.route):null;
+    head.innerHTML=`<div class="ttl">${s.name}</div><div class="sub">${s.chain} · ${s.format} · <span class="badge ${s.cat}">${catL(s.cat)}</span></div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Ciro (6 ay)</span><b>${s.rev}K ₺</b></div>
+        <div class="kv"><span class="k">Trend</span><span>▁▂▄▃▅▆</span></div>
+        <div class="kv"><span class="k">Rut</span><span>${r?r.code:'atanmamış'}</span></div>
+        <div class="kv"><span class="k">Sorumlu</span><span>${r?person(r.person).name:'—'}</span></div>
+        <div class="kv"><span class="k">Haftalık ziyaret</span><span>${visits.filter(v=>v.storeId===s.id).length}</span></div>
+        ${r?`<div style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:11.5px;">
+          <span style="color:var(--tx2);">Ziyaret sıklığı</span>
+          <select onchange="setStoreFreq('${s.id}',this.value)" style="font-size:11px;border:1px solid var(--border2);border-radius:5px;padding:3px;background:var(--card);color:var(--tx);">
+            ${FREQS.map(f=>`<option value="${f.k}" ${(s.freq||'hf')===f.k?'selected':''}>${f.l}</option>`).join('')}
+          </select></div>`:''}
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-l);">
+          <div style="font-size:11px;color:var(--tx2);margin-bottom:4px;">${r?`Rut üyeliği: <b>${r.code}</b> — taşımak için ara`:'Ruta ekle — ara'}</div>
+          <input id="rmSearch" placeholder="🔍 rut ara (kod / ad / kişi)…" style="width:100%;font-size:11.5px;border:1px solid var(--border2);border-radius:5px;padding:4px 8px;background:var(--card);color:var(--tx);">
+          <div id="rmList" style="margin-top:3px;"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+          ${r?`<button onclick="alert('Prototip: yama oluştur — tür seç, bitiş tarihi zorunlu.')">+ Yama</button>`:''}
+          <button onclick="alert('Prototip: mağazaya not ekle.')">+ Not</button>
+        </div>`;
+      /* Aranabilir rut seçici — yüzlerce rutta dropdown yerine arama.
+         Boşken ilk 6 rut, yazınca kod/ad/kişi ile filtre. */
+      const rmS=$('#rmSearch'),rmL=$('#rmList');
+      const renderRm=()=>{
+        const q=rmS.value.trim().toLowerCase();
+        let list=routes.filter(x=>x.id!==(r?r.id:null));
+        if(q)list=list.filter(rt=>(rt.code+' '+rt.name+' '+(rt.person?person(rt.person).name:'')).toLowerCase().includes(q));
+        rmL.innerHTML=list.slice(0,6).map(rt=>`<div class="rmRow" data-r="${rt.id}" style="padding:4px 7px;border:1px solid var(--gray-l);border-radius:5px;margin-bottom:2px;cursor:pointer;font-size:11px;display:flex;justify-content:space-between;gap:6px;">
+            <span><b>${rt.code}</b>${rt.draft?' 📝':''} · ${rt.name}</span>
+            <span style="color:var(--tx3);white-space:nowrap;">${rt.person?person(rt.person).name:'kişi yok'} ${r?'· taşı →':'· ekle →'}</span></div>`).join('')+
+          (list.length>6?`<div style="font-size:10px;color:var(--tx3);padding:2px 4px;">+${list.length-6} rut daha — aramayı daralt</div>`:'')+
+          (!list.length&&q?'<div style="font-size:10.5px;color:var(--tx3);padding:3px;">Eşleşen rut yok</div>':'')+
+          (r?`<div class="rmRow" data-r="POOL" style="padding:4px 7px;border:1px solid var(--gray-l);border-radius:5px;margin-top:4px;cursor:pointer;font-size:11px;color:var(--red-d);">✕ Havuza çıkar</div>`:'');
+        rmL.querySelectorAll('.rmRow').forEach(el2=>{
+          el2.onmouseenter=()=>el2.style.background='var(--gray-l)';
+          el2.onmouseleave=()=>el2.style.background='';
+          el2.onclick=()=>moveStoreTo(s.id,el2.dataset.r);
+        });
+      };
+      rmS.oninput=renderRm;renderRm();
+    } else if(panelTab==='tasks'){
+      /* Görev listesi kataloğdan türetilir: şablon varsayılanı + kurallar.
+         Katalog sayfasında yapılan düzenleme burayı anında etkiler. */
+      /* Mağazaya özel görev yönetimi: ekle / düzenle / kaldır / SIRALA.
+         Hepsi mağaza kapsamında istisna üretir; ziyaret süreleri delta ile
+         güncellenir ve normal taslak→Yayınla akışına girer. Sıra = sahada
+         uygulama sırası. */
+      const rows=storeTaskList(s).map(t=>{
+        const rr=resolveTaskMin(s,t);
+        return {id:t.id,name:t.name,m:rr.m,src:rr.src,ins:t.ins};
+      });
+      const tot=rows.reduce((a,r)=>a+r.m,0);
+      const excludedTpls=taskTemplates.filter(t=>t.active&&taskOverrides.some(o=>o.scope==='store'&&o.id===s.id&&o.tpl===t.id&&o.excluded));
+      body.innerHTML=rows.map((r,i)=>`<div class="task-row ptRow" draggable="true" data-tpl="${r.id}" title="${r.ins}" style="cursor:grab;">
+        <span style="display:flex;align-items:center;gap:6px;"><span style="color:var(--tx3);">⠿</span><b style="font-weight:600;font-size:11px;color:var(--tx3);">${i+1}.</b> ${r.name}</span>
+        <span style="display:flex;align-items:center;gap:6px;">${r.m}dk <div class="src">${r.src}</div>
+        <span class="ptEdit" data-tpl="${r.id}" style="cursor:pointer;color:var(--blue-d);" title="Süreyi bu mağaza/rut için düzenle">✎</span>
+        <span class="ptMods" data-tpl="${r.id}" style="cursor:pointer;" title="Modül yığınını bu mağaza için özelleştir">🧩</span>
+        <span class="ptDel" data-tpl="${r.id}" style="cursor:pointer;color:var(--red-d);" title="Bu mağazada bu görevi kaldır">🗑</span></span></div>`).join('')+
+        `<div style="margin:8px 0;display:flex;gap:6px;align-items:center;">
+          ${excludedTpls.length?`<select id="ptAddSel" style="font-size:11px;border:1px solid var(--border2);border-radius:5px;padding:3px;">${excludedTpls.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>
+          <button id="ptAdd" style="font-size:11px;">+ Görev ekle</button>`:
+          `<span style="font-size:10.5px;color:var(--tx3);">Tüm aktif görevler bu mağazada tanımlı. Kaldırılanlar buradan geri eklenir; yeni görev türü Yönetim'de açılır.</span>`}
+        </div>
+        <div style="color:var(--tx2);font-size:11px;">Toplam: <b>${tot}dk</b> · ⠿ sürükle = saha uygulama sırası · ✎ süre · 🗑 bu mağazada kaldır — hepsi sadece bu mağazayı etkiler.</div>`;
+      body.querySelectorAll('.ptEdit').forEach(e2=>e2.onclick=ev=>{ev.stopPropagation();openTaskEdit(s.id,null,e2.dataset.tpl);});
+      body.querySelectorAll('.ptMods').forEach(e2=>e2.onclick=ev=>{ev.stopPropagation();openModsEdit(s.id,e2.dataset.tpl);});
+      body.querySelectorAll('.ptDel').forEach(e2=>e2.onclick=ev=>{
+        ev.stopPropagation();
+        const t=taskTemplates.find(x=>x.id===e2.dataset.tpl);
+        const m=resolveTaskMin(s,t).m;
+        taskOverrides.push({scope:'store',id:s.id,tpl:t.id,excluded:true,date:'kalıcı'});
+        rulesData.push({id:'r'+Date.now(),scope:'Mağaza',cond:s.name,eff:t.name+' yapılmaz',date:'kalıcı',active:true});
+        applyDelta(v=>v.storeId===s.id,-m,`${s.name}: ${t.name} kaldırıldı (−${m}dk)`);
+        renderAll();toast(`${t.name} bu mağazada kaldırıldı — istisna olarak kaydedildi`,[]);
+      });
+      const addBtn=body.querySelector('#ptAdd');
+      if(addBtn)addBtn.onclick=()=>{
+        const tid=body.querySelector('#ptAddSel').value;
+        const t=taskTemplates.find(x=>x.id===tid);
+        taskOverrides=taskOverrides.filter(o=>!(o.scope==='store'&&o.id===s.id&&o.tpl===tid&&o.excluded));
+        rulesData=rulesData.filter(r=>!(r.cond===s.name&&r.eff===t.name+' yapılmaz'));
+        const m=resolveTaskMin(s,t).m;
+        applyDelta(v=>v.storeId===s.id,m,`${s.name}: ${t.name} eklendi (+${m}dk)`);
+        renderAll();toast(`${t.name} bu mağazaya eklendi`,[]);
+      };
+      body.querySelectorAll('.ptRow').forEach(rw=>{
+        rw.ondragstart=ev=>ev.dataTransfer.setData('text/ptask',rw.dataset.tpl);
+        rw.ondragover=ev=>{ev.preventDefault();rw.style.borderTop='2px solid var(--blue-d)';};
+        rw.ondragleave=()=>rw.style.borderTop='';
+        rw.ondrop=ev=>{
+          ev.preventDefault();rw.style.borderTop='';
+          const src=ev.dataTransfer.getData('text/ptask');
+          if(!src||src===rw.dataset.tpl)return;
+          const prev=storeTaskOrder[s.id]?storeTaskOrder[s.id].slice():null;
+          const cur=storeTaskList(s).map(t=>t.id).filter(x=>x!==src);
+          cur.splice(cur.indexOf(rw.dataset.tpl),0,src);
+          storeTaskOrder[s.id]=cur;
+          logChange(`${s.name}: görev sırası değiştirildi`,null,null,
+            ()=>{if(prev)storeTaskOrder[s.id]=prev;else delete storeTaskOrder[s.id];});
+          renderPanel();
+          toast('Görev sırası güncellendi — sahada bu sırayla uygulanır',[{t:'Geri al',f:undoLast}]);
+        };
+      });
+    } else {
+      body.innerHTML=`
+        <div class="hist-item"><div class="d">Mar–Tem 2026</div><b>${r?r.code:'—'}</b> · ${r?person(r.person).name:''}<br>34 ziyaret · %96 tamamlama</div>
+        <div class="hist-item"><div class="d">12 May</div>SKT sorunu işaretlendi 📷</div>
+        <div class="hist-item"><div class="d">Oca–Mar 2026</div>ANK-02 · Mehmet D. · 21 ziyaret</div>
+        <div class="hist-item"><div class="d">Eki 2025</div>EVO'dan senkronize edildi</div>`;
+    }
+  } else if(focus.type==='routes'){
+    const ids=(filter&&filter.type==='routes')?[...filter.ids]:[];
+    const rs=ids.map(route);
+    const pts=stores.filter(s=>s.route&&filter.ids.has(s.route));
+    const rev=pts.reduce((a,s)=>a+s.rev,0);
+    const target=rs.reduce((a,r)=>a+r.target,0);
+    head.innerHTML=`<div class="ttl">${rs.map(r=>r.code).join(' + ')}</div><div class="sub">${rs.length} rut · birleşik görünüm</div>`;
+    body.innerHTML=`
+      <div class="kv"><span class="k">Toplam nokta</span><b>${pts.length}</b></div>
+      <div class="kv"><span class="k">Toplam ciro (6 ay)</span><b style="color:${rev>=target?'var(--green)':'var(--red-d)'}">${rev}K / ${target}K</b></div>
+      <div class="kv"><span class="k">Kişiler</span><span>${rs.map(r=>person(r.person).name).join(', ')}</span></div>
+      <div class="kv"><span class="k">Kesişim kontrolü</span><span>çakışma yok ✓</span></div>
+      <div style="margin-top:10px;color:var(--tx2);font-size:11px;">Tek rut detayı için haritada çizgisine tıkla (Shift olmadan).</div>
+      <div style="margin-top:10px;"><button onclick="alert('Prototip: birleşik bölgeye yeni kişi simülasyonu — toplam ciro ve dakika yeterliliği hesaplanır.')">⚗ Bu bölgeye kişi ekle?</button></div>`;
+  } else if(focus.type==='route'){
+    const r=route(focus.id);
+    const pts=stores.filter(s=>s.route===r.id);
+    const rev=pts.reduce((a,s)=>a+s.rev,0);
+    const mix={P:0,V:0,S:0};pts.forEach(s=>mix[s.cat]++);
+    head.innerHTML=`<div class="ttl">${r.code} · ${r.name}</div><div class="sub">${person(r.person).name} · ${pts.length} nokta</div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Ciro (6 ay)</span><b style="color:${rev>=r.target?'var(--green)':'var(--red-d)'}">${rev}K / ${r.target}K</b></div>
+        <div class="kv"><span class="k">Karışım</span><span>🟢${mix.P} 🟡${mix.V} ⚪${mix.S}</span></div>
+        <div class="kv"><span class="k">Stabilite</span><b>91</b></div>
+        <div class="kv"><span class="k">Aktif yama</span><span>${visits.filter(v=>v.patched&&v.personId===r.person).length}</span></div>
+        <div class="kv"><span class="k">Atama geçmişi</span><span>2 değişim/yıl</span></div>
+        ${(()=>{
+          const patches=r.person?visits.filter(v=>v.patched&&v.personId===r.person):[];
+          return patches.length?`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-l);">
+            <div style="font-size:11px;font-weight:600;margin-bottom:4px;">H${currentWeek} yamaları (${patches.length})</div>
+            ${patches.map(v=>{const vs=store(v.storeId);return `<div class="task-row" style="font-size:11px;"><span>${DAYS[v.day]} ${fmtT(v.start)} · ${vs.name} (${v.dur}dk)</span><button onclick="revertPatch('${v.id}')" style="font-size:10px;">✕ Baz'a dön</button></div>`;}).join('')}
+            <button onclick="revertWeekRoute('${r.id}')" style="font-size:11px;margin-top:4px;width:100%;">↺ Haftayı Baz'a döndür</button>
+          </div>`:'';
+        })()}
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="openPoolPicker('${r.id}')">+ Havuzdan mağaza</button>
+          <button onclick="openPersonPicker('${r.id}')">Kişi değiştir</button>
+          <button onclick="renameRoute('${r.id}')">✎ Ad</button>
+          <button onclick="setRouteTarget('${r.id}')">🎯 Hedef</button>
+          <button onclick="archiveRoute('${r.id}')" style="color:var(--red-d);">Arşivle</button>
+        </div>`;
+    } else if(panelTab==='tasks'){
+      const rOv=taskOverrides.filter(o=>o.scope==='route'&&o.id===r.id);
+      body.innerHTML=(rOv.length?`<div style="font-size:11px;font-weight:600;margin-bottom:4px;">Rut görev kuralları</div>`+
+        rOv.map(o=>{const t=taskTemplates.find(x=>x.id===o.tpl);return `<div class="task-row"><span>${t.name}</span><span>${o.min}dk <div class="src">${o.date}</div></span></div>`;}).join('')+'<div style="height:8px"></div>':'')+
+        `<button onclick="openTaskEdit(null,'${r.id}',null)" style="margin-bottom:10px;font-size:11px;">+ Rut görev kuralı ekle</button>`+
+        `<div style="font-size:11px;font-weight:600;margin-bottom:4px;">Noktalar</div>`+
+        pts.map(s=>`<div class="task-row"><span>${s.name}</span><span class="badge ${s.cat}">${catL(s.cat)}</span></div>`).join('');
+    } else {
+      body.innerHTML=`
+        <div class="hist-item"><div class="d">Bu hafta</div>${visits.filter(v=>v.patched).length} yama aktif</div>
+        <div class="hist-item"><div class="d">Mar 2026</div>Ayşe K. atandı (sebep: yeniden yapılanma)</div>
+        <div class="hist-item"><div class="d">Şub 2026</div>2 nokta eklendi, 1 çıkarıldı</div>
+        <div class="hist-item"><div class="d">Oca 2026</div>Rut oluşturuldu (preset: il merkezi)</div>`;
+    }
+  } else {
+    const p=person(focus.id);const r=personRoute(p.id);
+    const wk=weekTotal(p.id);
+    head.innerHTML=`<div class="ttl">${p.name}</div><div class="sub">${r?r.code:'—'} · saha temsilcisi</div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Haftalık yük</span><b>${wk} / ${QUOTA*5} dk</b></div>
+        <div class="kv"><span class="k">Rut</span><span>${r?r.code:'—'}</span></div>
+        <div class="kv"><span class="k">Bu yıl rut değişimi</span><span>1</span></div>
+        <div class="kv"><span class="k">Görev uyumu</span><span>%94</span></div>`;
+    } else if(panelTab==='tasks'){
+      body.innerHTML=`<div class="task-row"><span>Süt reyonu anketi</span><span style="color:var(--red-d)">⏰ 12 Tem</span></div>
+        <div class="task-row"><span>Fiyat toplama (haftalık)</span><span>rutin</span></div>`;
+    } else {
+      body.innerHTML=`
+        <div class="hist-item"><div class="d">Dün 14:32</div>📝 Not: "Kantin B müdürü perşembe servis istemiyor"</div>
+        <div class="hist-item"><div class="d">Mar 2026</div>${r?r.code:''} rutuna atandı</div>
+        <div class="hist-item"><div class="d">Oca 2026</div>İşe başladı</div>`;
+    }
+  }
+}
+document.querySelectorAll('#panelTabs div').forEach(t=>t.onclick=()=>{panelTab=t.dataset.t;renderPanel();});
+/* ---------- table drawer ---------- */
+let drawerOpen=false;
+window.openDrawer=v=>{drawerOpen=v===undefined?!drawerOpen:v;$('#drawer').classList.toggle('open',drawerOpen);renderTable();};
+$('#drawerBtn').onclick=()=>openDrawer();
+function renderTable(){
+  if(!drawerOpen)return;
+  const tbl=$('#tbl');
+  const vp=new Set(visiblePeople().map(p=>p.id));
+  let rows=visits.filter(v=>vp.has(v.personId));
+  if(selection.size)rows=visits.filter(v=>selection.has(v.storeId));
+  rows.sort((a,b)=>a.day-b.day||a.start-b.start);
+  tbl.innerHTML=`<tr><th>Mağaza</th><th>Kategori</th><th>Kişi</th><th>Gün</th><th>Saat</th><th>Süre (dk)</th><th>Yama</th></tr>`+
+    rows.map(v=>{const s=store(v.storeId);return `<tr data-s="${s.id}">
+      <td>${s.name}</td><td><span class="badge ${s.cat}">${catL(s.cat)}</span></td>
+      <td>${person(v.personId).name}</td><td>${DAYS[v.day]}</td><td>${fmtT(v.start)}</td>
+      <td><input type="number" step="5" min="10" value="${v.dur}" data-v="${v.id}"></td>
+      <td>${v.patched?'<span class="pill">yama</span>':''}</td></tr>`;}).join('');
+  tbl.querySelectorAll('input').forEach(inp=>{
+    inp.onclick=e=>e.stopPropagation();
+    inp.onchange=()=>{
+      const v=visits.find(x=>x.id===inp.dataset.v);const before=snapshotVisit(v);
+      const nd=Math.max(10,Math.round(+inp.value/5)*5);
+      const s=store(v.storeId);
+      v.dur=nd;reflow(v.personId,v.day);
+      logChange(`${s.name}: ${before.dur}dk → ${nd}dk (tablo)`,v.personId,v.day,()=>{restoreVisit(v,before);reflow(v.personId,v.day);});
+    };
+  });
+  tbl.querySelectorAll('tr[data-s]').forEach(tr=>tr.onclick=()=>setFocus({type:'store',id:tr.dataset.s}));
+}
+/* ---------- toast ---------- */
+let toastTimer=null;
+function toast(msg,btns){
+  const old=$('#toast');if(old)old.remove();clearTimeout(toastTimer);
+  const d=document.createElement('div');d.className='toast';d.id='toast';
+  d.innerHTML=`<span>${msg}</span>`;
+  for(const b of btns){
+    const bt=document.createElement('button');bt.textContent=b.t;bt.className='act';
+    bt.onclick=()=>{b.f();d.remove();};d.appendChild(bt);
+  }
+  const x=document.createElement('button');x.textContent='✕';x.onclick=()=>d.remove();d.appendChild(x);
+  document.body.appendChild(d);
+  toastTimer=setTimeout(()=>d.remove(),7000);
+}
+/* ---------- changes / publish / undo ---------- */
+function undoLast(){
+  const c=changes.pop();if(!c)return;
+  c.undo();renderAll();toast('Geri alındı: '+c.desc,[]);
+}
+$('#undoBtn').onclick=undoLast;
+$('#publishBtn').onclick=()=>{
+  if(!changes.length){toast('Yayınlanacak değişiklik yok',[]);return;}
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='pubModal';
+  const groups={};
+  for(const c of changes){
+    const k=c.personId?person(c.personId).name+(c.day!=null?' · '+DAYS[c.day]:''):'Genel (kural)';
+    (groups[k]=groups[k]||[]).push(c);
+  }
+  bg.innerHTML=`<div class="modal">
+    <div class="modal-head">Yayın özeti — ${changes.length} değişiklik</div>
+    <div class="modal-body">${Object.entries(groups).map(([g,cs])=>`
+      <div class="chg-group"><div class="g">${g}</div>
+      ${cs.map(c=>`<div class="chg-item"><span>${c.desc}${c.patch?'<span class="pill">bu hafta</span>':''}</span><button data-c="${c.id}">Geri al</button></div>`).join('')}
+      </div>`).join('')}
+      <div style="color:var(--tx2);font-size:11px;margin-top:6px;">Onayladığında etkilenen saha temsilcilerine tek toplu bildirim gönderilir. Hiçbir değişiklik bu özetten geçmeden telefona düşmez.</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('pubModal').remove()">Vazgeç</button>
+      <button class="primary" id="confirmPub">Onayla ve yayınla</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  bg.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+    const i=changes.findIndex(c=>c.id===b.dataset.c);
+    if(i>=0){changes[i].undo();changes.splice(i,1);}
+    bg.remove();renderAll();
+    if(changes.length)$('#publishBtn').click();
+  });
+  $('#confirmPub').onclick=()=>{
+    const affected=new Set(changes.filter(c=>c.personId).map(c=>person(c.personId).name));
+    changes=[];bg.remove();renderAll();
+    toast(`Yayınlandı ✓ ${affected.size?[...affected].join(', ')+' bilgilendirildi (toplu bildirim)':''}`,[]);
+  };
+};
+/* ---------- header / status ---------- */
+function renderHeader(){
+  $('#chgCount').textContent=changes.length;
+  $('#wkLabel').textContent=weekLabel(currentWeek)+(isRO()?' 🔒':currentWeek>28?' (gelecek)':'');
+  $('#wkLabel').style.color=isRO()?'var(--tx3)':'var(--tx2)';
+  const fc=$('#filterChip');
+  if(filter){
+    const label=filter.type==='routes'?[...filter.ids].map(id=>route(id).code).join(' + '):person(filter.id).name;
+    fc.innerHTML=`<span class="chip">◉ ${label} · filtre <span class="x" onclick="setFilterNull()">✕</span></span>`;
+  } else fc.innerHTML='';
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+  document.querySelectorAll('#layoutSeg button').forEach(b=>b.classList.toggle('on',b.dataset.l===layout));
+  $('#mapPane').style.display=(layout==='sched')?'none':'flex';
+  $('#schedPane').style.display=(layout==='map')?'none':'flex';
+}
+window.setFilterNull=()=>setFilter(null);
+function renderStatus(){
+  let errs=0,warns=0,msgs=[];
+  for(const p of people)for(let d=0;d<5;d++){
+    const t=dayTotal(p.id,d);
+    if(t>QUOTA){errs++;msgs.push(`${p.name} ${DAYS[d]}: ${t}dk > ${QUOTA}`);}
+    else if(t>0&&t<QUOTA*0.6){warns++;}
+  }
+  $('#statusWarns').innerHTML=(errs?`<span class="err">⚠ ${errs} hata (${msgs[0]||''})</span> · `:'')+
+    (warns?`<span class="warn">${warns} düşük doluluk uyarısı</span>`:(errs?'':'✓ Plan temiz'));
+  const vals=people.map(p=>{
+    const wk=weekTotal(p.id);
+    const val=visits.filter(v=>v.personId===p.id&&store(v.storeId).cat!=='S').reduce((s,v)=>s+v.dur,0);
+    return {n:p.name.split(' ')[0],pct:wk?Math.round(val/wk*100):0};
+  });
+  const min=vals.reduce((a,b)=>a.pct<b.pct?a:b);
+  $('#fairness').textContent=vals.map(v=>`${v.n} %${v.pct}`).join(' · ')+(min.pct<40?` — ${min.n} ortalamanın altında`:'');
+}
+/* ---------- wiring ---------- */
+document.querySelectorAll('.rail .tabs div').forEach(t=>t.onclick=()=>{railTab=t.dataset.t;renderRail();});
+$('#wkPrev').onclick=()=>setWeek(currentWeek-1);
+$('#wkNext').onclick=()=>setWeek(currentWeek+1);
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;renderAll();
+  if(mode==='base')toast('Baz görünüm: aylık rutin, yamalar hariç — salt okunur',[]);});
+document.querySelectorAll('#layoutSeg button').forEach(b=>b.onclick=()=>{layout=b.dataset.l;renderHeader();});
+/* global search */
+const gs=$('#globalSearch'),sr=$('#searchResults');
+gs.oninput=()=>{
+  const q=gs.value.trim().toLowerCase();
+  if(q.length<2){sr.style.display='none';return;}
+  const res=[];
+  for(const s of stores)if(s.name.toLowerCase().includes(q))res.push({t:'store',id:s.id,l:s.name,sub:s.route?route(s.route).code:'atanmamış'});
+  for(const r of routes)if((r.code+' '+r.name).toLowerCase().includes(q))res.push({t:'route',id:r.id,l:r.code+' · '+r.name,sub:person(r.person).name});
+  for(const p of people)if(p.name.toLowerCase().includes(q))res.push({t:'person',id:p.id,l:p.name,sub:'saha temsilcisi'});
+  if(!res.length){sr.innerHTML='<div style="padding:10px;color:var(--tx3);font-size:12px;">Sonuç yok</div>';sr.style.display='block';return;}
+  sr.innerHTML=res.slice(0,8).map(x=>`<div class="sres" data-t="${x.t}" data-id="${x.id}" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--gray-l);font-size:12px;"><b>${x.l}</b><br><span style="color:var(--tx3);font-size:11px;">${x.sub}</span></div>`).join('');
+  sr.style.display='block';
+  sr.querySelectorAll('.sres').forEach(el=>{
+    el.onmouseenter=()=>el.style.background='var(--gray-l)';
+    el.onmouseleave=()=>el.style.background='';
+    el.onclick=()=>{
+      const t=el.dataset.t,id=el.dataset.id;
+      sr.style.display='none';gs.value='';
+      if(t==='store'){const s=store(id);if(s.route)expandedRoutes.add(s.route);setFocus({type:'store',id});renderAll();}
+      else if(t==='route'){toggleRouteFilter(id,false);}
+      else{setFilter({type:'person',id});setFocus({type:'person',id});}
+    };
+  });
+};
+gs.onblur=()=>setTimeout(()=>sr.style.display='none',200);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(currentPage!=='planner'){showPage('planner');return;}
+    selection.clear();if(filter)setFilter(null);hidePopover();renderAll();
+  }
+  if((e.metaKey||e.ctrlKey)&&e.key==='z'){e.preventDefault();undoLast();}
+});
+document.addEventListener('click',e=>{if(!e.target.closest('#mapPopover')&&!e.target.closest('circle'))hidePopover();});
+/* ---------- yönetim + gelen kutusu sayfaları ---------- */
+/* Şablonlar: gerçek build'de task_template tablosu (instructions = saha
+   talimatı, agent mobilde görür). Kurallar: rule tablosu, kapsam merdiveni
+   mağaza > rut > format > zincir > genel, hepsi tarihlenebilir. */
+/* MODÜL SİSTEMİ: modül TİPLERİ koda gömülü (KONTROL/FOTO/FORM/BILGI),
+   görev İÇERİĞİ tamamen dinamik (mods dizisi). Ajan ekranı = bu yığının
+   sırayla render'ı; zorunlu modüller bitmeden görev tamamlanamaz. */
+let modSeq=0;
+const MOD=(type,label,req,config)=>({id:'m'+(++modSeq),type,label,req:!!req,config:config||{}});
+let taskTemplates=[
+  {id:'t1',name:'Öncesi fotoğraf',min:5,proof:'Fotoğraf',rec:'Her ziyaret',ins:'Rafa dokunmadan önce genel görünüm fotoğrafı çek.',active:true,
+   mods:[MOD('FOTO','Öncesi raf fotoğrafı',true,{min:1})]},
+  {id:'t2',name:'Raf çalışması',min:30,proof:'Yok',rec:'Her ziyaret',ins:'Depodan ürün çek, ön yüzeyi düzenle, boş alan bırakma.',active:true,
+   mods:[MOD('BILGI','Önce depo kontrolü: eksik ürünleri çek'),
+         MOD('KONTROL','Rafı temizle, ön yüzeyi düzenle',true),
+         MOD('FORM','Raf durumu',true,{qs:[{q:'Kaç facing?',k:'sayı'},{q:'Boş raf var mı?',k:'evet/hayır'}]})]},
+  {id:'t3',name:'SKT kontrol',min:10,proof:'Form',rec:'Her ziyaret',ins:'SKT 30 günden az ürünleri öne çek; kritikleri forma işle.',active:true,
+   mods:[MOD('KONTROL','SKT<30 gün ürünleri öne çek',true),
+         MOD('FORM','SKT bildirimi',false,{qs:[{q:'Kritik ürün var mı?',k:'evet/hayır'},{q:'Ürün adı',k:'metin'}]})]},
+  {id:'t4',name:'Fiyat toplama',min:15,proof:'Form',rec:'Haftalık',ins:'Kendi + rakip 256 kalem; en güncel fiyatı gir.',active:true,
+   mods:[MOD('FORM','Fiyat girişi',true,{qs:[{q:'Ürün fiyatları (liste)',k:'metin'}]}),
+         MOD('FOTO','Etiket fotoğrafı (opsiyonel)',false,{min:1})]},
+  {id:'t5',name:'Sonrası fotoğraf',min:5,proof:'Fotoğraf',rec:'Her ziyaret',ins:'Düzenleme bittikten sonra aynı açıdan fotoğraf çek.',active:true,
+   mods:[MOD('FOTO','Sonrası raf fotoğrafı',true,{min:1})]}
+];
+const MOD_TYPES={KONTROL:'☑',FOTO:'📷',FORM:'📝',BILGI:'ℹ️'};
+function resolveMods(s,t){
+  const so=taskOverrides.find(o=>o.scope==='store'&&o.id===s.id&&o.tpl===t.id&&o.mods);
+  return so?{mods:so.mods,custom:true}:{mods:t.mods||[],custom:false};
+}
+/* Mağaza tipleri ana DB'den gelir (EVO sync) — ~5 tip, nadiren değişir.
+   Tip kuralları = görev × tip matrisi. İstisnalar (mağaza/rut) panel ✎'den. */
+/* SABİT 6 tip — Migros adlandırması, tüm zincirlere uygulanır (boyut sınıfı).
+   DB'de kod 1-6; büyük A101 de "MM boyutunda" olabilir. */
+const STORE_TYPES=[
+  {key:'Jet',label:'Jet (1)'},
+  {key:'M',label:'M (2)'},
+  {key:'MM',label:'MM (3)'},
+  {key:'3M',label:'3M (4)'},
+  {key:'4M',label:'4M (5)'},
+  {key:'5M',label:'5M (6)'}
+];
+let typeRules={ '4M':{t2:60,t4:25}, '5M':{t2:75,t4:30}, 'Jet':{t2:15,t4:0} }; /* tip → şablon → dk */
+let rulesData=[]; /* panel ✎'den gelen mağaza/rut istisnaları */
+let settingsData={quota:450,target:1250,snap:5,esc:3,batch:15};
+/* Bağlama özel görev kuralları: detay panelindeki ✎ ile oluşturulur.
+   Kapsam SADECE o mağaza veya o rut — genel şablona dokunmaz.
+   Merdiven: mağaza > rut > format > şablon. */
+let taskOverrides=[]; /* {scope:'store'|'route', id, tpl, min?, excluded?, date} */
+let storeTaskOrder={}; /* storeId → [tplId,...] — mağazaya özel görev SIRASI (sahada uygulama sırası) */
+function storeTaskList(s){
+  const excluded=new Set(taskOverrides.filter(o=>o.scope==='store'&&o.id===s.id&&o.excluded).map(o=>o.tpl));
+  let list=taskTemplates.filter(t=>t.active&&!excluded.has(t.id));
+  const ord=storeTaskOrder[s.id];
+  if(ord)list=list.slice().sort((a,b)=>{
+    const ia=ord.indexOf(a.id),ib=ord.indexOf(b.id);
+    return (ia<0?999:ia)-(ib<0?999:ib);
+  });
+  return list;
+}
+function resolveTaskMin(s,t){
+  let m=t.min,src='şablon';
+  const tr=typeRules[s.format];
+  if(tr&&tr[t.id]!==undefined){m=tr[t.id];src='kural: tip ('+(STORE_TYPES.find(x=>x.key===s.format)||{label:s.format}).label+')';}
+  const ro=s.route&&taskOverrides.find(o=>o.scope==='route'&&o.id===s.route&&o.tpl===t.id);
+  if(ro){m=ro.min;src='kural: rut ('+route(s.route).code+')'+(ro.date!=='kalıcı'?' · '+ro.date:'');}
+  const so=taskOverrides.find(o=>o.scope==='store'&&o.id===s.id&&o.tpl===t.id);
+  if(so){m=so.min;src='kural: bu mağaza'+(so.date!=='kalıcı'?' · '+so.date:'');}
+  return {m,src};
+}
+function applyDelta(pred,delta,desc){
+  if(!delta)return;
+  const snaps=visits.filter(pred).map(v=>({v,s:snapshotVisit(v)}));
+  for(const {v} of snaps){v.dur=Math.max(10,v.dur+delta);const bv=baseVisits.find(x=>x.id===v.id);if(bv)bv.dur=v.dur;}
+  clearFutureWeeks();
+  const days=new Set(snaps.map(({v})=>v.personId+'|'+v.day));
+  for(const k of days){const [p,d]=k.split('|');reflow(p,+d);}
+  logChange(desc,null,null,()=>{for(const {v,s} of snaps){restoreVisit(v,s);const bv=baseVisits.find(x=>x.id===v.id);if(bv)bv.dur=s.dur;}});
+}
+window.openTaskEdit=function(storeId,routeId,tplId){
+  const s=storeId?store(storeId):null;
+  const r=routeId?route(routeId):(s&&s.route?route(s.route):null);
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='teModal';
+  bg.innerHTML=`<div class="modal" style="width:400px;">
+    <div class="modal-head">Görev düzenle ${s?'— '+s.name:r?'— '+r.code:''}</div>
+    <div class="modal-body">
+      <div class="frow"><label>Görev</label>
+        <select id="teTpl">${taskTemplates.filter(t=>t.active).map(t=>`<option value="${t.id}" ${t.id===tplId?'selected':''}>${t.name}</option>`).join('')}</select></div>
+      <div class="frow"><label>Yeni süre (dk)</label><input type="number" id="teMin" step="5" min="5" value="${tplId?(s?resolveTaskMin(s,taskTemplates.find(t=>t.id===tplId)).m:taskTemplates.find(t=>t.id===tplId).min):15}" style="width:70px;"></div>
+      <div class="frow"><label>Kapsam</label>
+        <select id="teScope">
+          ${s?`<option value="store">Sadece bu mağaza</option>`:''}
+          ${r?`<option value="route" ${!s?'selected':''}>Bu ruttaki tüm mağazalar (${r.code})</option>`:''}
+        </select></div>
+      <div class="frow"><label>Geçerlilik</label>
+        <select id="teDate"><option>kalıcı</option><option>sadece bu hafta</option><option>sadece bugün</option></select></div>
+      <div style="font-size:11px;color:var(--tx3);">Genel şablona dokunmaz — sadece seçili kapsamda geçerli bir kural oluşturur. Kurallar sekmesinde görünür, oradan kaldırılabilir.</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('teModal').remove()">Vazgeç</button>
+      <button class="primary" id="teSave">Kaydet</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  $('#teSave').onclick=()=>{
+    const tpl=taskTemplates.find(t=>t.id===$('#teTpl').value);
+    const nm=Math.max(5,Math.round(+$('#teMin').value/5)*5);
+    const scope=$('#teScope').value, date=$('#teDate').value;
+    const tgtStore=scope==='store'?s:null, tgtRoute=scope==='route'?r:null;
+    const oldM=tgtStore?resolveTaskMin(tgtStore,tpl).m:tpl.min;
+    taskOverrides=taskOverrides.filter(o=>!(o.scope===scope&&o.id===(tgtStore?tgtStore.id:tgtRoute.id)&&o.tpl===tpl.id));
+    taskOverrides.push({scope,id:tgtStore?tgtStore.id:tgtRoute.id,tpl:tpl.id,min:nm,date});
+    rulesData.push({id:'r'+Date.now(),scope:scope==='store'?'Mağaza':'Rut',
+      cond:tgtStore?tgtStore.name:tgtRoute.code,eff:tpl.name+' '+nm+'dk',date,active:true});
+    const delta=nm-oldM;
+    if(scope==='store')applyDelta(v=>v.storeId===tgtStore.id,delta,`${tgtStore.name}: ${tpl.name} → ${nm}dk (mağaza kuralı)`);
+    else applyDelta(v=>{const xr=personRoute(v.personId);return xr&&xr.id===tgtRoute.id;},delta,`${tgtRoute.code}: ${tpl.name} → ${nm}dk (rut kuralı)`);
+    bg.remove();renderAll();
+    toast(`Kural kaydedildi — ziyaret süreleri güncellendi${delta?'':' (süre aynı)'}`,[]);
+  };
+};
+let inboxData=[
+  {id:'i1',type:'💬 Not',who:'Mehmet D.',txt:'"Kantin B müdürü perşembe günleri servis istemiyor."',anchor:'s5',status:'open'},
+  {id:'i2',type:'✋ Talep',who:'Ayşe K.',txt:'"Migros 4M süresi yetmiyor — 60dk olmalı."',anchor:'s1',status:'open',apply:{store:'s1',dur:60}},
+  {id:'i3',type:'⏰ Geciken',who:'Sistem',txt:'Süt reyonu anketi — son tarih 12 Tem geçti (A101 Batı).',anchor:'s6',status:'open'}
+];
+let currentPage='planner',adminTab='templates';
+/* Yönetim ve Gelen kutusu tam sayfa DEĞİL — sağdan kayan yarım-panel
+   (drawer). Planlayıcı arkada görünür ve canlı kalır; bağlam kopmaz. */
+function showPage(p){
+  if(currentPage==='admin'&&p!=='admin'&&typeof adminDiffs==='function'&&adminDiffs().length){
+    if(!confirm(adminDiffs().length+' kaydedilmemiş Yönetim değişikliği var. Kaydetmeden çıkılsın mı?'))return;
+    adminDraft=null;
+  }
+  currentPage=(currentPage===p&&p!=='planner')?'planner':p;
+  $('#adminPage').classList.toggle('on',currentPage==='admin');
+  $('#inboxPage').classList.toggle('on',currentPage==='inbox');
+  $('#settingsPage').classList.toggle('on',currentPage==='settings');
+  if(currentPage==='admin')renderAdmin();
+  if(currentPage==='inbox')renderInbox();
+  if(currentPage==='settings')renderSettings();
+  if(currentPage==='planner')renderAll();
+}
+/* Kampanya görevleri: son tarihli, hedefli tek seferlik görev gönderimi
+   (anket vb.). Hedef = tip/zincir filtresi; eşleşen mağazaların önündeki
+   ziyaretlere iliştirilir; son tarihte OVERDUE → eskalasyon. */
+let campaigns=[];
+$('#campBtn').onclick=()=>{
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='cmpModal';
+  bg.innerHTML=`<div class="modal" style="width:420px;">
+    <div class="modal-head">📣 Kampanya görevi gönder</div>
+    <div class="modal-body">
+      <div class="frow"><label>Görev adı</label><input type="text" id="cmpName" value="Süt reyonu anketi" style="width:190px;"></div>
+      <div class="frow"><label>Şablon / içerik</label><select id="cmpTpl">${taskTemplates.filter(t=>t.active).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}<option value="ADHOC">— Tek seferlik form (modüllerle kur)</option></select></div>
+      <div class="frow"><label>Hedef: mağaza tipi</label><select id="cmpType"><option value="">Tümü</option>${STORE_TYPES.map(t=>`<option value="${t.key}">${t.key}</option>`).join('')}</select>
+        <label style="min-width:auto;">Zincir</label><input type="text" id="cmpChain" placeholder="örn. Migros" style="width:90px;"></div>
+      <div class="frow"><label>Son tarih</label><input type="date" id="cmpDate" value="2026-07-17" style="font-size:12px;border:1px solid var(--border2);border-radius:5px;padding:3px;"></div>
+      <div id="cmpCount" style="font-size:11px;color:var(--blue-d);"></div>
+      <div style="font-size:10.5px;color:var(--tx3);margin-top:6px;">Görev, hedef mağazaların son tarihten önceki ilk ziyaretine iliştirilir. Ziyareti olmayan mağazalar uyarı listesine düşer (V11). Son tarihte tamamlanmazsa OVERDUE → gelen kutusu eskalasyonu.</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('cmpModal').remove()">Vazgeç</button>
+      <button class="primary" id="cmpSend">Gönder</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  const upd=()=>{
+    const ty=$('#cmpType').value,ch=$('#cmpChain').value.trim().toLowerCase();
+    const n=stores.filter(s=>s.route&&(!ty||s.format===ty)&&(!ch||s.chain.toLowerCase().includes(ch))).length;
+    $('#cmpCount').textContent=`Hedef: ${n} mağaza (rutlu)`;
+    return n;
+  };
+  $('#cmpType').onchange=upd;$('#cmpChain').oninput=upd;upd();
+  $('#cmpSend').onclick=()=>{
+    const n=upd();
+    if(!n){toast('Hedefte mağaza yok',[]);return;}
+    campaigns.push({id:'c'+Date.now(),name:$('#cmpName').value,type:$('#cmpType').value||'Tümü',chain:$('#cmpChain').value||'—',deadline:$('#cmpDate').value,count:n,done:0});
+    bg.remove();renderAll();
+    toast(`Kampanya gönderildi — ${n} mağazanın önümüzdeki ziyaretlerine eklendi`,[]);
+  };
+};
+$('#helpBtn').onclick=()=>{
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='helpModal';
+  bg.innerHTML=`<div class="modal" style="width:560px;max-height:86vh;">
+    <div class="modal-head">❔ Kullanım kılavuzu — tüm ipuçları</div>
+    <div class="modal-body hlp">
+
+      <h3>🗺 Genel düzen</h3>
+      <p>Tek ekran, üç bölüm: solda <b>Harita</b> (nerede), sağda <b>Takvim</b> (ne zaman), alttan <b>Tablo</b> çekmecesi (toplu düzenleme). Üstteki <b>Harita · Bölünmüş · Takvim</b> düğmeleri düzeni değiştirir — sayfa asla değişmez. Üç bölüm aynı seçimi paylaşır: haritada seçtiğin, takvimde parlar, tabloda filtrelenir.</p>
+
+      <h3>🧭 Sol şerit (Rutlar / Havuz)</h3>
+      <p>• Ruta tıkla → tüm ekran o ruta filtrelenir (tekrar tıkla = kaldır).<br>
+      • <kbd>Shift</kbd> + tıkla → birden fazla rut seç, panelde birleşik özet (toplam ciro, nokta).<br>
+      • <b>▸</b> ok → rutun mağaza listesi açılır; numaralar <b>ziyaret sırasıdır</b>.<br>
+      • Listedeki mağazayı <b>sürükleyip bırak</b> → ziyaret sırası değişir, takvim saatleri otomatik yeniden dizilir.<br>
+      • <b>Havuz</b> sekmesi = hiçbir ruta atanmamış mağazalar. Havuzdan bir mağazayı doğrudan takvimde bir güne sürükle → ruta eklenir.</p>
+
+      <h3>🗺 Harita</h3>
+      <p>• Pine tıkla → mini kart (ciro, tip, rut) → <b>Genişlet</b> ile sağ panele açılır.<br>
+      • Rut <b>çizgisine</b> tıkla → rutu seçer; <kbd>Shift</kbd>+tık → çoklu seçim.<br>
+      • Boş alanda <b>sürükle</b> → dikdörtgen seçim: içindeki mağazalar toplu seçilir, alt barda "→ ANK-01" ile hepsini ruta ata.<br>
+      • İçi boş pinler = atanmamış mağazalar. Pin içindeki sayı = ziyaret sırası.</p>
+
+      <h3>📅 Takvim</h3>
+      <p>• Blok <b>sürükle</b> (başka gün/kişi) → varsayılan <b>sadece bu hafta</b> (yama, kesikli çerçeve); toast'tan <b>Kalıcı yap</b>.<br>
+      • Bloğun <b>alt kenarını çek</b> → süre değişir (5dk adım), alttaki bloklar canlı kayar. Bırakınca kapsam sorulur: <i>bu ziyaret · bu mağaza · bu rut · tüm tip</i>.<br>
+      • Bloğa tıkla (sürüklemeden) → sağ panelde mağaza detayı.<br>
+      • Gün başındaki dakika toplamı kırmızıysa kota aşılmış (sadece uyarı, engellemez).<br>
+      • <b>Efektif</b> = bu haftanın gerçek planı (Baz + yamalar) · <b>Baz</b> = kalıcı aylık rutin, salt okunur. Yama süresi dolunca plan kendiliğinden Baz'a döner.</p>
+
+      <h3>📋 Sağ panel (Detay)</h3>
+      <p>Neye tıklarsan onun detayı: <b>Bilgi · Görevler · Geçmiş</b>. Mağazanın Görevler sekmesi tam görev yöneticisidir:<br>
+      • <b>⠿ sürükle</b> → görev sırası (sahada uygulama sırası)<br>
+      • <b>✎</b> → süreyi değiştir (kapsam: bu mağaza / bu rut, kalıcı / tarihli)<br>
+      • <b>🧩</b> → modül yığınını bu mağazaya özel düzenle (sağda ajan ekranı önizlemesi)<br>
+      • <b>🗑</b> → görevi bu mağazada kaldır (istisna olur, geri eklenebilir)</p>
+      <div class="tip">💡 Panelde görev satırının üzerine gel → saha talimatını görürsün. Her sürenin yanında kaynağı yazar: şablon mu, tip kuralı mı, mağaza istisnası mı.</div>
+
+      <h3>📤 Yayınlama</h3>
+      <p>Hiçbir değişiklik anında sahaya gitmez. Her düzenleme üstteki <b>Yayınla (n)</b> sayacına birikir. Yayınla → kişi/güne gruplu özet, her kalem tek tek geri alınabilir → <b>Onayla</b> → etkilenen temsilcilere tek toplu bildirim.</p>
+
+      <h3>⚙ Yönetim (Türkiye geneli)</h3>
+      <p>• <b>Görev şablonları</b>: görev türleri — Düzenle ile ad, süre, saha talimatı ve <b>modül yığını</b> (☑ kontrol, 📷 fotoğraf, 📝 dinamik form 2–6 seçenekli sorularla, ℹ️ bilgi).<br>
+      • <b>Mağaza tipi kuralları</b>: görev × tip matrisi (Jet→5M). Hücre = o tipteki tüm mağazaların süresi; 0 = yapılmaz; boş = varsayılan.<br>
+      • Tüm değişiklikler <b>taslakta birikir</b> → alttaki Kaydet → onay modalı → uygulanır ve <b>📜 Denetim kaydına</b> (kim/ne/ne zaman) yazılır. Kaydetmeden çıkarsan uyarılırsın.<br>
+      • <b>Sistem ayarları</b> ayrı sayfadadır (kota, hedefler) — aynı Kaydet + onay + kayıt akışı.</p>
+
+      <h3>🔔 Gelen kutusu</h3>
+      <p>Saha notları, değişiklik talepleri ve geciken görevler. <b>📍 bağlama git</b> → planlayıcıda ilgili mağazayı odaklar. Talepteki <b>Uygula</b> → değişiklik normal taslak akışına girer (yine Yayınla gerekir).</p>
+
+      <h3>⌨️ Kısayollar</h3>
+      <p>• <kbd>Esc</kbd> → seçimi/filtreyi temizle, açık paneli kapat<br>
+      • <kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd> → son değişikliği geri al<br>
+      • <kbd>Shift</kbd>+tık (rut/çizgi) → çoklu rut seçimi<br>
+      • Üstteki 🔍 arama → mağaza/rut/kişi; sonuç tıklanınca odaklanır</p>
+    </div>
+    <div class="modal-foot"><button class="primary" onclick="document.getElementById('helpModal').remove()">Anladım</button></div>
+  </div>`;
+  document.body.appendChild(bg);
+  bg.onclick=e=>{if(e.target===bg)bg.remove();};
+};
+$('#adminBtn').onclick=()=>showPage('admin');
+$('#inboxBtn').onclick=()=>showPage('inbox');
+document.querySelectorAll('#adminTabs div').forEach(t=>t.onclick=()=>{
+  adminTab=t.dataset.t;
+  document.querySelectorAll('#adminTabs div').forEach(x=>x.classList.toggle('on',x===t));
+  renderAdmin();
+});
+function renderAdmin(){
+  const el=$('#adminBody');
+  const banner=(icon,txt)=>`<div style="background:var(--blue-l);color:var(--blue-d);border-radius:8px;padding:8px 12px;font-size:11.5px;margin-bottom:12px;line-height:1.5;">${icon} <b>Etki alanı:</b> ${txt}</div>`;
+  if(adminTab==='templates'){
+    el.innerHTML=banner('🌍','Buradaki değişiklik <b>tüm mağazaları ve tüm rutları</b> etkiler — görev türünün genel tanımıdır. İstisnalar Kurallar sekmesinde tanımlanır ve buradaki değerin üzerine yazar. Örn: süreyi 5→10dk yaparsan, kendi kuralı olmayan her mağazada 10dk olur.')+taskTemplates.map(t=>`<div class="card" style="${t.active?'':'opacity:.5'}">
+      <div class="hd"><input type="text" value="${t.name}" data-f="name" data-id="${t.id}" style="border:1px solid var(--border2);border-radius:5px;padding:3px 7px;font-size:13px;font-weight:600;width:200px;background:var(--card);color:var(--tx);">
+        <span class="spacer" style="flex:1"></span>
+        <label style="font-size:11px;color:var(--tx2);"><input type="checkbox" data-f="active" data-id="${t.id}" ${t.active?'checked':''}> aktif</label></div>
+      <div class="frow"><label>Varsayılan süre (dk)</label><input type="number" step="5" value="${t.min}" data-f="min" data-id="${t.id}" style="width:70px;"> <span style="color:var(--tx3);font-size:11px;">kurallar bunun üstüne yazar</span></div>
+      <div class="frow"><label>Kanıt · Sıklık</label><span>${t.proof} · ${t.rec}</span></div>
+      <div class="frow" style="align-items:flex-start;"><label>Saha talimatı (nasıl yapılır)</label></div>
+      <textarea data-f="ins" data-id="${t.id}">${t.ins}</textarea>
+    </div>`).join('')+`<button onclick="taskTemplates.push({id:'t'+Date.now(),name:'Yeni görev',min:10,proof:'Yok',rec:'Her ziyaret',ins:'',active:true});renderAdmin();">+ Yeni şablon</button>`;
+    el.querySelectorAll('input,textarea').forEach(inp=>inp.onchange=()=>{
+      const t=taskTemplates.find(x=>x.id===inp.dataset.id);
+      if(inp.dataset.f==='active'){t.active=inp.checked;}
+      else if(inp.dataset.f==='min'){t.min=+inp.value;}
+      else t[inp.dataset.f]=inp.value;
+      renderAdmin();toast('Şablon kaydedildi — mağaza görev listeleri güncellendi',[]);
+    });
+  } else if(adminTab==='rules'){
+    el.innerHTML=banner('🎯','Kurallar <b>sadece kendi kapsamını</b> etkiler (bir zincir, bir format, bir rut veya tek mağaza) ve şablon varsayılanının üzerine yazar. Öncelik: <b>mağaza &gt; rut &gt; format &gt; zincir &gt; genel</b> — en özel kazanır. Her kural kalıcı ya da tarihli olabilir (örn. "sadece bugün").')+
+    rulesData.map(r=>`<div class="card" style="${r.active?'':'opacity:.5'}">
+      <div class="hd"><span class="pill">${r.scope}</span> ${r.cond}
+        <span class="spacer" style="flex:1"></span>
+        <button data-id="${r.id}" class="ruleToggle" style="font-size:11px;">${r.active?'Pasifleştir':'Aktifleştir'}</button></div>
+      <div class="frow"><label>Etki</label><b>${r.eff}</b></div>
+      <div class="frow"><label>Geçerlilik</label><span>${r.date}</span></div>
+    </div>`).join('')+`
+    <div class="card" style="border-style:dashed;">
+      <div class="hd">+ Yeni kural</div>
+      <div class="frow"><label>Kapsam</label>
+        <select id="nrScope"><option>Genel</option><option>Zincir</option><option>Format</option><option>Rut</option><option>Mağaza</option></select>
+        <input type="text" id="nrCond" placeholder="örn. Migros · MM" style="width:140px;">
+      </div>
+      <div class="frow"><label>Etki</label><input type="text" id="nrEff" placeholder="örn. Raf çalışması 45dk" style="width:200px;"></div>
+      <div class="frow"><label>Geçerlilik</label>
+        <select id="nrDate"><option>kalıcı</option><option>sadece bugün</option><option>bu hafta</option><option>tarih aralığı…</option></select>
+        <button id="nrAdd">Ekle</button>
+      </div>
+    </div>`;
+    el.querySelectorAll('.ruleToggle').forEach(b=>b.onclick=()=>{
+      const r=rulesData.find(x=>x.id===b.dataset.id);r.active=!r.active;renderAdmin();
+    });
+    $('#nrAdd').onclick=()=>{
+      rulesData.push({id:'r'+Date.now(),scope:$('#nrScope').value,cond:$('#nrCond').value||'—',eff:$('#nrEff').value||'—',date:$('#nrDate').value,active:true});
+      renderAdmin();toast('Kural eklendi — gerçek sistemde önce etki önizlemesi gösterilir',[]);
+    };
+  } else if(adminTab==='presets'){
+    el.innerHTML=banner('📋','Presetler <b>mevcut hiçbir rutu etkilemez</b> — sadece yeni rut kurarken başlangıç iskeleti olarak kullanılır (sıklık düzeni, hedefler, gün şekli). Mağaza ve kişi içermez.')+presetsData.map(p=>`<div class="card">
+      <div class="hd">${p.name}<span class="spacer" style="flex:1"></span>
+        <button onclick="alert('Prototip: yeni rut sihirbazı bu presetle açılır.')" style="font-size:11px;">Bununla rut kur</button></div>
+      <div style="font-size:12px;color:var(--tx2);">${p.def}</div>
+    </div>`).join('')+`
+    <div class="card" style="border-style:dashed;">
+      <div class="hd">+ Mevcut ruttan preset oluştur</div>
+      <div class="frow">
+        <select id="npRoute">${routes.map(r=>`<option value="${r.id}">${r.code} · ${r.name}</option>`).join('')}</select>
+        <button id="npAdd">Preset olarak kaydet</button>
+      </div>
+      <div style="font-size:11px;color:var(--tx3);">Preset yalnızca iskeleti alır (sıklık düzeni, hedefler, gün şekli) — mağazalar ve kişi alınmaz.</div>
+    </div>`;
+    $('#npAdd').onclick=()=>{
+      const r=route($('#npRoute').value);
+      presetsData.push({id:'p'+Date.now(),name:r.code+' kopyası',def:'iskelet: '+r.code+' düzeninden'});
+      renderAdmin();toast('Preset kaydedildi',[]);
+    };
+  } else {
+    el.innerHTML=banner('⚖️','Ayarlar <b>hiçbir ziyareti taşımaz</b> — sadece uyarı eşiklerini ve sistem davranışını değiştirir (neyin işaretleneceği, bildirimlerin nasıl gruplanacağı). Örn: kotayı 450→420 yaparsan takvimdeki gün toplamları yeni eşiğe göre renklenir.')+`<div class="card">
+      <div class="hd">Çalışma kuralları</div>
+      <div class="frow"><label>Günlük çalışma kotası (dk)</label><input type="number" id="stQuota" value="${settingsData.quota}" step="15" style="width:80px;"> <span style="font-size:11px;color:var(--tx3);">sadece uyarı — asla bloklamaz</span></div>
+      <div class="frow"><label>Takvim adımı (dk)</label><input type="number" id="stSnap" value="${settingsData.snap}" style="width:80px;"></div>
+    </div>
+    <div class="card">
+      <div class="hd">Hedefler ve eşikler</div>
+      <div class="frow"><label>Rut ciro hedefi (bin ₺ / 6 ay)</label><input type="number" id="stTarget" value="${settingsData.target}" step="50" style="width:90px;"></div>
+      <div class="frow"><label>Geciken görev eskalasyonu (gün)</label><input type="number" id="stEsc" value="${settingsData.esc}" style="width:80px;"></div>
+    </div>
+    <div class="card">
+      <div class="hd">Bildirimler</div>
+      <div class="frow"><label>Toplu bildirim penceresi (dk)</label><input type="number" id="stBatch" value="${settingsData.batch}" style="width:80px;"> <span style="font-size:11px;color:var(--tx3);">aynı güne çoklu edit = tek bildirim</span></div>
+    </div>
+    <div style="font-size:11px;color:var(--tx3);">Gerçek sistemde tüm değerler bölge bazında geçersiz kılınabilir (global + per-region override).</div>`;
+    const bind=(id,key,fn)=>{$(id).onchange=e=>{settingsData[key]=+e.target.value;if(fn)fn();toast('Ayar kaydedildi',[]);};};
+    bind('#stQuota','quota',()=>{QUOTA=settingsData.quota;});bind('#stSnap','snap');bind('#stTarget','target');bind('#stEsc','esc');bind('#stBatch','batch');
+  }
+}
+/* ===== v0.3.2: Yönetim TASLAK → KAYDET → ONAY → DENETİM KAYDI =====
+   Türkiye genelini etkilediği için hiçbir Yönetim değişikliği anında
+   uygulanmaz. Tüm edit'ler taslağa (adminDraft) yazılır; alt bardaki
+   Kaydet → onay modalı (eski → yeni diff) → uygula + adminLog (kim/ne/
+   ne zaman). Vazgeç taslağı atar. Kaydetmeden çıkışta uyarı. */
+let adminDraft=null, adminLog=[];
+function ensureDraft(){
+  if(!adminDraft)adminDraft={
+    tpls:JSON.parse(JSON.stringify(taskTemplates)),
+    types:JSON.parse(JSON.stringify(typeRules)),
+    removedEx:[]
+  };
+  return adminDraft;
+}
+function adminDiffs(){
+  if(!adminDraft)return [];
+  const d=[];
+  for(const t of adminDraft.tpls){
+    const o=taskTemplates.find(x=>x.id===t.id);
+    if(!o){d.push(`Yeni şablon: ${t.name} (${t.min}dk)`);continue;}
+    if(o.name!==t.name)d.push(`${o.name}: ad → ${t.name}`);
+    if(o.min!==t.min)d.push(`${t.name}: varsayılan süre ${o.min} → ${t.min}dk`);
+    if(o.proof!==t.proof)d.push(`${t.name}: kanıt ${o.proof} → ${t.proof}`);
+    if(o.rec!==t.rec)d.push(`${t.name}: sıklık ${o.rec} → ${t.rec}`);
+    if(o.ins!==t.ins)d.push(`${t.name}: saha talimatı güncellendi`);
+    if(o.active!==t.active)d.push(`${t.name}: ${t.active?'aktifleştirildi':'pasifleştirildi'}`);
+    if(JSON.stringify(o.mods||[])!==JSON.stringify(t.mods||[]))d.push(`${t.name}: modül yığını güncellendi (${(t.mods||[]).length} modül)`);
+  }
+  const keys=new Set([...Object.keys(typeRules),...Object.keys(adminDraft.types)]);
+  for(const k of keys){
+    const a=typeRules[k]||{},b=adminDraft.types[k]||{};
+    for(const tk of new Set([...Object.keys(a),...Object.keys(b)])){
+      if(a[tk]!==b[tk]){
+        const tn=(adminDraft.tpls.find(x=>x.id===tk)||{name:tk}).name;
+        d.push(`Tip ${k} · ${tn}: ${a[tk]!==undefined?a[tk]+'dk':'varsayılan'} → ${b[tk]!==undefined?b[tk]+'dk':'varsayılan'}`);
+      }
+    }
+  }
+  for(const r of adminDraft.removedEx)d.push(`İstisna kaldırıldı: ${r.cond} — ${r.eff}`);
+  return d;
+}
+function refreshAdminFoot(){
+  const n=adminDiffs().length,b=$('#adminSave');
+  if(!b)return;
+  b.disabled=!n;b.style.opacity=n?'1':'.5';
+  $('#adminDirty').textContent=n?n+' kaydedilmemiş değişiklik':'';
+}
+function renderAdmin(){
+  const D=ensureDraft();
+  const el=$('#adminBody');
+  const banner=(icon,txt)=>`<div style="background:var(--blue-l);color:var(--blue-d);border-radius:8px;padding:8px 12px;font-size:11.5px;margin-bottom:12px;line-height:1.5;">${icon} <b>Etki alanı:</b> ${txt}</div>`;
+  if(adminTab==='templates'){
+    el.innerHTML=banner('🌍','Görev türünün genel tanımı — değişiklik <b>tüm mağazaları</b> etkiler (tip kuralı veya istisnası olanlar hariç). Edit\'ler taslakta birikir; alttaki <b>Kaydet</b> ile onaylanır.')+
+    D.tpls.map(t=>`<div class="card" style="${t.active?'':'opacity:.55'}">
+      <div class="hd">${t.name} ${t.active?'':'<span class="pill" style="background:var(--gray-l);color:var(--tx2);">pasif</span>'}
+        <span class="spacer" style="flex:1"></span>
+        <button class="tplEdit" data-id="${t.id}" style="font-size:11px;">Düzenle</button>
+        <button class="tplTgl" data-id="${t.id}" style="font-size:11px;">${t.active?'Pasifleştir':'Aktifleştir'}</button></div>
+      <div style="font-size:12px;color:var(--tx2);">Varsayılan <b>${t.min}dk</b> · ${t.proof} · ${t.rec}</div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:3px;">📋 ${t.ins||'(saha talimatı yok)'}</div>
+    </div>`).join('')+`<button id="tplNew">+ Yeni şablon</button>`;
+    el.querySelectorAll('.tplEdit').forEach(b=>b.onclick=()=>openTplEdit(b.dataset.id));
+    el.querySelectorAll('.tplTgl').forEach(b=>b.onclick=()=>{
+      const t=D.tpls.find(x=>x.id===b.dataset.id);t.active=!t.active;
+      renderAdmin();
+    });
+    $('#tplNew').onclick=()=>openTplEdit(null);
+    refreshAdminFoot();
+  } else {
+    const visEx=rulesData.filter(r=>!D.removedEx.some(x=>x.id===r.id));
+    el.innerHTML=banner('🏬','Mağaza tipleri ana veritabanından gelir (6 sabit tip). Hücreye süre yaz → o tipteki <b>tüm mağazalar</b> için taslağa yazılır; alttaki <b>Kaydet</b> ile onaylanır. Boş hücre = şablon varsayılanı. Tek mağaza/rut istisnaları detay panelindeki ✎ ile yapılır ve altta listelenir.')+
+    `<div class="card"><div class="hd">Görev × mağaza tipi süre matrisi (dk)</div>
+    <table style="font-size:11.5px;">
+      <tr><th>Görev</th><th style="text-align:center;">vars.</th>${STORE_TYPES.map(t=>`<th style="text-align:center;">${t.key}</th>`).join('')}</tr>
+      ${D.tpls.filter(t=>t.active).map(t=>`<tr><td>${t.name}</td><td style="text-align:center;color:var(--tx3);">${t.min}</td>
+        ${STORE_TYPES.map(st=>{const v=D.types[st.key]&&D.types[st.key][t.id];
+          return `<td style="text-align:center;"><input type="number" step="5" min="0" class="trCell" data-tp="${st.key}" data-tpl="${t.id}" value="${v!==undefined?v:''}" placeholder="${t.min}" style="width:46px;text-align:center;${v!==undefined?'border-color:var(--blue-d);font-weight:700;color:var(--blue-d);':''}"></td>`;}).join('')}
+      </tr>`).join('')}
+    </table>
+    <div style="font-size:10.5px;color:var(--tx3);margin-top:6px;">0 = bu tipte bu görev yapılmaz. Boş bırak = varsayılana dön.</div></div>
+    <div class="card"><div class="hd">İstisnalar (mağaza / rut — panel ✎'den)</div>
+      ${visEx.length?visEx.map(r=>`<div class="task-row"><span><span class="pill">${r.scope}</span> ${r.cond}</span>
+        <span style="display:flex;gap:6px;align-items:center;">${r.eff} · ${r.date}
+        <button class="exDel" data-id="${r.id}" style="font-size:10px;">Kaldır</button></span></div>`).join(''):
+      '<div style="font-size:11px;color:var(--tx3);">Henüz istisna yok. Bir mağaza veya rut seçip Görevler sekmesindeki ✎ ile oluşturabilirsin.</div>'}
+    </div>`;
+    el.querySelectorAll('.trCell').forEach(inp=>inp.onchange=()=>{
+      const tp=inp.dataset.tp,tpl=inp.dataset.tpl;
+      if(inp.value===''){if(D.types[tp])delete D.types[tp][tpl];}
+      else{D.types[tp]=D.types[tp]||{};D.types[tp][tpl]=Math.max(0,+inp.value);}
+      renderAdmin();
+    });
+    el.querySelectorAll('.exDel').forEach(b=>b.onclick=()=>{
+      D.removedEx.push(rulesData.find(x=>x.id===b.dataset.id));
+      renderAdmin();
+    });
+    refreshAdminFoot();
+  }
+}
+$('#adminDiscard').onclick=()=>{adminDraft=null;renderAdmin();};
+$('#adminHist').onclick=()=>{
+  const all=[...adminLog,...settingsLog].slice().reverse();
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='histModal';
+  bg.innerHTML=`<div class="modal" style="width:460px;">
+    <div class="modal-head">📜 Denetim kaydı</div>
+    <div class="modal-body">${all.length?all.map(l=>`<div class="chg-item"><span>${l.desc||l.label+': '+l.from+' → '+l.to}</span><span style="font-size:10px;color:var(--tx3);">${l.who} · ${l.at}</span></div>`).join(''):'<div style="font-size:12px;color:var(--tx3);">Henüz kayıt yok.</div>'}</div>
+    <div class="modal-foot"><button onclick="document.getElementById('histModal').remove()">Kapat</button></div></div>`;
+  document.body.appendChild(bg);
+};
+$('#adminSave').onclick=()=>{
+  const diffs=adminDiffs();if(!diffs.length)return;
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='adModal';
+  bg.innerHTML=`<div class="modal" style="width:460px;">
+    <div class="modal-head">⚠ Yönetim değişikliği — onay</div>
+    <div class="modal-body">
+      <div style="font-size:12px;margin-bottom:10px;">Bu değişiklikler <b>Türkiye'deki tüm mağaza ve rutları</b> etkiler:</div>
+      ${diffs.map(d=>`<div class="chg-item"><span>${d}</span></div>`).join('')}
+      <div style="font-size:11px;color:var(--tx3);margin-top:8px;">Kayda geçecek: ${CURRENT_USER} · ${new Date().toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'})}</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('adModal').remove()">Vazgeç</button>
+      <button class="primary" id="adConfirm">Onayla ve uygula</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  $('#adConfirm').onclick=()=>{
+    const at=new Date().toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'});
+    for(const d of diffs)adminLog.push({desc:d,who:CURRENT_USER,at});
+    taskTemplates=adminDraft.tpls;
+    typeRules=adminDraft.types;
+    for(const r of adminDraft.removedEx){
+      rulesData=rulesData.filter(x=>x.id!==r.id);
+      taskOverrides=taskOverrides.filter(o=>{
+        const label=o.scope==='store'?store(o.id).name:route(o.id).code;
+        const tn=taskTemplates.find(t=>t.id===o.tpl);
+        return !(label===r.cond&&tn&&r.eff.startsWith(tn.name));
+      });
+    }
+    adminDraft=null;
+    bg.remove();renderAdmin();renderAll();
+    toast('Uygulandı ve denetim kaydına yazıldı ('+diffs.length+' değişiklik)',[]);
+  };
+};
+/* ===== ModuleListEditor — TEK bileşen, iki kapsam =====
+   Yönetim şablon modalı (genel varsayılan) ve mağaza paneli 🧩
+   (mağazaya özel yığın) aynı editörü kullanır; fark sadece nereye
+   yazdığı. Sağda canlı "saha önizleme" (ajanın göreceği ekran). */
+function renderModEditor(host,mods){
+  host.innerHTML=mods.map((m,i)=>`<div style="border:1px solid var(--border);border-radius:6px;padding:6px;margin-bottom:5px;font-size:11px;background:var(--card);">
+    <div style="display:flex;align-items:center;gap:5px;">
+      <span style="cursor:pointer;color:var(--tx3);" class="mUp" data-i="${i}">▲</span>
+      <span style="cursor:pointer;color:var(--tx3);" class="mDn" data-i="${i}">▼</span>
+      <span>${MOD_TYPES[m.type]}</span>
+      <input type="text" class="mLbl" data-i="${i}" value="${m.label}" style="flex:1;border:1px solid var(--border2);border-radius:4px;padding:2px 5px;font-size:11px;">
+      <label style="white-space:nowrap;color:var(--tx2);"><input type="checkbox" class="mReq" data-i="${i}" ${m.req?'checked':''}> zorunlu</label>
+      <span class="mDel" data-i="${i}" style="cursor:pointer;color:var(--red-d);">🗑</span>
+    </div>
+    ${m.type==='FOTO'?`<div style="margin-top:4px;color:var(--tx2);">Min fotoğraf: <input type="number" class="mMin" data-i="${i}" value="${m.config.min||1}" min="1" style="width:45px;border:1px solid var(--border2);border-radius:4px;font-size:11px;padding:1px 4px;"></div>`:''}
+    ${m.type==='FORM'?`<div style="margin-top:4px;">${(m.config.qs||[]).map((q,qi)=>`<div style="margin-bottom:3px;">
+        <div style="display:flex;gap:4px;">
+        <input type="text" class="mQ" data-i="${i}" data-qi="${qi}" value="${q.q}" style="flex:1;border:1px solid var(--border2);border-radius:4px;font-size:11px;padding:1px 5px;">
+        <select class="mQK" data-i="${i}" data-qi="${qi}" style="font-size:11px;border:1px solid var(--border2);border-radius:4px;">${['metin','sayı','evet/hayır','çoktan seçmeli'].map(k=>`<option ${k===q.k?'selected':''}>${k}</option>`).join('')}</select>
+        <span class="mQDel" data-i="${i}" data-qi="${qi}" style="cursor:pointer;color:var(--red-d);font-size:11px;">✕</span></div>
+        ${q.k==='çoktan seçmeli'?`<div style="margin:3px 0 0 14px;">
+          ${(q.opts||[]).map((op,oi)=>`<div style="display:flex;gap:4px;margin-bottom:2px;align-items:center;">
+            <span style="color:var(--tx3);font-size:10px;">◯</span>
+            <input type="text" class="mOpt" data-i="${i}" data-qi="${qi}" data-oi="${oi}" value="${op}" style="flex:1;border:1px solid var(--border2);border-radius:4px;font-size:10.5px;padding:1px 5px;">
+            ${(q.opts||[]).length>2?`<span class="mOptDel" data-i="${i}" data-qi="${qi}" data-oi="${oi}" style="cursor:pointer;color:var(--red-d);font-size:10px;">✕</span>`:'<span style="width:10px;"></span>'}</div>`).join('')}
+          ${(q.opts||[]).length<6?`<span class="mOptAdd" data-i="${i}" data-qi="${qi}" style="cursor:pointer;color:var(--blue-d);font-size:10.5px;">+ seçenek (${(q.opts||[]).length}/6)</span>`:'<span style="font-size:10px;color:var(--tx3);">maks 6 seçenek</span>'}
+        </div>`:''}</div>`).join('')}
+      <span class="mQAdd" data-i="${i}" style="cursor:pointer;color:var(--blue-d);font-size:11px;">+ soru ekle</span></div>`:''}
+  </div>`).join('')+
+  `<div style="display:flex;gap:5px;align-items:center;margin-top:4px;">
+    <select class="mAddSel" style="font-size:11px;border:1px solid var(--border2);border-radius:4px;padding:2px;">
+      <option value="KONTROL">☑ Kontrol maddesi</option><option value="FOTO">📷 Fotoğraf</option>
+      <option value="FORM">📝 Form</option><option value="BILGI">ℹ️ Bilgi notu</option></select>
+    <button class="mAdd" style="font-size:11px;">+ Modül ekle</button>
+  </div>`;
+  const rerender=()=>{renderModEditor(host,mods);const mb=host.closest('.modal-body');const pv=mb?mb.querySelector('.modPrev'):null;if(pv)renderModPreview(pv,mods);};
+  host.querySelectorAll('.mUp').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;if(i>0){[mods[i-1],mods[i]]=[mods[i],mods[i-1]];rerender();}});
+  host.querySelectorAll('.mDn').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;if(i<mods.length-1){[mods[i+1],mods[i]]=[mods[i],mods[i+1]];rerender();}});
+  host.querySelectorAll('.mDel').forEach(b=>b.onclick=()=>{mods.splice(+b.dataset.i,1);rerender();});
+  host.querySelectorAll('.mLbl').forEach(inp=>inp.onchange=()=>{mods[+inp.dataset.i].label=inp.value;rerender();});
+  host.querySelectorAll('.mReq').forEach(inp=>inp.onchange=()=>{mods[+inp.dataset.i].req=inp.checked;rerender();});
+  host.querySelectorAll('.mMin').forEach(inp=>inp.onchange=()=>{mods[+inp.dataset.i].config.min=+inp.value;rerender();});
+  host.querySelectorAll('.mQ').forEach(inp=>inp.onchange=()=>{mods[+inp.dataset.i].config.qs[+inp.dataset.qi].q=inp.value;rerender();});
+  host.querySelectorAll('.mQK').forEach(inp=>inp.onchange=()=>{
+    const q=mods[+inp.dataset.i].config.qs[+inp.dataset.qi];
+    q.k=inp.value;
+    if(q.k==='çoktan seçmeli'&&(!q.opts||q.opts.length<2))q.opts=['Seçenek 1','Seçenek 2'];
+    rerender();
+  });
+  host.querySelectorAll('.mOpt').forEach(inp=>inp.onchange=()=>{mods[+inp.dataset.i].config.qs[+inp.dataset.qi].opts[+inp.dataset.oi]=inp.value;rerender();});
+  host.querySelectorAll('.mOptDel').forEach(b=>b.onclick=()=>{mods[+b.dataset.i].config.qs[+b.dataset.qi].opts.splice(+b.dataset.oi,1);rerender();});
+  host.querySelectorAll('.mOptAdd').forEach(b=>b.onclick=()=>{
+    const q=mods[+b.dataset.i].config.qs[+b.dataset.qi];
+    q.opts=q.opts||[];if(q.opts.length<6)q.opts.push('Seçenek '+(q.opts.length+1));
+    rerender();
+  });
+  host.querySelectorAll('.mQDel').forEach(b=>b.onclick=()=>{mods[+b.dataset.i].config.qs.splice(+b.dataset.qi,1);rerender();});
+  host.querySelectorAll('.mQAdd').forEach(b=>b.onclick=()=>{const m=mods[+b.dataset.i];m.config.qs=m.config.qs||[];m.config.qs.push({q:'Yeni soru',k:'metin'});rerender();});
+  host.querySelector('.mAdd').onclick=()=>{
+    const ty=host.querySelector('.mAddSel').value;
+    mods.push(MOD(ty,ty==='KONTROL'?'Yeni kontrol maddesi':ty==='FOTO'?'Fotoğraf':ty==='FORM'?'Yeni form':'Bilgi notu',false,ty==='FORM'?{qs:[{q:'Yeni soru',k:'metin'}]}:ty==='FOTO'?{min:1}:{}));
+    rerender();
+  };
+}
+function renderModPreview(host,mods){
+  host.innerHTML=`<div style="font-size:10px;color:var(--tx3);text-align:center;margin-bottom:4px;">SAHA ÖNİZLEME (ajan ekranı)</div>
+  <div style="border:2px solid var(--border2);border-radius:14px;padding:10px 8px;background:var(--card);">
+    ${mods.map(m=>{
+      if(m.type==='BILGI')return `<div style="background:var(--gray-l);border-radius:6px;padding:5px 7px;font-size:10px;color:var(--tx2);font-style:italic;margin-bottom:6px;">ℹ️ ${m.label}</div>`;
+      if(m.type==='KONTROL')return `<div style="display:flex;gap:6px;font-size:10.5px;margin-bottom:6px;align-items:center;"><span style="width:13px;height:13px;border:1.5px solid var(--border2);border-radius:3px;display:inline-block;"></span>${m.label}${m.req?' <span style="color:var(--red-d)">*</span>':''}</div>`;
+      if(m.type==='FOTO')return `<div style="border:1.5px dashed var(--border2);border-radius:6px;padding:9px;text-align:center;font-size:10px;color:var(--tx2);margin-bottom:6px;">📷 ${m.label}${m.req?' <span style="color:var(--red-d)">*</span>':''}<br><span style="color:var(--tx3);">min ${m.config.min||1} fotoğraf · dokun</span></div>`;
+      return `<div style="border:1px solid var(--border);border-radius:6px;padding:6px;font-size:10px;margin-bottom:6px;"><b>📝 ${m.label}</b>${m.req?' <span style="color:var(--red-d)">*</span>':''}
+        ${(m.config.qs||[]).map(q=>`<div style="margin-top:4px;color:var(--tx2);">${q.q}<br>${q.k==='evet/hayır'?'<span style="border:1px solid var(--border2);border-radius:8px;padding:0 6px;font-size:9px;">Evet</span> <span style="border:1px solid var(--border2);border-radius:8px;padding:0 6px;font-size:9px;">Hayır</span>':q.k==='çoktan seçmeli'?(q.opts||['A','B']).map(op=>`<span style="font-size:9px;color:var(--tx3);display:block;">◯ ${op}</span>`).join(''):`<span style="display:inline-block;width:90%;border-bottom:1px solid var(--border2);height:9px;"></span>`}</div>`).join('')}</div>`;
+    }).join('')}
+    <div style="background:var(--blue-d);color:#fff;border-radius:7px;text-align:center;padding:5px;font-size:10px;margin-top:2px;">Görevi tamamla</div>
+  </div>`;
+}
+/* Mağazaya özel modül düzenleme (🧩) — aynı editör, mağaza kapsamı */
+window.openModsEdit=function(storeId,tplId){
+  const s=store(storeId),t=taskTemplates.find(x=>x.id===tplId);
+  const cur=resolveMods(s,t);
+  const work=JSON.parse(JSON.stringify(cur.mods));
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='mdModal';
+  bg.innerHTML=`<div class="modal" style="width:640px;">
+    <div class="modal-head">🧩 ${t.name} — ${s.name} <span style="font-size:11px;color:var(--tx3);font-weight:400;">sadece bu mağazayı etkiler</span></div>
+    <div class="modal-body"><div style="display:flex;gap:12px;">
+      <div style="flex:1;"><div class="modHost"></div></div>
+      <div style="width:210px;flex-shrink:0;" class="modPrev"></div>
+    </div></div>
+    <div class="modal-foot">
+      ${cur.custom?`<button id="mdReset" style="color:var(--red-d);">Genel şablona döndür</button>`:''}
+      <span class="spacer" style="flex:1"></span>
+      <button onclick="document.getElementById('mdModal').remove()">Vazgeç</button>
+      <button class="primary" id="mdSave">Kaydet (bu mağaza)</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  const wrap=bg.querySelector('.modal-body > div');
+  renderModEditor(wrap.querySelector('.modHost'),work);
+  renderModPreview(wrap.querySelector('.modPrev'),work);
+  $('#mdSave').onclick=()=>{
+    taskOverrides=taskOverrides.filter(o=>!(o.scope==='store'&&o.id===s.id&&o.tpl===t.id&&o.mods));
+    taskOverrides.push({scope:'store',id:s.id,tpl:t.id,mods:work,date:'kalıcı'});
+    if(!rulesData.some(r=>r.cond===s.name&&r.eff===t.name+' modülleri özelleştirildi'))
+      rulesData.push({id:'r'+Date.now(),scope:'Mağaza',cond:s.name,eff:t.name+' modülleri özelleştirildi',date:'kalıcı',active:true});
+    logChange(`${s.name}: ${t.name} modülleri özelleştirildi`,null,null,
+      ()=>{taskOverrides=taskOverrides.filter(o=>!(o.scope==='store'&&o.id===s.id&&o.tpl===t.id&&o.mods));});
+    bg.remove();renderPanel();
+    toast('Mağazaya özel modül yığını kaydedildi — istisna olarak listelenir',[]);
+  };
+  const rs=$('#mdReset');
+  if(rs)rs.onclick=()=>{
+    taskOverrides=taskOverrides.filter(o=>!(o.scope==='store'&&o.id===s.id&&o.tpl===t.id&&o.mods));
+    rulesData=rulesData.filter(r=>!(r.cond===s.name&&r.eff===t.name+' modülleri özelleştirildi'));
+    bg.remove();renderPanel();toast('Genel şablona döndürüldü',[]);
+  };
+};
+window.openTplEdit=function(id){
+  const D=ensureDraft();
+  const t=id?D.tpls.find(x=>x.id===id):{id:null,name:'',min:10,proof:'Yok',rec:'Her ziyaret',ins:'',active:true,mods:[]};
+  const wmods=JSON.parse(JSON.stringify(t.mods||[]));
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='tplModal';
+  bg.innerHTML=`<div class="modal" style="width:680px;">
+    <div class="modal-head">${id?'Şablonu düzenle':'Yeni şablon'} <span style="font-size:11px;color:var(--tx3);font-weight:400;">— tüm mağazaları etkiler (taslağa yazılır)</span></div>
+    <div class="modal-body">
+      <div class="frow"><label>Ad</label><input type="text" id="tpName" value="${t.name}" style="width:200px;">
+        <label style="min-width:auto;">Süre (dk)</label><input type="number" id="tpMin" step="5" min="5" value="${t.min}" style="width:65px;"></div>
+      <div class="frow"><label>Kanıt</label><select id="tpProof">${['Yok','Fotoğraf','Form'].map(x=>`<option ${x===t.proof?'selected':''}>${x}</option>`).join('')}</select>
+        <label style="min-width:auto;">Sıklık</label><select id="tpRec">${['Her ziyaret','Haftalık','Tek seferlik'].map(x=>`<option ${x===t.rec?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div class="frow" style="align-items:flex-start;"><label>Saha talimatı</label></div>
+      <textarea id="tpIns">${t.ins}</textarea>
+      <div style="font-weight:600;font-size:12px;margin:10px 0 6px;">Görev içeriği (modül yığını) — ajanın göreceği ekran</div>
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;"><div class="modHost"></div></div>
+        <div style="width:210px;flex-shrink:0;" class="modPrev"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('tplModal').remove()">Vazgeç</button>
+      <button class="primary" id="tpSave">Taslağa ekle</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  const wrap2=bg.querySelector('.modal-body > div[style*="display:flex"]');
+  renderModEditor(wrap2.querySelector('.modHost'),wmods);
+  renderModPreview(wrap2.querySelector('.modPrev'),wmods);
+  $('#tpSave').onclick=()=>{
+    const D2=ensureDraft();
+    if(!id){D2.tpls.push({id:'t'+Date.now(),name:$('#tpName').value||'Yeni görev',min:+$('#tpMin').value||10,proof:$('#tpProof').value,rec:$('#tpRec').value,ins:$('#tpIns').value,active:true,mods:wmods});}
+    else{Object.assign(t,{name:$('#tpName').value,min:+$('#tpMin').value,proof:$('#tpProof').value,rec:$('#tpRec').value,ins:$('#tpIns').value,mods:wmods});}
+    bg.remove();renderAdmin();
+    toast('Taslağa eklendi — alttaki Kaydet ile onaylanır',[]);
+  };
+};
+/* Ayarlar: TASLAK → Kaydet → ONAY modalı → uygula + denetim kaydı.
+   Türkiye genelini etkilediği için asla anında kaydedilmez.
+   Gerçek build: admin_audit_log tablosu (actor, key, from, to, at) —
+   şablon ve kural değişiklikleri de aynı tabloya yazar. */
+const CURRENT_USER='Süpervizör · Parham';
+let settingsLog=[];
+const SETTING_DEFS=[
+  {key:'quota',label:'Günlük çalışma kotası (dk)',step:15,grp:'Çalışma kuralları',note:'sadece uyarı — asla bloklamaz'},
+  {key:'snap',label:'Takvim adımı (dk)',step:5,grp:'Çalışma kuralları'},
+  {key:'target',label:'Rut ciro hedefi (bin ₺ / 6 ay)',step:50,grp:'Hedefler ve eşikler'},
+  {key:'esc',label:'Geciken görev eskalasyonu (gün)',step:1,grp:'Hedefler ve eşikler'},
+  {key:'batch',label:'Toplu bildirim penceresi (dk)',step:5,grp:'Bildirimler'}
+];
+function renderSettings(){
+  const draft={...settingsData};
+  const grps=[...new Set(SETTING_DEFS.map(d=>d.grp))];
+  $('#settingsBody').innerHTML=`
+    <div style="background:var(--amber-l);color:var(--amber-d);border-radius:8px;padding:8px 12px;font-size:11.5px;margin-bottom:12px;">⚖️ Buradaki değerler <b>Türkiye'deki her mağazayı ve rutu</b> etkiler. Değişiklikler anında uygulanmaz — Kaydet'e basınca onay istenir ve kim değiştirdiği kayda geçer.</div>
+    ${grps.map(g=>`<div class="card"><div class="hd">${g}</div>
+      ${SETTING_DEFS.filter(d=>d.grp===g).map(d=>`<div class="frow"><label>${d.label}</label>
+        <input type="number" class="stIn" data-k="${d.key}" value="${settingsData[d.key]}" step="${d.step}" style="width:90px;">
+        ${d.note?`<span style="font-size:11px;color:var(--tx3);">${d.note}</span>`:''}</div>`).join('')}
+    </div>`).join('')}
+    <div style="display:flex;gap:8px;align-items:center;margin:10px 0;">
+      <button class="primary" id="stSave" disabled style="opacity:.5;">Kaydet</button>
+      <button id="stReset">Vazgeç</button>
+      <span id="stDirty" style="font-size:11px;color:var(--tx3);"></span>
+    </div>
+    <div class="card"><div class="hd">Değişiklik geçmişi (denetim kaydı)</div>
+      ${settingsLog.length?settingsLog.slice().reverse().map(l=>`<div class="task-row" style="font-size:11px;"><span>${l.label}: <b>${l.from} → ${l.to}</b></span><span style="color:var(--tx3);">${l.who} · ${l.at}</span></div>`).join(''):
+      '<div style="font-size:11px;color:var(--tx3);">Henüz değişiklik yok.</div>'}
+    </div>`;
+  const save=$('#stSave');
+  const refresh=()=>{
+    const dirty=SETTING_DEFS.filter(d=>+document.querySelector(`.stIn[data-k=${d.key}]`).value!==settingsData[d.key]);
+    save.disabled=!dirty.length;save.style.opacity=dirty.length?'1':'.5';
+    $('#stDirty').textContent=dirty.length?dirty.length+' kaydedilmemiş değişiklik':'';
+    return dirty;
+  };
+  document.querySelectorAll('.stIn').forEach(inp=>inp.oninput=refresh);
+  $('#stReset').onclick=()=>renderSettings();
+  save.onclick=()=>{
+    const dirty=refresh();if(!dirty.length)return;
+    const bg=document.createElement('div');bg.className='modal-bg';bg.id='stModal';
+    bg.innerHTML=`<div class="modal" style="width:430px;">
+      <div class="modal-head">⚠ Sistem ayarı değişikliği — onay</div>
+      <div class="modal-body">
+        <div style="font-size:12px;margin-bottom:10px;">Bu değişiklikler <b>Türkiye'deki tüm mağaza ve rutları</b> etkiler:</div>
+        ${dirty.map(d=>{const nv=+document.querySelector(`.stIn[data-k=${d.key}]`).value;
+          return `<div class="chg-item"><span>${d.label}</span><b>${settingsData[d.key]} → ${nv}</b></div>`;}).join('')}
+        <div style="font-size:11px;color:var(--tx3);margin-top:8px;">Kayda geçecek: ${CURRENT_USER} · ${new Date().toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'})}</div>
+      </div>
+      <div class="modal-foot">
+        <button onclick="document.getElementById('stModal').remove()">Vazgeç</button>
+        <button class="primary" id="stConfirm">Onayla ve uygula</button>
+      </div></div>`;
+    document.body.appendChild(bg);
+    $('#stConfirm').onclick=()=>{
+      const at=new Date().toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'});
+      for(const d of dirty){
+        const nv=+document.querySelector(`.stIn[data-k=${d.key}]`).value;
+        settingsLog.push({label:d.label,from:settingsData[d.key],to:nv,who:CURRENT_USER,at});
+        settingsData[d.key]=nv;
+      }
+      QUOTA=settingsData.quota;
+      bg.remove();renderSettings();renderAll();
+      toast('Ayarlar uygulandı ve denetim kaydına yazıldı',[]);
+    };
+  };
+}
+function renderInbox(){
+  const el=$('#inboxBody');
+  const open=inboxData.filter(i=>i.status==='open').length;
+  $('#inboxCount').textContent=open;
+  el.innerHTML=(campaigns.length?`<div style="font-size:11px;font-weight:600;margin-bottom:5px;">📣 Aktif kampanyalar</div>`+
+    campaigns.map(c=>`<div class="inbox-item"><div style="font-size:15px;">📣</div>
+      <div class="bd"><span class="who">${c.name}</span><br>
+      Hedef: ${c.type} · ${c.chain} — <b>${c.count} mağaza</b> · son tarih ${c.deadline}<br>
+      <span style="font-size:10.5px;color:var(--tx3);">tamamlanan: ${c.done}/${c.count}</span></div>
+      <div class="acts"><button onclick="campaigns=campaigns.filter(x=>x.id!=='${c.id}');renderInbox();" style="font-size:11px;">İptal</button></div>
+    </div>`).join('')+'<div style="height:10px;"></div>':'')+
+  inboxData.map(i=>{
+    const s=i.anchor?store(i.anchor):null;
+    return `<div class="inbox-item ${i.status==='done'?'done':''}">
+      <div style="font-size:15px;">${i.type.split(' ')[0]}</div>
+      <div class="bd">
+        <span class="who">${i.who}</span> · <span style="color:var(--tx3);font-size:11px;">${i.type.split(' ')[1]||''}</span><br>
+        ${i.txt}<br>
+        ${s?`<span class="anchor" data-s="${s.id}">📍 ${s.name} — bağlama git</span>`:''}
+      </div>
+      <div class="acts">
+        ${i.apply&&i.status==='open'?`<button class="applyBtn" data-id="${i.id}" style="background:var(--blue-l);color:var(--blue-d);border-color:var(--blue-d);">Uygula (${i.apply.dur}dk)</button>`:''}
+        ${i.status==='open'?`<button class="doneBtn" data-id="${i.id}">Çözüldü</button>`:'<span style="font-size:11px;color:var(--tx3);">kapatıldı</span>'}
+      </div>
+    </div>`;
+  }).join('')+`<div style="font-size:11px;color:var(--tx3);margin-top:8px;">Saha temsilcileri not/talep yazabilir ama planı düzenleyemez. Talebi uygulamak süpervizörün tek tıkı — değişiklik normal taslak akışına girer (Yayınla gerekir).</div>`;
+  el.querySelectorAll('.anchor').forEach(a=>a.onclick=()=>{
+    const s=store(a.dataset.s);
+    if(s&&s.route)expandedRoutes.add(s.route);
+    setFocus({type:'store',id:a.dataset.s});
+    showPage('planner');
+  });
+  el.querySelectorAll('.doneBtn').forEach(b=>b.onclick=()=>{
+    inboxData.find(x=>x.id===b.dataset.id).status='done';renderInbox();
+  });
+  el.querySelectorAll('.applyBtn').forEach(b=>b.onclick=()=>{
+    const i=inboxData.find(x=>x.id===b.dataset.id);
+    const s=store(i.apply.store);
+    applyDur(x=>x.storeId===i.apply.store,i.apply.dur,`${s.name} → ${i.apply.dur}dk (talep: ${i.who})`);
+    i.status='done';renderInbox();
+    toast(`Talep uygulandı — Yayınla (${changes.length}) ile sahaya gider`,[]);
+  });
+}
+function renderAll(){renderHeader();renderRail();renderMap();renderSched();renderPanel();renderStatus();renderActionBar();renderTable();renderDraftBanner();
+  $('#inboxCount').textContent=inboxData.filter(i=>i.status==='open').length;}
+renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<!--
+═══════════════════════════════════════════════════════════════════
+EVO RUT PLANLAYICI — PROTOTİP v0.2 (SPEC NOTLARI)
+Tam tasarım dokümanı: EVO-Route-Planning-Design.md (kaynak gerçek odur)
+Bu dosya UX davranışlarını kanıtlamak içindir; gerçek build'de React +
+MapLibre/Leaflet + gerçek backend kullanılacak.
+
+TEMEL PRENSIPLER (gerçek build'de korunmalı):
+1. TEK SAYFA: Harita | Takvim split + Tablo çekmecesi. Rut tasarlarken
+   sayfa değişmez. Katalog/Ayarlar ayrı sayfadır (nadir kullanım).
+2. PAYLAŞILAN DURUM: filter + selection + focus + draft changes tek
+   katmandır; üç bölüm de aynı durumu okur/yazar. Önce bunu inşa et.
+3. BAZ + YAMA: Rut = kalıcı haftalık patern (Baz). Haftalar üretilir,
+   asla kopyalanmaz. Geçici değişiklik = yama (bitiş tarihi ZORUNLU,
+   süresi dolunca otomatik Baz'a döner). Efektif = Baz ⊕ yamalar.
+4. KURAL MERDİVENİ: ziyaret > mağaza > rut > format > zincir > genel.
+   Her kural kalıcı VEYA tarihli olabilir. Süre değişikliğinde toast
+   kapsam sorar (bu dosyada startResize toast'ı).
+5. TASLAK → YAYINLA: hiçbir edit anında sahaya gitmez. Publish modalı
+   kişi/güne gruplu diff gösterir, kalem kalem geri alınabilir,
+   onayda atomik uygula + TOPLU bildirim.
+6. 450dk KOTA: sadece UYARI, asla bloklamaz (yayın dahil).
+7. KİLİTLER: geçmiş günler + bugün check-in yapılmış ziyaretler kilitli;
+   bugünün kalanını düzenlerken onay sorulur (bu prototipte yok).
+8. ROLLER: Süpervizör (tam yetki, tüm bölgeler) / Saha temsilcisi
+   (salt okunur hafta + not/talep yazma). Başka rol yok.
+9. SIRA NUMARALARI: mağaza sırası = haftadaki ilk ziyaretin (gün,saat)
+   sırası. Sidebar ↔ harita ↔ takvim üçü de aynı sayıyı gösterir;
+   birinde değişince hepsi güncellenir (tek kaynak: visits dizisi).
+10. GERİ AL: her değişiklik undo fn taşır (changes[]); Cmd/Ctrl-Z.
+
+GERÇEK BUILD'DE EKLENECEK (prototipte yok/alert):
+- Görev kataloğu sayfası (şablonlar: süre + saha talimatı + kanıt tipi)
+- Kural yönetim sayfası (kapsam + tarih aralığı + GIN condition match)
+- Rut preset'leri, Ayarlar sayfası (tüm eşikler DB'de, hardcode yok)
+- Yama türleri: SKIP_STORE / SKIP_RANGE / ADD_STORE / REASSIGN_TEMP /
+  TIME_SHIFT; mağaza yasağı (banned_until)
+- Sonuç kodları: COMPLETED/STORE_CLOSED/REFUSED/NO_GPS_CONFIRM/PARTIAL
+- Geçmiş sekmesi gerçek veriden (dated tablolar + route_change_log)
+- Canlı konum katmanı (mevcut takip beslemesi, sadece farkındalık)
+- Tatil/bayram takvimi (toplantı sorusu bekleniyor)
+- Bildirim: aynı güne çoklu edit = tek toplu bildirim (batch window)
+═══════════════════════════════════════════════════════════════════
+-->
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVO Rut Planlayıcı — Prototip</title>
+<style>
+:root{
+  --bg:#FAFAF7; --card:#FFFFFF; --border:#E3E1D9; --border2:#CBC9BF;
+  --tx:#2C2C2A; --tx2:#6B6A64; --tx3:#98968D;
+  --blue:#378ADD; --blue-d:#185FA5; --blue-l:#E6F1FB;
+  --teal:#1D9E75; --teal-d:#0F6E56; --teal-l:#E1F5EE;
+  --amber:#EF9F27; --amber-d:#854F0B; --amber-l:#FAEEDA;
+  --red:#E24B4A; --red-d:#A32D2D; --red-l:#FCEBEB;
+  --green:#639922; --green-l:#EAF3DE;
+  --gray-l:#F1EFE8; --gray-m:#B4B2A9;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;}
+body{background:var(--bg);color:var(--tx);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+button{cursor:pointer;border:1px solid var(--border2);background:var(--card);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--tx);}
+button:hover{background:var(--gray-l);}
+button.primary{background:var(--blue-d);color:#fff;border-color:var(--blue-d);}
+button.primary:hover{background:var(--blue);}
+.topbar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;}
+.topbar .logo{font-weight:600;font-size:15px;margin-right:6px;}
+.seg{display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;}
+.seg button{border:none;border-radius:0;background:var(--card);}
+.seg button.on{background:var(--blue-l);color:var(--blue-d);font-weight:600;}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--blue-l);color:var(--blue-d);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:500;}
+.chip .x{cursor:pointer;font-weight:700;}
+.spacer{flex:1;}
+.main{flex:1;display:flex;overflow:hidden;}
+.rail{width:170px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.rail .tabs{display:flex;border-bottom:1px solid var(--border);}
+.rail .tabs div{flex:1;text-align:center;padding:8px 0;cursor:pointer;color:var(--tx2);font-size:12px;}
+.rail .tabs div.on{color:var(--tx);font-weight:600;border-bottom:2px solid var(--blue-d);}
+.rail .list{flex:1;overflow-y:auto;padding:8px;}
+.route-item{border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;cursor:pointer;}
+.route-item:hover{border-color:var(--border2);background:var(--gray-l);}
+.route-item.on{border-color:var(--blue-d);background:var(--blue-l);}
+.route-item .code{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;}
+.route-item .sub{color:var(--tx2);font-size:11px;margin-top:3px;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.pool-item{border:1px dashed var(--border2);border-radius:8px;padding:8px;margin-bottom:6px;cursor:grab;background:var(--card);}
+.pool-item .nm{font-weight:600;font-size:12px;}
+.pool-item .sub{color:var(--tx2);font-size:11px;margin-top:2px;}
+.pool-item:active{cursor:grabbing;}
+.pane{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative;}
+.pane-head{padding:6px 10px;font-size:11px;color:var(--tx3);border-bottom:1px solid var(--border);background:var(--card);display:flex;align-items:center;gap:8px;flex-shrink:0;}
+#mapPane{border-right:2px solid var(--border2);}
+#mapSvgWrap{flex:1;overflow:hidden;background:#EDEFE6;position:relative;}
+#mapSvg{width:100%;height:100%;display:block;}
+.map-tools{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:5px;z-index:5;}
+.map-tools button{font-size:11px;padding:4px 8px;}
+.map-tools button.on{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue-d);}
+.popover{position:absolute;background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.13);z-index:10;width:190px;}
+.popover .nm{font-weight:600;margin-bottom:3px;}
+.popover .row{color:var(--tx2);font-size:11px;margin-bottom:2px;}
+.popover .actions{margin-top:7px;display:flex;gap:5px;}
+.popover .actions button{font-size:11px;padding:3px 7px;}
+#schedPane{background:var(--bg);}
+.sched-scroll{flex:1;overflow:auto;padding:10px;}
+.sched-grid{display:grid;grid-template-columns:110px 36px repeat(5,minmax(120px,1fr));column-gap:4px;row-gap:26px;}
+.time-axis{position:relative;height:510px;}
+.time-axis span{position:absolute;right:4px;font-size:9px;color:var(--tx3);transform:translateY(-50%);}
+.hline{position:absolute;left:0;right:0;border-top:1px dashed var(--gray-l);pointer-events:none;z-index:0;}
+.day-head{text-align:center;font-size:11px;color:var(--tx2);padding:3px 0;position:sticky;top:0;background:var(--bg);z-index:2;}
+.person-cell{padding:8px 6px;font-size:12px;}
+.person-cell .nm{font-weight:600;cursor:pointer;}
+.person-cell .nm:hover{color:var(--blue-d);}
+.person-cell .meta{color:var(--tx2);font-size:11px;margin-top:3px;}
+.loadbar{height:5px;background:var(--gray-l);border-radius:3px;margin-top:5px;overflow:hidden;}
+.loadbar div{height:100%;border-radius:3px;}
+.day-cell{position:relative;background:var(--card);border:1px solid var(--border);border-radius:8px;height:510px;overflow:hidden;}
+.day-cell.dragover{border-color:var(--blue-d);background:var(--blue-l);}
+.day-total{position:absolute;top:2px;right:5px;font-size:10px;font-weight:600;z-index:3;color:var(--tx3);}
+.day-total.ok{color:var(--green);}
+.day-total.over{color:var(--red);}
+.day-total.under{color:var(--amber-d);}
+.vblock{position:absolute;left:4px;right:4px;border-radius:5px;padding:2px 6px;font-size:10px;overflow:hidden;cursor:grab;user-select:none;border:1px solid transparent;z-index:1;}
+.vblock .t{font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;}
+.vblock .s{opacity:.8;font-size:9px;white-space:nowrap;}
+.vblock.catP{background:var(--teal-l);color:var(--teal-d);border-color:#9FE1CB;}
+.vblock.catV{background:var(--amber-l);color:var(--amber-d);border-color:#FAC775;}
+.vblock.catS{background:var(--gray-l);color:var(--tx2);border-color:var(--border2);}
+.vblock.patched{border-style:dashed;border-color:var(--blue-d);}
+.vblock.sel{outline:2px solid var(--blue-d);}
+.vblock.dragging{opacity:.4;}
+.vblock .rz{position:absolute;left:0;right:0;bottom:0;height:7px;cursor:ns-resize;}
+.brk{position:absolute;left:4px;right:4px;background:repeating-linear-gradient(45deg,var(--gray-l),var(--gray-l) 4px,#E9E7DF 4px,#E9E7DF 8px);border-radius:4px;font-size:9px;color:var(--tx3);text-align:center;pointer-events:none;z-index:0;}
+.panel{width:250px;background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.panel-head{padding:10px 12px;border-bottom:1px solid var(--border);}
+.panel-head .ttl{font-weight:600;font-size:14px;}
+.panel-head .sub{color:var(--tx2);font-size:11px;margin-top:2px;}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);}
+.panel-tabs div{flex:1;text-align:center;padding:7px 0;font-size:12px;color:var(--tx2);cursor:pointer;}
+.panel-tabs div.on{color:var(--tx);font-weight:600;border-bottom:2px solid var(--blue-d);}
+.panel-body{flex:1;overflow-y:auto;padding:12px;font-size:12px;}
+.kv{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--gray-l);}
+.kv .k{color:var(--tx2);}
+.hist-item{border-left:2px solid var(--border2);padding:2px 0 10px 10px;margin-left:4px;position:relative;}
+.hist-item::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--gray-m);position:absolute;left:-4.5px;top:6px;}
+.hist-item .d{color:var(--tx3);font-size:10px;}
+.task-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--gray-l);}
+.task-row .src{font-size:10px;color:var(--tx3);}
+.badge{font-size:10px;border-radius:8px;padding:1px 7px;font-weight:600;}
+.badge.P{background:var(--teal-l);color:var(--teal-d);}
+.badge.V{background:var(--amber-l);color:var(--amber-d);}
+.badge.S{background:var(--gray-l);color:var(--tx2);}
+.statusbar{display:flex;align-items:center;gap:14px;padding:6px 14px;background:var(--card);border-top:1px solid var(--border);font-size:12px;color:var(--tx2);flex-shrink:0;}
+.statusbar .warn{color:var(--amber-d);cursor:pointer;}
+.statusbar .err{color:var(--red-d);cursor:pointer;}
+.drawer{background:var(--card);border-top:2px solid var(--border2);max-height:0;transition:max-height .25s;overflow:hidden;flex-shrink:0;}
+.drawer.open{max-height:240px;}
+.drawer-inner{padding:10px 14px;max-height:240px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;color:var(--tx2);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--border2);font-size:11px;}
+td{padding:4px 8px;border-bottom:1px solid var(--gray-l);}
+td input{width:52px;border:1px solid var(--border2);border-radius:4px;padding:2px 5px;font-size:12px;}
+tr:hover td{background:var(--gray-l);cursor:pointer;}
+.actionbar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:10px;font-size:12px;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,.25);}
+.actionbar button{background:rgba(255,255,255,.14);border:none;color:#fff;font-size:12px;}
+.actionbar button:hover{background:rgba(255,255,255,.26);}
+.toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:12px;z-index:60;box-shadow:0 6px 18px rgba(0,0,0,.3);}
+.toast button{background:rgba(255,255,255,.14);border:none;color:#fff;font-size:12px;}
+.toast button:hover{background:rgba(255,255,255,.28);}
+.toast button.act{background:var(--blue);}
+.modal-bg{position:fixed;inset:0;background:rgba(20,20,18,.45);z-index:80;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--card);border-radius:12px;width:480px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;font-size:15px;}
+.modal-body{padding:12px 18px;overflow-y:auto;flex:1;}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.chg-group{margin-bottom:12px;}
+.chg-group .g{font-weight:600;font-size:12px;margin-bottom:5px;}
+.chg-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--gray-l);border-radius:6px;margin-bottom:4px;font-size:12px;}
+.chg-item button{font-size:11px;padding:2px 8px;}
+.pill{font-size:10px;border-radius:8px;padding:1px 7px;background:var(--blue-l);color:var(--blue-d);font-weight:600;margin-left:6px;}
+.empty{color:var(--tx3);text-align:center;padding:30px 10px;font-size:12px;}
+.marquee{position:absolute;border:1.5px dashed var(--blue-d);background:rgba(55,138,221,.1);z-index:8;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">EVO · Rut Planlayıcı <span class="pill">v0.2</span></span>
+  <button>Ankara ▾</button>
+  <button>‹</button><span style="font-size:12px;color:var(--tx2);">Hafta 28 · 6–10 Tem</span><button>›</button>
+  <div class="seg" id="layoutSeg">
+    <button data-l="map">Harita</button>
+    <button data-l="split" class="on">Bölünmüş</button>
+    <button data-l="sched">Takvim</button>
+  </div>
+  <div class="seg" id="modeSeg">
+    <button data-m="eff" class="on">Efektif</button>
+    <button data-m="base">Baz</button>
+  </div>
+  <span id="filterChip"></span>
+  <div class="spacer"></div>
+  <div style="position:relative;">
+    <input id="globalSearch" placeholder="🔍 mağaza, rut, kişi ara…" style="border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:12px;width:190px;background:var(--card);color:var(--tx);">
+    <div id="searchResults" style="display:none;position:absolute;top:28px;left:0;width:250px;background:var(--card);border:1px solid var(--border2);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);z-index:70;max-height:260px;overflow-y:auto;"></div>
+  </div>
+  <button id="publishBtn" class="primary">Yayınla (<span id="chgCount">0</span>)</button>
+  <button title="Gelen kutusu">🔔 2</button>
+  <button title="Ayarlar" onclick="alert('Prototip: ayarlar ve görev kataloğu ayrı sayfada —\n• Görev şablonları: oluştur / pasifleştir / varsayılan süre / saha talimatı / kanıt tipi\n• Kurallar: kapsam (genel → zincir → format → rut → mağaza) + tarih aralığı\n• Rut presetleri\n• Genel ayarlar: 450dk, hedefler, eşikler')">⚙</button>
+</div>
+
+<div class="main">
+  <div class="rail">
+    <div class="tabs">
+      <div class="on" data-t="routes">Rutlar</div>
+      <div data-t="pool">Havuz <span class="pill" id="poolCount"></span></div>
+    </div>
+    <div class="list" id="railList"></div>
+  </div>
+
+  <div class="pane" id="mapPane">
+    <div class="pane-head">HARİTA <span style="color:var(--tx3)">— pin: tıkla · boş alan: sürükleyerek seç</span><div class="spacer"></div><span id="mapInfo"></span></div>
+    <div id="mapSvgWrap">
+      <div class="map-tools">
+        <button id="lassoBtn" class="on" title="Sürükleyerek seçim">▭ Seç</button>
+        <button id="layersBtn" title="Katmanlar">≡ Katman</button>
+        <button id="whatifBtn" title="Simülasyon">⚗ Simüle</button>
+      </div>
+      <svg id="mapSvg" viewBox="0 0 600 520"></svg>
+    </div>
+  </div>
+
+  <div class="pane" id="schedPane">
+    <div class="pane-head">TAKVİM <span style="color:var(--tx3)">— blok: sürükle / alt kenar: süre uzat · 5dk adım</span></div>
+    <div class="sched-scroll" id="schedScroll"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head" id="panelHead"><div class="ttl">Detay</div><div class="sub">Bir mağaza, rut veya kişi seç</div></div>
+    <div class="panel-tabs" id="panelTabs">
+      <div class="on" data-t="info">Bilgi</div><div data-t="tasks">Görevler</div><div data-t="hist">Geçmiş</div>
+    </div>
+    <div class="panel-body" id="panelBody"><div class="empty">Haritadan bir pine, takvimden bir bloğa veya soldan bir ruta tıkla.</div></div>
+  </div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="drawer-inner">
+    <table id="tbl"></table>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="statusWarns"></span>
+  <span>⚖ Adalet: <span id="fairness"></span></span>
+  <div class="spacer"></div>
+  <button id="undoBtn">↶ Geri al</button>
+  <button id="drawerBtn">▤ Tablo</button>
+</div>
+
+<div id="overlay"></div>
+
+<script>
+'use strict';
+/* ---------- data ----------
+   Gerçek build: stores EVO sync'ten gelir (format/kategori/koordinat dahil,
+   manuel kurulum yok). visits = PlannedVisit tablosu (motor üretir).
+   Rut = koltuk YOK; Assignment(route↔person, tarihli) ile doğrudan atama. */
+const DAY_START=360, DAY_END=1380, CELL_H=510, PXMIN=CELL_H/(DAY_END-DAY_START);
+const DAYS=['Pzt','Sal','Çar','Per','Cum'];
+const BREAKS=[];
+const QUOTA=450;
+const people=[
+  {id:'p1',name:'Ayşe K.'},
+  {id:'p2',name:'Mehmet D.'}
+];
+const routes=[
+  {id:'r1',code:'ANK-01',name:'Çankaya Merkez',person:'p1',color:'#185FA5',target:1250},
+  {id:'r2',code:'ANK-02',name:'Keçiören Hattı',person:'p2',color:'#0F6E56',target:1250}
+];
+const stores=[
+  {id:'s1',name:'Migros 4M Çankaya',chain:'Migros',format:'MM',cat:'V',rev:412,x:150,y:140,route:'r1'},
+  {id:'s2',name:'Carrefour Kızılay',chain:'Carrefour',format:'Süper',cat:'V',rev:365,x:210,y:210,route:'r1'},
+  {id:'s3',name:'Kantin A (lojman)',chain:'—',format:'—',cat:'S',rev:22,x:120,y:250,route:'r1'},
+  {id:'s4',name:'ŞOK Etlik',chain:'ŞOK',format:'Std',cat:'P',rev:158,x:260,y:120,route:'r1'},
+  {id:'s5',name:'Kantin B (askeri)',chain:'—',format:'—',cat:'S',rev:15,x:380,y:300,route:'r2'},
+  {id:'s6',name:'A101 Batı',chain:'A101',format:'Std',cat:'P',rev:190,x:430,y:220,route:'r2'},
+  {id:'s7',name:'Kantin C',chain:'—',format:'—',cat:'S',rev:18,x:470,y:330,route:'r2'},
+  {id:'s8',name:'BİM Sincan',chain:'BİM',format:'Std',cat:'P',rev:205,x:520,y:260,route:'r2'},
+  {id:'s9',name:'Migros MM Bahçeli',chain:'Migros',format:'MM',cat:'V',rev:388,x:90,y:340,route:null},
+  {id:'s10',name:'A101 Keçiören',chain:'A101',format:'Std',cat:'P',rev:176,x:330,y:80,route:null},
+  {id:'s11',name:'Lojman kantini D',chain:'—',format:'—',cat:'S',rev:12,x:250,y:400,route:null}
+];
+let vseq=0;
+function V(st,p,day,start,dur){return {id:'v'+(++vseq),storeId:st,personId:p,day,start,dur,patched:false};}
+let visits=[
+  V('s1','p1',0,540,45),V('s2','p1',0,660,60),V('s3','p1',1,600,30),V('s1','p1',3,540,45),
+  V('s4','p1',4,840,40),V('s2','p1',2,900,60),V('s3','p1',3,660,30),V('s4','p1',1,900,40),
+  V('s5','p2',0,570,30),V('s6','p2',1,690,45),V('s7','p2',1,540,30),V('s5','p2',3,570,30),
+  V('s8','p2',2,600,45),V('s6','p2',4,540,45)
+];
+const baseVisits=JSON.parse(JSON.stringify(visits));
+/* ---------- state ---------- */
+let filter=null;            // {type:'route'|'person', id}
+let focus=null;             // {type:'store'|'route'|'person', id}
+let panelTab='info';
+let selection=new Set();    // store ids
+let changes=[];             // {id,desc,personId,day,undo:fn,patch:bool}
+let mode='eff', layout='split', railTab='routes';
+let expandedRoutes=new Set();
+let chgSeq=0;
+/* ---------- helpers ---------- */
+const $=q=>document.querySelector(q);
+const store=id=>stores.find(s=>s.id===id);
+const route=id=>routes.find(r=>r.id===id);
+const person=id=>people.find(p=>p.id===id);
+const fmtT=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+function personRoute(pid){return routes.find(r=>r.person===pid);}
+function dayVisits(pid,day,list){return (list||visits).filter(v=>v.personId===pid&&v.day===day).sort((a,b)=>a.start-b.start);}
+function dayTotal(pid,day){return dayVisits(pid,day).reduce((s,v)=>s+v.dur,0);}
+function weekTotal(pid){return visits.filter(v=>v.personId===pid).reduce((s,v)=>s+v.dur,0);}
+function skipBreaks(t){for(const b of BREAKS){if(t>=b.s&&t<b.e)return b.e;}return t;}
+function reflow(pid,day){
+  const list=dayVisits(pid,day);let cur=DAY_START;
+  for(const v of list){
+    let st=Math.max(v.start,cur);st=skipBreaks(st);
+    for(const b of BREAKS){if(st<b.s&&st+v.dur>b.s){st=b.e;}}
+    v.start=st;cur=st+v.dur;
+  }
+}
+/* ---------- sıra numaraları ----------
+   Sıra = haftadaki İLK ziyaretin (gün*10000+dakika) sırası. Tek kaynak
+   visits olduğundan takvim/harita/sidebar otomatik senkron kalır.
+   resequenceRoute: sidebar'da sürükle-sırala → her günün ziyaretleri
+   yeni sıraya göre aynı ilk saatten itibaren yeniden dizilir. */
+function routeStoreOrder(rid){
+  const r=route(rid);if(!r)return [];
+  const pts=stores.filter(s=>s.route===rid);
+  const key=s=>{
+    const vs=visits.filter(v=>v.storeId===s.id&&v.personId===r.person);
+    if(!vs.length)return 1e9;
+    return Math.min(...vs.map(v=>v.day*10000+v.start));
+  };
+  return pts.slice().sort((a,b)=>key(a)-key(b)).map(s=>s.id);
+}
+function storeOrderNum(sid){
+  const s=store(sid);if(!s||!s.route)return null;
+  const i=routeStoreOrder(s.route).indexOf(sid);
+  return i<0?null:i+1;
+}
+function resequenceRoute(rid,newOrder){
+  const r=route(rid);
+  const snaps=visits.filter(v=>v.personId===r.person).map(v=>({v,s:snapshotVisit(v)}));
+  for(let d=0;d<5;d++){
+    const dv=dayVisits(r.person,d);
+    if(dv.length<2)continue;
+    const first=Math.min(...dv.map(v=>v.start));
+    dv.sort((a,b)=>newOrder.indexOf(a.storeId)-newOrder.indexOf(b.storeId));
+    let cur=first;
+    for(const v of dv){v.start=skipBreaks(cur);cur=v.start+v.dur;}
+  }
+  logChange(`${r.code}: ziyaret sırası değiştirildi`,r.person,null,
+    ()=>{for(const {v,s} of snaps)restoreVisit(v,s);});
+}
+function logChange(desc,pid,day,undoFn,patch){
+  changes.push({id:'c'+(++chgSeq),desc,personId:pid,day,undo:undoFn,patch:!!patch});
+  renderAll();
+}
+function snapshotVisit(v){return {...v};}
+function restoreVisit(v,snap){Object.assign(v,snap);}
+/* ---------- filtering ---------- */
+function filterRouteIds(){
+  if(!filter)return null;
+  if(filter.type==='routes')return filter.ids;
+  if(filter.type==='person'){const r=personRoute(filter.id);return new Set(r?[r.id]:[]);}
+  return null;
+}
+function visibleStores(){
+  const ids=filterRouteIds();
+  if(!ids)return stores;
+  return stores.filter(s=>(s.route&&ids.has(s.route))||!s.route);
+}
+function visiblePeople(){
+  if(!filter)return people;
+  if(filter.type==='person')return people.filter(p=>p.id===filter.id);
+  const ids=filterRouteIds();
+  if(ids){const ps=new Set([...ids].map(id=>route(id).person));return people.filter(p=>ps.has(p.id));}
+  return people;
+}
+function toggleRouteFilter(rid,additive){
+  let ids=(filter&&filter.type==='routes')?new Set(filter.ids):new Set();
+  if(!additive){
+    if(ids.size===1&&ids.has(rid)){setFilter(null);return;}
+    ids=new Set([rid]);
+  } else {
+    if(ids.has(rid))ids.delete(rid);else ids.add(rid);
+  }
+  if(!ids.size){setFilter(null);return;}
+  setFilter({type:'routes',ids});
+  setFocus(ids.size===1?{type:'route',id:[...ids][0]}:{type:'routes'});
+}
+function setFilter(f){filter=f;renderAll();}
+function setFocus(f){focus=f;panelTab='info';renderPanel();}
+/* ---------- rail ---------- */
+function renderRail(){
+  const el=$('#railList');el.innerHTML='';
+  $('#poolCount').textContent=stores.filter(s=>!s.route).length;
+  document.querySelectorAll('.rail .tabs div').forEach(t=>t.classList.toggle('on',t.dataset.t===railTab));
+  if(railTab==='routes'){
+    for(const r of routes){
+      const rev=stores.filter(s=>s.route===r.id).reduce((a,s)=>a+s.rev,0);
+      const ok=rev>=r.target;
+      const d=document.createElement('div');
+      const fids=filterRouteIds();
+      const exp=expandedRoutes.has(r.id);
+      const pts=stores.filter(s=>s.route===r.id);
+      d.className='route-item'+(fids&&fids.has(r.id)?' on':'');
+      d.innerHTML=`<div class="code"><span class="dot" style="background:${r.color}"></span>${r.code}
+          <span class="spacer"></span><span class="exp" style="cursor:pointer;color:var(--tx3);padding:0 3px;">${exp?'▾':'▸'}</span></div>
+        <div class="sub">${person(r.person).name} · ${rev}K ${ok?'✅':'⚠️'} · ${pts.length} nokta</div>
+        ${exp?`<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:4px;">
+          ${routeStoreOrder(r.id).map((sid,i)=>{const s=store(sid);return `<div class="rstore" draggable="true" data-s="${s.id}" data-r="${r.id}" style="padding:3px 2px;font-size:11px;display:flex;align-items:center;gap:5px;color:${focus&&focus.type==='store'&&focus.id===s.id?'var(--blue-d)':'var(--tx2)'};cursor:grab;${focus&&focus.type==='store'&&focus.id===s.id?'font-weight:700;':''}"><span style="min-width:16px;height:16px;border-radius:50%;background:${r.color};color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${i+1}</span>${s.name}</div>`;}).join('')}
+          <div style="font-size:9px;color:var(--tx3);padding:2px;">sıralamak için sürükle</div>
+        </div>`:''}`;
+      d.querySelector('.exp').onclick=e=>{e.stopPropagation();exp?expandedRoutes.delete(r.id):expandedRoutes.add(r.id);renderRail();};
+      d.querySelectorAll('.rstore').forEach(rs=>{
+        rs.onclick=e=>{e.stopPropagation();setFocus({type:'store',id:rs.dataset.s});renderAll();};
+        rs.ondragstart=e=>{e.stopPropagation();e.dataTransfer.setData('text/reorder',rs.dataset.s+'|'+rs.dataset.r);};
+        rs.ondragover=e=>{e.preventDefault();rs.style.borderTop='2px solid var(--blue-d)';};
+        rs.ondragleave=()=>rs.style.borderTop='';
+        rs.ondrop=e=>{
+          e.preventDefault();e.stopPropagation();rs.style.borderTop='';
+          const dt=e.dataTransfer.getData('text/reorder');if(!dt)return;
+          const [srcId,srcR]=dt.split('|');
+          if(srcR!==rs.dataset.r||srcId===rs.dataset.s)return;
+          const ord=routeStoreOrder(srcR).filter(x=>x!==srcId);
+          ord.splice(ord.indexOf(rs.dataset.s),0,srcId);
+          resequenceRoute(srcR,ord);
+          toast('Ziyaret sırası güncellendi — takvim saatleri yeniden dizildi',[{t:'Geri al',f:undoLast}]);
+        };
+      });
+      d.onclick=e=>toggleRouteFilter(r.id,e.shiftKey);
+      el.appendChild(d);
+    }
+    const nb=document.createElement('div');
+    nb.className='pool-item';nb.style.textAlign='center';nb.style.cursor='pointer';
+    nb.innerHTML='<span style="color:var(--tx2)">+ Yeni rut (preset seç)</span>';
+    nb.onclick=()=>alert('Prototip: yeni rut sihirbazı — preset seç → kapsam çiz → mağaza ekle → kişi ata → önizle → aktifleştir.');
+    el.appendChild(nb);
+  } else {
+    for(const s of stores.filter(s=>!s.route)){
+      const d=document.createElement('div');
+      d.className='pool-item';d.draggable=true;
+      d.innerHTML=`<div class="nm">${s.name}</div><div class="sub"><span class="badge ${s.cat}">${catL(s.cat)}</span> ${s.rev}K/6ay</div>`;
+      d.ondragstart=e=>{e.dataTransfer.setData('text/pool',s.id);};
+      d.onclick=()=>setFocus({type:'store',id:s.id});
+      el.appendChild(d);
+    }
+    if(!stores.filter(s=>!s.route).length)el.innerHTML='<div class="empty">Havuz boş 🎉</div>';
+  }
+}
+function catL(c){return c==='P'?'Potansiyel':c==='V'?'Değerli':'Servis';}
+/* ---------- map ---------- */
+const MAP_BG=`<g pointer-events="none">
+  <rect x="0" y="0" width="600" height="520" fill="#EDEFE6"/>
+  <path d="M-10 470 C 120 430, 200 480, 330 445 S 540 470, 620 430 L 620 530 L -10 530 Z" fill="#C9DFF0"/>
+  <path d="M-10 470 C 120 430, 200 480, 330 445 S 540 470, 620 430" fill="none" stroke="#AECBE4" stroke-width="3"/>
+  <rect x="330" y="30" width="110" height="80" rx="6" fill="#D9E8CF"/>
+  <rect x="40" y="290" width="90" height="70" rx="6" fill="#D9E8CF"/>
+  <rect x="490" y="120" width="80" height="60" rx="6" fill="#D9E8CF"/>
+  <g stroke="#FFFFFF" stroke-width="7" stroke-linecap="round">
+    <path d="M0 100 H600"/><path d="M0 190 H600"/><path d="M0 275 H600"/><path d="M0 365 H600"/>
+    <path d="M80 0 V520"/><path d="M185 0 V520"/><path d="M295 0 V520"/><path d="M405 0 V520"/><path d="M510 0 V520"/>
+  </g>
+  <g stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" opacity="0.9">
+    <path d="M0 55 H600"/><path d="M0 145 H600"/><path d="M0 232 H600"/><path d="M0 320 H600"/><path d="M0 410 H600"/>
+    <path d="M35 0 V520"/><path d="M132 0 V520"/><path d="M240 0 V520"/><path d="M350 0 V520"/><path d="M460 0 V520"/><path d="M558 0 V520"/>
+    <path d="M80 100 L 295 275"/><path d="M405 190 L 510 365"/>
+  </g>
+  <g fill="#E3E4DA">
+    <rect x="90" y="110" width="35" height="28" rx="2"/><rect x="195" y="112" width="30" height="24" rx="2"/>
+    <rect x="92" y="200" width="28" height="22" rx="2"/><rect x="305" y="200" width="34" height="26" rx="2"/>
+    <rect x="415" y="112" width="30" height="24" rx="2"/><rect x="415" y="285" width="32" height="24" rx="2"/>
+    <rect x="195" y="288" width="30" height="22" rx="2"/><rect x="520" y="200" width="28" height="22" rx="2"/>
+    <rect x="92" y="375" width="30" height="22" rx="2"/><rect x="305" y="375" width="32" height="24" rx="2"/>
+  </g>
+  <g font-size="9" fill="#A9A79D" font-style="italic">
+    <text x="345" y="75">Gençlik Parkı</text><text x="55" y="325">Kuğulu Park</text>
+    <text x="250" y="500">Ankara Çayı</text>
+  </g>
+</g>`;
+function renderMap(){
+  const svg=$('#mapSvg');svg.innerHTML=MAP_BG;
+  const vs=new Set(visibleStores().map(s=>s.id));
+  const fids=filterRouteIds();
+  for(const r of routes){
+    const pts=stores.filter(s=>s.route===r.id);
+    const ptsStr=pts.map(p=>p.x+','+p.y).join(' ');
+    const active=!fids||fids.has(r.id);
+    const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    line.setAttribute('points',ptsStr);
+    line.setAttribute('fill','none');line.setAttribute('stroke',r.color);
+    line.setAttribute('stroke-width',active?3:1.5);line.setAttribute('opacity',active?0.9:0.25);
+    svg.appendChild(line);
+    const hit=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    hit.setAttribute('points',ptsStr);
+    hit.setAttribute('fill','none');hit.setAttribute('stroke','rgba(0,0,0,0)');
+    hit.setAttribute('stroke-width',14);hit.style.cursor='pointer';
+    hit.addEventListener('click',e=>{e.stopPropagation();hidePopover();toggleRouteFilter(r.id,e.shiftKey);});
+    hit.addEventListener('pointerdown',e=>e.stopPropagation());
+    svg.appendChild(hit);
+  }
+  for(const s of stores){
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',s.x);c.setAttribute('cy',s.y);
+    c.setAttribute('r',selection.has(s.id)?10:7);
+    if(s.route){
+      const r=route(s.route);const active=!filter||vs.has(s.id);
+      c.setAttribute('fill',r.color);c.setAttribute('opacity',active?1:0.25);
+      if(visits.some(v=>v.storeId===s.id&&v.patched)){c.setAttribute('stroke','#378ADD');c.setAttribute('stroke-width',2);c.setAttribute('stroke-dasharray','3,2');}
+    } else {
+      c.setAttribute('fill','#FAFAF7');c.setAttribute('stroke','#6B6A64');c.setAttribute('stroke-width',2);
+    }
+    if(selection.has(s.id)){c.setAttribute('stroke','#185FA5');c.setAttribute('stroke-width',3);c.setAttribute('stroke-dasharray','');}
+    if(focus&&focus.type==='store'&&focus.id===s.id){c.setAttribute('r',11);c.setAttribute('stroke','#2C2C2A');c.setAttribute('stroke-width',3);c.setAttribute('stroke-dasharray','');}
+    c.style.cursor='pointer';
+    c.onclick=e=>{e.stopPropagation();showPopover(s,e);};
+    g.appendChild(c);
+    const num=storeOrderNum(s.id);
+    if(num!==null){
+      const nt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      nt.setAttribute('x',s.x);nt.setAttribute('y',s.y+3);
+      nt.setAttribute('text-anchor','middle');nt.setAttribute('font-size','9');
+      nt.setAttribute('font-weight','bold');nt.setAttribute('fill','#FFFFFF');
+      nt.setAttribute('pointer-events','none');
+      nt.textContent=num;g.appendChild(nt);
+    }
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',s.x+11);t.setAttribute('y',s.y+4);
+    t.setAttribute('font-size','10');t.setAttribute('fill','#6B6A64');
+    t.textContent=s.name.split(' ').slice(0,2).join(' ');
+    g.appendChild(t);
+    svg.appendChild(g);
+  }
+  $('#mapInfo').textContent=`${stores.filter(s=>!s.route).length} atanmamış nokta`;
+}
+function showPopover(s,e){
+  hidePopover();
+  const wrap=$('#mapSvgWrap');const rect=wrap.getBoundingClientRect();
+  const d=document.createElement('div');d.className='popover';d.id='mapPopover';
+  const r=s.route?route(s.route):null;
+  d.innerHTML=`<div class="nm">${s.name}</div>
+    <div class="row"><span class="badge ${s.cat}">${catL(s.cat)}</span> ${s.chain} · ${s.format}</div>
+    <div class="row">Ciro (6 ay): <b>${s.rev}K ₺</b> ▁▂▄▃▅▆</div>
+    <div class="row">Rut: ${r?r.code+' · '+person(r.person).name:'<b style="color:var(--amber-d)">atanmamış</b>'}</div>
+    <div class="actions">
+      ${r?'':`<button onclick="assignStore('${s.id}','r1')">→ ANK-01</button><button onclick="assignStore('${s.id}','r2')">→ ANK-02</button>`}
+      <button onclick="expandStore('${s.id}')">Genişlet →</button>
+    </div>`;
+  let x=e.clientX-rect.left+12,y=e.clientY-rect.top-10;
+  if(x>rect.width-210)x=rect.width-210; if(y>rect.height-130)y=rect.height-130;
+  d.style.left=x+'px';d.style.top=y+'px';
+  wrap.appendChild(d);
+}
+function hidePopover(){const p=$('#mapPopover');if(p)p.remove();}
+window.expandStore=id=>{hidePopover();setFocus({type:'store',id});};
+window.assignStore=(sid,rid)=>{
+  hidePopover();
+  const s=store(sid);const r=route(rid);const prev=s.route;
+  s.route=rid;
+  let best=0,min=1e9;
+  for(let d=0;d<5;d++){const t=dayTotal(r.person,d);if(t<min){min=t;best=d;}}
+  const dv=dayVisits(r.person,best);
+  const st=dv.length?dv[dv.length-1].start+dv[dv.length-1].dur:DAY_START;
+  const nv=V(sid,r.person,best,skipBreaks(st),30);
+  visits.push(nv);reflow(r.person,best);
+  logChange(`${s.name} → ${r.code} (${DAYS[best]} eklendi)`,r.person,best,
+    ()=>{s.route=prev;visits=visits.filter(v=>v.id!==nv.id);});
+  toast(`${s.name} ${r.code} rutuna eklendi (${DAYS[best]})`,[]);
+};
+/* ---------- marquee selection ---------- */
+(function(){
+  const svg=$('#mapSvg'),wrap=$('#mapSvgWrap');let mq=null,sx=0,sy=0;
+  svg.addEventListener('pointerdown',e=>{
+    if(e.target.tagName==='circle')return;
+    hidePopover();
+    const r=wrap.getBoundingClientRect();sx=e.clientX-r.left;sy=e.clientY-r.top;
+    mq=document.createElement('div');mq.className='marquee';wrap.appendChild(mq);
+    const move=ev=>{
+      const x=ev.clientX-r.left,y=ev.clientY-r.top;
+      mq.style.left=Math.min(x,sx)+'px';mq.style.top=Math.min(y,sy)+'px';
+      mq.style.width=Math.abs(x-sx)+'px';mq.style.height=Math.abs(y-sy)+'px';
+    };
+    const up=ev=>{
+      document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+      const x=ev.clientX-r.left,y=ev.clientY-r.top;
+      const box=svg.getBoundingClientRect();
+      const scaleX=600/box.width, scaleY=520/box.height;
+      const x1=Math.min(x,sx)*scaleX,x2=Math.max(x,sx)*scaleX,y1=Math.min(y,sy)*scaleY,y2=Math.max(y,sy)*scaleY;
+      mq.remove();mq=null;
+      if(Math.abs(x-sx)<6&&Math.abs(y-sy)<6){selection.clear();renderAll();return;}
+      selection.clear();
+      for(const s of stores){if(s.x>=x1&&s.x<=x2&&s.y>=y1&&s.y<=y2)selection.add(s.id);}
+      if(selection.size){focus={type:'selection'};panelTab='info';}
+      else if(focus&&focus.type==='selection')focus=null;
+      renderAll();
+    };
+    document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+  });
+})();
+/* ---------- action bar ---------- */
+function renderActionBar(){
+  let bar=$('#actionBar');if(bar)bar.remove();
+  if(!selection.size)return;
+  bar=document.createElement('div');bar.className='actionbar';bar.id='actionBar';
+  bar.innerHTML=`<b>${selection.size} nokta seçili</b>
+    <button onclick="bulkAssign('r1')">→ ANK-01</button>
+    <button onclick="bulkAssign('r2')">→ ANK-02</button>
+    <button onclick="openDrawer(true)">▤ Tabloda gör</button>
+    <button onclick="clearSel()">✕</button>`;
+  $('#mapPane').appendChild(bar);
+}
+window.clearSel=()=>{selection.clear();if(focus&&focus.type==='selection')focus=null;renderAll();};
+window.bulkAssign=rid=>{
+  const ids=[...selection].filter(id=>!store(id).route);
+  if(!ids.length){toast('Seçimde atanmamış nokta yok',[]);return;}
+  for(const id of ids)assignStore(id,rid);
+  selection.clear();renderAll();
+};
+/* ---------- schedule ---------- */
+function renderSched(){
+  const el=$('#schedScroll');el.innerHTML='';
+  const grid=document.createElement('div');grid.className='sched-grid';
+  grid.appendChild(document.createElement('div'));
+  grid.appendChild(document.createElement('div'));
+  for(const d of DAYS){const h=document.createElement('div');h.className='day-head';h.textContent=d;grid.appendChild(h);}
+  const src=mode==='base'?baseVisits:visits;
+  for(const p of visiblePeople()){
+    const pc=document.createElement('div');pc.className='person-cell';
+    const wk=weekTotal(p.id),cap=QUOTA*5,pct=Math.round(wk/cap*100);
+    const r=personRoute(p.id);
+    const val=visits.filter(v=>v.personId===p.id&&store(v.storeId).cat!=='S').reduce((s,v)=>s+v.dur,0);
+    const valPct=wk?Math.round(val/wk*100):0;
+    pc.innerHTML=`<div class="nm">${p.name}</div>
+      <div class="meta">${r?r.code:'—'} · %${valPct} değerli</div>
+      <div class="loadbar"><div style="width:${Math.min(pct,100)}%;background:${pct>100?'var(--red)':pct<80?'var(--amber)':'var(--green)'}"></div></div>
+      <div class="meta">%${pct} yük</div>`;
+    pc.querySelector('.nm').onclick=()=>{ if(filter&&filter.type==='person'&&filter.id===p.id){setFilter(null);}else{setFilter({type:'person',id:p.id});setFocus({type:'person',id:p.id});} };
+    grid.appendChild(pc);
+    const ax=document.createElement('div');ax.className='time-axis';
+    for(let h=DAY_START;h<=DAY_END;h+=60){
+      const sp=document.createElement('span');
+      sp.style.top=((h-DAY_START)*PXMIN)+'px';sp.textContent=fmtT(h);ax.appendChild(sp);
+    }
+    grid.appendChild(ax);
+    for(let day=0;day<5;day++){
+      const cell=document.createElement('div');cell.className='day-cell';cell.dataset.p=p.id;cell.dataset.d=day;
+      for(let h=DAY_START+60;h<DAY_END;h+=60){
+        const hl=document.createElement('div');hl.className='hline';
+        hl.style.top=((h-DAY_START)*PXMIN)+'px';cell.appendChild(hl);
+      }
+      for(const b of BREAKS){
+        const bd=document.createElement('div');bd.className='brk';
+        bd.style.top=((b.s-DAY_START)*PXMIN)+'px';bd.style.height=((b.e-b.s)*PXMIN)+'px';
+        bd.textContent=b.l;cell.appendChild(bd);
+      }
+      const tot=dayVisits(p.id,day,src).reduce((s,v)=>s+v.dur,0);
+      const td=document.createElement('div');td.className='day-total '+(tot>QUOTA?'over':tot<QUOTA*0.6?'under':'ok');
+      td.textContent=tot+"'";cell.appendChild(td);
+      for(const v of dayVisits(p.id,day,src)){
+        const s=store(v.storeId);
+        const b=document.createElement('div');
+        b.className='vblock cat'+s.cat+(v.patched&&mode==='eff'?' patched':'')+(focus&&focus.type==='store'&&focus.id===s.id?' sel':'');
+        b.style.top=((v.start-DAY_START)*PXMIN)+'px';
+        b.style.height=Math.max(v.dur*PXMIN-2,14)+'px';
+        b.innerHTML=`<div class="t">${s.name}</div><div class="s">${fmtT(v.start)} · ${v.dur}dk</div><div class="rz"></div>`;
+        if(mode==='eff')attachBlock(b,v);
+        else{b.style.cursor='default';b.style.opacity='.7';}
+        cell.appendChild(b);
+      }
+      if(mode==='eff'){
+        cell.ondragover=e=>{e.preventDefault();cell.classList.add('dragover');};
+        cell.ondragleave=()=>cell.classList.remove('dragover');
+        cell.ondrop=e=>{
+          e.preventDefault();cell.classList.remove('dragover');
+          const sid=e.dataTransfer.getData('text/pool');if(!sid)return;
+          const s=store(sid);const prev=s.route;
+          const r=personRoute(p.id);if(!r){toast('Bu kişiye atanmış rut yok',[]);return;}
+          s.route=r.id;
+          const dv=dayVisits(p.id,day);
+          const st=dv.length?dv[dv.length-1].start+dv[dv.length-1].dur:DAY_START;
+          const nv=V(sid,p.id,day,skipBreaks(st),30);
+          visits.push(nv);reflow(p.id,day);
+          logChange(`${s.name} → ${r.code} (${DAYS[day]})`,p.id,day,()=>{s.route=prev;visits=visits.filter(x=>x.id!==nv.id);});
+          toast(`${s.name} havuzdan eklendi → ${p.name} · ${DAYS[day]}`,[]);
+        };
+      }
+      grid.appendChild(cell);
+    }
+  }
+  el.appendChild(grid);
+}
+/* ---------- blok sürükle + boyutlandır ----------
+   Sürükleme = varsayılan YAMA (bu hafta), toast'tan kalıcıya çevrilir.
+   Kenar sürükleme = süre (5dk snap) + canlı reflow; bırakınca kapsam
+   toast'ı: ziyaret(tarihli) / mağaza / rut / format. Format seçeneği
+   GERÇEKTEN tüm aynı zincir+format ziyaretlerini günceller (kural). */
+function attachBlock(el,v){
+  el.addEventListener('pointerdown',e=>{
+    if(e.target.classList.contains('rz')){startResize(e,el,v);return;}
+    startMove(e,el,v);
+  });
+}
+function startMove(e,el,v){
+  e.preventDefault();
+  const startX=e.clientX,startY=e.clientY;let moved=false,ghost=null;
+  const move=ev=>{
+    if(!moved&&(Math.abs(ev.clientX-startX)>5||Math.abs(ev.clientY-startY)>5)){
+      moved=true;el.classList.add('dragging');
+      ghost=el.cloneNode(true);ghost.style.position='fixed';ghost.style.width=el.offsetWidth+'px';
+      ghost.style.pointerEvents='none';ghost.style.zIndex=100;ghost.style.opacity=.85;document.body.appendChild(ghost);
+    }
+    if(ghost){ghost.style.left=(ev.clientX+8)+'px';ghost.style.top=(ev.clientY+8)+'px';}
+    document.querySelectorAll('.day-cell').forEach(c=>c.classList.remove('dragover'));
+    const t=document.elementFromPoint(ev.clientX,ev.clientY);
+    const cell=t&&t.closest?t.closest('.day-cell'):null;
+    if(cell&&moved)cell.classList.add('dragover');
+  };
+  const up=ev=>{
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+    if(ghost)ghost.remove();el.classList.remove('dragging');
+    document.querySelectorAll('.day-cell').forEach(c=>c.classList.remove('dragover'));
+    if(!moved){setFocus({type:'store',id:v.storeId});return;}
+    const t=document.elementFromPoint(ev.clientX,ev.clientY);
+    const cell=t&&t.closest?t.closest('.day-cell'):null;
+    if(!cell)return;
+    const np=cell.dataset.p,nd=+cell.dataset.d;
+    if(np===v.personId&&nd===v.day)return;
+    const before=snapshotVisit(v);
+    const rect=cell.getBoundingClientRect();
+    let ns=DAY_START+Math.round(((ev.clientY-rect.top)/PXMIN)/5)*5;
+    ns=Math.max(DAY_START,Math.min(ns,DAY_END-v.dur));
+    v.personId=np;v.day=nd;v.start=skipBreaks(ns);v.patched=true;
+    reflow(np,nd);
+    const s=store(v.storeId);
+    logChange(`${s.name}: ${DAYS[before.day]}→${DAYS[nd]}${np!==before.personId?' · '+person(np).name:''}`,np,nd,
+      ()=>restoreVisit(v,before),true);
+    toast(`${s.name} taşındı — sadece bu hafta`,[
+      {t:'Kalıcı yap',f:()=>{v.patched=false;changes[changes.length-1].patch=false;changes[changes.length-1].desc+=' (kalıcı)';renderAll();}},
+      {t:'Geri al',f:()=>{undoLast();}}
+    ]);
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+function startResize(e,el,v){
+  e.preventDefault();e.stopPropagation();
+  const startY=e.clientY,origDur=v.dur;const before=snapshotVisit(v);
+  const move=ev=>{
+    let nd=origDur+Math.round((ev.clientY-startY)/PXMIN/5)*5;
+    nd=Math.max(10,Math.min(nd,240));
+    if(nd!==v.dur){v.dur=nd;reflow(v.personId,v.day);renderSched();}
+  };
+  const up=()=>{
+    document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+    if(v.dur===origDur)return;
+    const s=store(v.storeId);
+    logChange(`${s.name}: ${origDur}dk → ${v.dur}dk`,v.personId,v.day,()=>{restoreVisit(v,before);reflow(v.personId,v.day);});
+    const vr=personRoute(v.personId);
+    toast(`${s.name}: ${origDur}dk → ${v.dur}dk. Nereye uygulansın?`,[
+      {t:'Sadece bu ziyaret (tarihli)',f:()=>{v.patched=true;changes[changes.length-1].patch=true;renderAll();}},
+      {t:'Bu mağaza hep',f:()=>{applyDur(x=>x.storeId===v.storeId,v.dur,`${s.name} tüm ziyaretler → ${v.dur}dk (mağaza kuralı)`);}},
+      {t:vr?`Bu rutta (${vr.code})`:'Bu rutta',f:()=>{if(vr)applyDur(x=>{const xr=personRoute(x.personId);return xr&&xr.id===vr.id;},v.dur,`${vr.code} tüm ziyaretler → ${v.dur}dk (rut kuralı)`);}},
+      {t:`Tüm ${s.chain} ${s.format}`,f:()=>{applyDur(x=>{const xs=store(x.storeId);return xs.chain===s.chain&&xs.format===s.format;},v.dur,`Tüm ${s.chain} ${s.format} → ${v.dur}dk (format kuralı)`);}}
+    ]);
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+}
+function applyDur(pred,dur,desc){
+  const snaps=visits.filter(pred).map(v=>({v,s:snapshotVisit(v)}));
+  for(const {v} of snaps){v.dur=dur;}
+  const days=new Set(snaps.map(({v})=>v.personId+'|'+v.day));
+  for(const k of days){const [p,d]=k.split('|');reflow(p,+d);}
+  logChange(desc,null,null,()=>{for(const {v,s} of snaps)restoreVisit(v,s);});
+}
+/* ---------- panel ---------- */
+function renderPanel(){
+  const head=$('#panelHead'),body=$('#panelBody');
+  document.querySelectorAll('#panelTabs div').forEach(t=>t.classList.toggle('on',t.dataset.t===panelTab));
+  if(!focus){head.innerHTML='<div class="ttl">Detay</div><div class="sub">Bir mağaza, rut veya kişi seç</div>';body.innerHTML='<div class="empty">Haritadan bir pine, takvimden bir bloğa veya soldan bir ruta tıkla.</div>';return;}
+  if(focus.type==='selection'){
+    const sel=[...selection].map(store);
+    const rev=sel.reduce((a,s)=>a+s.rev,0);
+    const un=sel.filter(s=>!s.route);
+    const mix={P:0,V:0,S:0};sel.forEach(s=>mix[s.cat]++);
+    head.innerHTML=`<div class="ttl">${sel.length} nokta seçili</div><div class="sub">toplu görünüm</div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Toplam ciro (6 ay)</span><b>${rev}K ₺</b></div>
+        <div class="kv"><span class="k">Karışım</span><span>🟢${mix.P} 🟡${mix.V} ⚪${mix.S}</span></div>
+        <div class="kv"><span class="k">Atanmamış</span><b style="color:${un.length?'var(--amber-d)':'var(--green)'}">${un.length} / ${sel.length}</b></div>
+        <div style="margin:10px 0 6px;font-weight:600;font-size:12px;">Noktalar</div>
+        ${sel.map(s=>`<div class="task-row"><span style="cursor:pointer" onclick="expandStore('${s.id}')">${s.name}</span><span>${s.rev}K ${s.route?route(s.route).code:'<b style=color:var(--amber-d)>—</b>'}</span></div>`).join('')}
+        ${un.length?`<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="bulkAssign('r1')">${un.length} atanmamışı → ANK-01</button>
+          <button onclick="bulkAssign('r2')">→ ANK-02</button></div>`:''}`;
+    } else if(panelTab==='tasks'){
+      body.innerHTML=sel.map(s=>`<div class="task-row"><span>${s.name}</span><span>${s.format==='MM'?'80dk':'65dk'} görev</span></div>`).join('')+
+        `<div style="margin-top:8px;color:var(--tx2);font-size:11px;">Süreler kurallardan türetildi (format bazlı).</div>`;
+    } else {
+      body.innerHTML=`<div class="empty">Toplu geçmiş yok — tek nokta seç.</div>`;
+    }
+  } else if(focus.type==='store'){
+    const s=store(focus.id);const r=s.route?route(s.route):null;
+    head.innerHTML=`<div class="ttl">${s.name}</div><div class="sub">${s.chain} · ${s.format} · <span class="badge ${s.cat}">${catL(s.cat)}</span></div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Ciro (6 ay)</span><b>${s.rev}K ₺</b></div>
+        <div class="kv"><span class="k">Trend</span><span>▁▂▄▃▅▆</span></div>
+        <div class="kv"><span class="k">Rut</span><span>${r?r.code:'atanmamış'}</span></div>
+        <div class="kv"><span class="k">Sorumlu</span><span>${r?person(r.person).name:'—'}</span></div>
+        <div class="kv"><span class="k">Haftalık ziyaret</span><span>${visits.filter(v=>v.storeId===s.id).length}</span></div>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          ${r?`<button onclick="alert('Prototip: yama oluştur — tür seç, bitiş tarihi zorunlu.')">+ Yama</button>`:''}
+          <button onclick="alert('Prototip: mağazaya not ekle.')">+ Not</button>
+        </div>`;
+    } else if(panelTab==='tasks'){
+      const big=s.format==='MM';
+      body.innerHTML=`
+        <div class="task-row"><span>Öncesi fotoğraf</span><span>5dk <div class="src">şablon</div></span></div>
+        <div class="task-row"><span>Raf çalışması</span><span>${big?45:30}dk <div class="src">${big?'kural: '+s.chain+'/MM':'şablon'}</div></span></div>
+        <div class="task-row"><span>SKT kontrol</span><span>10dk <div class="src">şablon</div></span></div>
+        <div class="task-row"><span>Fiyat toplama</span><span>15dk <div class="src">kural: haftalık</div></span></div>
+        <div class="task-row"><span>Sonrası fotoğraf</span><span>5dk <div class="src">şablon</div></span></div>
+        <div style="margin-top:10px;color:var(--tx2);font-size:11px;">Toplam: <b>${big?80:65}dk</b> — kurallardan türetildi. Süreyi blok kenarından değiştir → kapsam sorulur.</div>`;
+    } else {
+      body.innerHTML=`
+        <div class="hist-item"><div class="d">Mar–Tem 2026</div><b>${r?r.code:'—'}</b> · ${r?person(r.person).name:''}<br>34 ziyaret · %96 tamamlama</div>
+        <div class="hist-item"><div class="d">12 May</div>SKT sorunu işaretlendi 📷</div>
+        <div class="hist-item"><div class="d">Oca–Mar 2026</div>ANK-02 · Mehmet D. · 21 ziyaret</div>
+        <div class="hist-item"><div class="d">Eki 2025</div>EVO'dan senkronize edildi</div>`;
+    }
+  } else if(focus.type==='routes'){
+    const ids=(filter&&filter.type==='routes')?[...filter.ids]:[];
+    const rs=ids.map(route);
+    const pts=stores.filter(s=>s.route&&filter.ids.has(s.route));
+    const rev=pts.reduce((a,s)=>a+s.rev,0);
+    const target=rs.reduce((a,r)=>a+r.target,0);
+    head.innerHTML=`<div class="ttl">${rs.map(r=>r.code).join(' + ')}</div><div class="sub">${rs.length} rut · birleşik görünüm</div>`;
+    body.innerHTML=`
+      <div class="kv"><span class="k">Toplam nokta</span><b>${pts.length}</b></div>
+      <div class="kv"><span class="k">Toplam ciro (6 ay)</span><b style="color:${rev>=target?'var(--green)':'var(--red-d)'}">${rev}K / ${target}K</b></div>
+      <div class="kv"><span class="k">Kişiler</span><span>${rs.map(r=>person(r.person).name).join(', ')}</span></div>
+      <div class="kv"><span class="k">Kesişim kontrolü</span><span>çakışma yok ✓</span></div>
+      <div style="margin-top:10px;color:var(--tx2);font-size:11px;">Tek rut detayı için haritada çizgisine tıkla (Shift olmadan).</div>
+      <div style="margin-top:10px;"><button onclick="alert('Prototip: birleşik bölgeye yeni kişi simülasyonu — toplam ciro ve dakika yeterliliği hesaplanır.')">⚗ Bu bölgeye kişi ekle?</button></div>`;
+  } else if(focus.type==='route'){
+    const r=route(focus.id);
+    const pts=stores.filter(s=>s.route===r.id);
+    const rev=pts.reduce((a,s)=>a+s.rev,0);
+    const mix={P:0,V:0,S:0};pts.forEach(s=>mix[s.cat]++);
+    head.innerHTML=`<div class="ttl">${r.code} · ${r.name}</div><div class="sub">${person(r.person).name} · ${pts.length} nokta</div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Ciro (6 ay)</span><b style="color:${rev>=r.target?'var(--green)':'var(--red-d)'}">${rev}K / ${r.target}K</b></div>
+        <div class="kv"><span class="k">Karışım</span><span>🟢${mix.P} 🟡${mix.V} ⚪${mix.S}</span></div>
+        <div class="kv"><span class="k">Stabilite</span><b>91</b></div>
+        <div class="kv"><span class="k">Aktif yama</span><span>${visits.filter(v=>v.patched&&v.personId===r.person).length}</span></div>
+        <div class="kv"><span class="k">Atama geçmişi</span><span>2 değişim/yıl</span></div>
+        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="alert('Prototip: kişi değiştir — sebep zorunlu.')">Kişi değiştir</button>
+          <button onclick="alert('Prototip: bu rutu preset olarak kaydet.')">Preset kaydet</button>
+        </div>`;
+    } else if(panelTab==='tasks'){
+      body.innerHTML=pts.map(s=>`<div class="task-row"><span>${s.name}</span><span class="badge ${s.cat}">${catL(s.cat)}</span></div>`).join('');
+    } else {
+      body.innerHTML=`
+        <div class="hist-item"><div class="d">Bu hafta</div>${visits.filter(v=>v.patched).length} yama aktif</div>
+        <div class="hist-item"><div class="d">Mar 2026</div>Ayşe K. atandı (sebep: yeniden yapılanma)</div>
+        <div class="hist-item"><div class="d">Şub 2026</div>2 nokta eklendi, 1 çıkarıldı</div>
+        <div class="hist-item"><div class="d">Oca 2026</div>Rut oluşturuldu (preset: il merkezi)</div>`;
+    }
+  } else {
+    const p=person(focus.id);const r=personRoute(p.id);
+    const wk=weekTotal(p.id);
+    head.innerHTML=`<div class="ttl">${p.name}</div><div class="sub">${r?r.code:'—'} · saha temsilcisi</div>`;
+    if(panelTab==='info'){
+      body.innerHTML=`
+        <div class="kv"><span class="k">Haftalık yük</span><b>${wk} / ${QUOTA*5} dk</b></div>
+        <div class="kv"><span class="k">Rut</span><span>${r?r.code:'—'}</span></div>
+        <div class="kv"><span class="k">Bu yıl rut değişimi</span><span>1</span></div>
+        <div class="kv"><span class="k">Görev uyumu</span><span>%94</span></div>`;
+    } else if(panelTab==='tasks'){
+      body.innerHTML=`<div class="task-row"><span>Süt reyonu anketi</span><span style="color:var(--red-d)">⏰ 12 Tem</span></div>
+        <div class="task-row"><span>Fiyat toplama (haftalık)</span><span>rutin</span></div>`;
+    } else {
+      body.innerHTML=`
+        <div class="hist-item"><div class="d">Dün 14:32</div>📝 Not: "Kantin B müdürü perşembe servis istemiyor"</div>
+        <div class="hist-item"><div class="d">Mar 2026</div>${r?r.code:''} rutuna atandı</div>
+        <div class="hist-item"><div class="d">Oca 2026</div>İşe başladı</div>`;
+    }
+  }
+}
+document.querySelectorAll('#panelTabs div').forEach(t=>t.onclick=()=>{panelTab=t.dataset.t;renderPanel();});
+/* ---------- table drawer ---------- */
+let drawerOpen=false;
+window.openDrawer=v=>{drawerOpen=v===undefined?!drawerOpen:v;$('#drawer').classList.toggle('open',drawerOpen);renderTable();};
+$('#drawerBtn').onclick=()=>openDrawer();
+function renderTable(){
+  if(!drawerOpen)return;
+  const tbl=$('#tbl');
+  const vp=new Set(visiblePeople().map(p=>p.id));
+  let rows=visits.filter(v=>vp.has(v.personId));
+  if(selection.size)rows=visits.filter(v=>selection.has(v.storeId));
+  rows.sort((a,b)=>a.day-b.day||a.start-b.start);
+  tbl.innerHTML=`<tr><th>Mağaza</th><th>Kategori</th><th>Kişi</th><th>Gün</th><th>Saat</th><th>Süre (dk)</th><th>Yama</th></tr>`+
+    rows.map(v=>{const s=store(v.storeId);return `<tr data-s="${s.id}">
+      <td>${s.name}</td><td><span class="badge ${s.cat}">${catL(s.cat)}</span></td>
+      <td>${person(v.personId).name}</td><td>${DAYS[v.day]}</td><td>${fmtT(v.start)}</td>
+      <td><input type="number" step="5" min="10" value="${v.dur}" data-v="${v.id}"></td>
+      <td>${v.patched?'<span class="pill">yama</span>':''}</td></tr>`;}).join('');
+  tbl.querySelectorAll('input').forEach(inp=>{
+    inp.onclick=e=>e.stopPropagation();
+    inp.onchange=()=>{
+      const v=visits.find(x=>x.id===inp.dataset.v);const before=snapshotVisit(v);
+      const nd=Math.max(10,Math.round(+inp.value/5)*5);
+      const s=store(v.storeId);
+      v.dur=nd;reflow(v.personId,v.day);
+      logChange(`${s.name}: ${before.dur}dk → ${nd}dk (tablo)`,v.personId,v.day,()=>{restoreVisit(v,before);reflow(v.personId,v.day);});
+    };
+  });
+  tbl.querySelectorAll('tr[data-s]').forEach(tr=>tr.onclick=()=>setFocus({type:'store',id:tr.dataset.s}));
+}
+/* ---------- toast ---------- */
+let toastTimer=null;
+function toast(msg,btns){
+  const old=$('#toast');if(old)old.remove();clearTimeout(toastTimer);
+  const d=document.createElement('div');d.className='toast';d.id='toast';
+  d.innerHTML=`<span>${msg}</span>`;
+  for(const b of btns){
+    const bt=document.createElement('button');bt.textContent=b.t;bt.className='act';
+    bt.onclick=()=>{b.f();d.remove();};d.appendChild(bt);
+  }
+  const x=document.createElement('button');x.textContent='✕';x.onclick=()=>d.remove();d.appendChild(x);
+  document.body.appendChild(d);
+  toastTimer=setTimeout(()=>d.remove(),7000);
+}
+/* ---------- changes / publish / undo ---------- */
+function undoLast(){
+  const c=changes.pop();if(!c)return;
+  c.undo();renderAll();toast('Geri alındı: '+c.desc,[]);
+}
+$('#undoBtn').onclick=undoLast;
+$('#publishBtn').onclick=()=>{
+  if(!changes.length){toast('Yayınlanacak değişiklik yok',[]);return;}
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='pubModal';
+  const groups={};
+  for(const c of changes){
+    const k=c.personId?person(c.personId).name+(c.day!=null?' · '+DAYS[c.day]:''):'Genel (kural)';
+    (groups[k]=groups[k]||[]).push(c);
+  }
+  bg.innerHTML=`<div class="modal">
+    <div class="modal-head">Yayın özeti — ${changes.length} değişiklik</div>
+    <div class="modal-body">${Object.entries(groups).map(([g,cs])=>`
+      <div class="chg-group"><div class="g">${g}</div>
+      ${cs.map(c=>`<div class="chg-item"><span>${c.desc}${c.patch?'<span class="pill">bu hafta</span>':''}</span><button data-c="${c.id}">Geri al</button></div>`).join('')}
+      </div>`).join('')}
+      <div style="color:var(--tx2);font-size:11px;margin-top:6px;">Onayladığında etkilenen saha temsilcilerine tek toplu bildirim gönderilir. Hiçbir değişiklik bu özetten geçmeden telefona düşmez.</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="document.getElementById('pubModal').remove()">Vazgeç</button>
+      <button class="primary" id="confirmPub">Onayla ve yayınla</button>
+    </div></div>`;
+  document.body.appendChild(bg);
+  bg.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{
+    const i=changes.findIndex(c=>c.id===b.dataset.c);
+    if(i>=0){changes[i].undo();changes.splice(i,1);}
+    bg.remove();renderAll();
+    if(changes.length)$('#publishBtn').click();
+  });
+  $('#confirmPub').onclick=()=>{
+    const affected=new Set(changes.filter(c=>c.personId).map(c=>person(c.personId).name));
+    changes=[];bg.remove();renderAll();
+    toast(`Yayınlandı ✓ ${affected.size?[...affected].join(', ')+' bilgilendirildi (toplu bildirim)':''}`,[]);
+  };
+};
+/* ---------- header / status ---------- */
+function renderHeader(){
+  $('#chgCount').textContent=changes.length;
+  const fc=$('#filterChip');
+  if(filter){
+    const label=filter.type==='routes'?[...filter.ids].map(id=>route(id).code).join(' + '):person(filter.id).name;
+    fc.innerHTML=`<span class="chip">◉ ${label} · filtre <span class="x" onclick="setFilterNull()">✕</span></span>`;
+  } else fc.innerHTML='';
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+  document.querySelectorAll('#layoutSeg button').forEach(b=>b.classList.toggle('on',b.dataset.l===layout));
+  $('#mapPane').style.display=(layout==='sched')?'none':'flex';
+  $('#schedPane').style.display=(layout==='map')?'none':'flex';
+}
+window.setFilterNull=()=>setFilter(null);
+function renderStatus(){
+  let errs=0,warns=0,msgs=[];
+  for(const p of people)for(let d=0;d<5;d++){
+    const t=dayTotal(p.id,d);
+    if(t>QUOTA){errs++;msgs.push(`${p.name} ${DAYS[d]}: ${t}dk > ${QUOTA}`);}
+    else if(t>0&&t<QUOTA*0.6){warns++;}
+  }
+  $('#statusWarns').innerHTML=(errs?`<span class="err">⚠ ${errs} hata (${msgs[0]||''})</span> · `:'')+
+    (warns?`<span class="warn">${warns} düşük doluluk uyarısı</span>`:(errs?'':'✓ Plan temiz'));
+  const vals=people.map(p=>{
+    const wk=weekTotal(p.id);
+    const val=visits.filter(v=>v.personId===p.id&&store(v.storeId).cat!=='S').reduce((s,v)=>s+v.dur,0);
+    return {n:p.name.split(' ')[0],pct:wk?Math.round(val/wk*100):0};
+  });
+  const min=vals.reduce((a,b)=>a.pct<b.pct?a:b);
+  $('#fairness').textContent=vals.map(v=>`${v.n} %${v.pct}`).join(' · ')+(min.pct<40?` — ${min.n} ortalamanın altında`:'');
+}
+/* ---------- wiring ---------- */
+document.querySelectorAll('.rail .tabs div').forEach(t=>t.onclick=()=>{railTab=t.dataset.t;renderRail();});
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;renderAll();
+  if(mode==='base')toast('Baz görünüm: aylık rutin, yamalar hariç — salt okunur',[]);});
+document.querySelectorAll('#layoutSeg button').forEach(b=>b.onclick=()=>{layout=b.dataset.l;renderHeader();});
+/* global search */
+const gs=$('#globalSearch'),sr=$('#searchResults');
+gs.oninput=()=>{
+  const q=gs.value.trim().toLowerCase();
+  if(q.length<2){sr.style.display='none';return;}
+  const res=[];
+  for(const s of stores)if(s.name.toLowerCase().includes(q))res.push({t:'store',id:s.id,l:s.name,sub:s.route?route(s.route).code:'atanmamış'});
+  for(const r of routes)if((r.code+' '+r.name).toLowerCase().includes(q))res.push({t:'route',id:r.id,l:r.code+' · '+r.name,sub:person(r.person).name});
+  for(const p of people)if(p.name.toLowerCase().includes(q))res.push({t:'person',id:p.id,l:p.name,sub:'saha temsilcisi'});
+  if(!res.length){sr.innerHTML='<div style="padding:10px;color:var(--tx3);font-size:12px;">Sonuç yok</div>';sr.style.display='block';return;}
+  sr.innerHTML=res.slice(0,8).map(x=>`<div class="sres" data-t="${x.t}" data-id="${x.id}" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--gray-l);font-size:12px;"><b>${x.l}</b><br><span style="color:var(--tx3);font-size:11px;">${x.sub}</span></div>`).join('');
+  sr.style.display='block';
+  sr.querySelectorAll('.sres').forEach(el=>{
+    el.onmouseenter=()=>el.style.background='var(--gray-l)';
+    el.onmouseleave=()=>el.style.background='';
+    el.onclick=()=>{
+      const t=el.dataset.t,id=el.dataset.id;
+      sr.style.display='none';gs.value='';
+      if(t==='store'){const s=store(id);if(s.route)expandedRoutes.add(s.route);setFocus({type:'store',id});renderAll();}
+      else if(t==='route'){toggleRouteFilter(id,false);}
+      else{setFilter({type:'person',id});setFocus({type:'person',id});}
+    };
+  });
+};
+gs.onblur=()=>setTimeout(()=>sr.style.display='none',200);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){selection.clear();if(filter)setFilter(null);hidePopover();renderAll();}
+  if((e.metaKey||e.ctrlKey)&&e.key==='z'){e.preventDefault();undoLast();}
+});
+document.addEventListener('click',e=>{if(!e.target.closest('#mapPopover')&&!e.target.closest('circle'))hidePopover();});
+function renderAll(){renderHeader();renderRail();renderMap();renderSched();renderPanel();renderStatus();renderActionBar();renderTable();}
+renderAll();
+</script>
+</body>
+</html>

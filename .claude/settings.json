@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -A 6 '## Current focus' \"$CLAUDE_PROJECT_DIR/CLAUDE.md\" 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-reminder.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
