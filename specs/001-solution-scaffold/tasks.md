@@ -55,31 +55,31 @@
 - Files: `panel/` (Vite react-ts template), `panel/.eslintrc*`, `panel/.prettierrc`
 - Do: `npm create vite@latest panel -- --template react-ts`; TS strict; eslint+prettier configured.
 - Verify: `cd panel && npm run dev` serves; `npm run lint` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 9: Client generation script
 - Files: `panel/package.json`, `contracts/README.md`
 - Do: add `openapi-typescript` (or NSwag TS) as devDep; script `generate-api-client` reading `contracts/openapi.json` → `panel/src/api/generated/`; mark folder generated (README + eslint-ignore).
 - Verify: `npm run generate-api-client` produces typed client containing health endpoint types.
-- Status: [ ]
+- Status: [x]
 
 ## Task 10: Panel consumes health via generated client
 - Files: `panel/src/api/client.ts`, `panel/src/App.tsx`, `panel/vite.config.ts` (proxy)
 - Do: thin fetch wrapper using generated types; App shows backend status badge; dev proxy `/api` → backend port.
 - Verify: with backend running, `npm run dev` page shows "ok" from live endpoint.
-- Status: [ ]
+- Status: [x]
 
 ## Task 11: Vitest + first test
 - Files: `panel/src/api/client.test.ts`, `panel/package.json`
 - Do: Vitest setup; test the client wrapper (mocked fetch: success + non-200 path).
 - Verify: `npm test` → passing.
-- Status: [ ]
+- Status: [x]
 
 ## Task 12: Playwright + smoke test
 - Files: `panel/playwright.config.ts`, `panel/e2e/smoke.spec.ts`
 - Do: install Playwright (chromium only); smoke test: page loads, status badge visible; screenshot saved to `e2e/artifacts/` (visual-verification baseline habit — design-system skill).
 - Verify: `npx playwright test` → passing, screenshot exists.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 2 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence, commit `feat(001): panel + contract pipeline`, give the human a 1-minute UI test script (open panel, check status badge renders, check console clean), numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 
