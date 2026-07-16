@@ -13,5 +13,8 @@
 - SheetJS Excel export upgrade (prototype uses CSV/BOM)
 - Sequence optimization button (nearest-neighbor suggest, never forced)
 
+## Next up
+- M1 route planning core: Route/RouteStop/Assignment entities, scheduling engine (450-min rule), Baseline+Patch model with auto-expiry, publish gate with override-with-reason — needs a `/plan` pass to generate its spec.
+
 ## Recently completed features
-- (none — build not started)
+- M0 — Platform foundation (specs 001–004): solution scaffold, auth/roles, error/audit, store sync — all COMPLETE.

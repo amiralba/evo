@@ -14,14 +14,14 @@ Single-page planning workspace where a supervisor designs and repairs merchandis
 
 ## Milestones
 
-### M0 — Platform foundation (status: not started)
+### M0 — Platform foundation (status: COMPLETE)
 Goal: everything modules depend on, built once.
-- [ ] 001-solution-scaffold — repo layout, CI, OpenAPI→TS client pipeline, Docker + IIS story
-- [ ] 002-auth-roles — ASP.NET Identity, Supervisor/Field-agent roles, AD/Entra SSO option
-- [ ] 003-error-audit — shared ProblemDetails error shape; RouteChangeLog audit pattern
-- [ ] 004-store-sync — nightly ingestion from EVO sales (stores, formats, revenue snapshots)
+- [x] 001-solution-scaffold — repo layout, CI, OpenAPI→TS client pipeline, Docker + IIS story
+- [x] 002-auth-roles — ASP.NET Identity, Supervisor/Field-agent roles, AD/Entra SSO option
+- [x] 003-error-audit — shared ProblemDetails error shape; RouteChangeLog audit pattern
+- [x] 004-store-sync — nightly ingestion from EVO sales (stores, formats, revenue snapshots)
 
-### M1 — Route planning core (web panel)
+### M1 — Route planning core (web panel) — NEXT UP
 Goal: a supervisor can build and publish a valid plan.
 - [ ] Routes & stops lifecycle (draft/active/inactive, geo scope)
 - [ ] Assignments with history
