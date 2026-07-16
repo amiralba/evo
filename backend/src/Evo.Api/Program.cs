@@ -26,7 +26,7 @@ builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
 builder.Services.AddDbContext<EvoDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("EvoDb")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("EvoDb"), x => x.UseNetTopologySuite()));
 
 builder.Services.AddDataProtection();
 

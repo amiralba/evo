@@ -27,7 +27,7 @@ var connectionString = config.GetConnectionString("EvoDb")
     ?? "Server=localhost,1433;Database=EvoDb;User Id=sa;Password=Local_dev_only!1;TrustServerCertificate=True;";
 
 var services = new ServiceCollection();
-services.AddDbContext<EvoDbContext>(options => options.UseSqlServer(connectionString));
+services.AddDbContext<EvoDbContext>(options => options.UseSqlServer(connectionString, x => x.UseNetTopologySuite()));
 services.AddDataProtection();
 services.AddLogging();
 services.AddIdentityCore<ApplicationUser>()
