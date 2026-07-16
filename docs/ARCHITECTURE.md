@@ -23,9 +23,9 @@ React panel (planner SPA)      [mobile: DEFERRED — seeded/mocked]
 ## Components
 | Component | Responsibility | Tech |
 |---|---|---|
-| Web API | REST endpoints per design §9; auth; validation | ASP.NET Core 8, EF Core |
+| Web API | REST endpoints per design §9; auth; validation | ASP.NET Core 10 (see Folder structure note), EF Core |
 | Plan Generator | §3 engine: regenerate future PlannedVisits on any baseline/patch/assignment mutation; nightly horizon extension; patch expiry | Background service (async, per-route) |
-| Store Sync | Nightly ingest of stores/formats/revenue by `evo_store_id` | Worker service |
+| Store Sync | **COMPLETE (spec 004).** Ingest of stores/chains/format/category/revenue/flags by `evo_store_id`, both nightly (`StoreSyncBackgroundService`, configurable interval) and on-demand (`POST /stores/sync`, Supervisor-only, audit-logged). Real source is an `IStoreSyncSource` extension seam — only `FakeStoreSyncSource` exists; the real EVO sales DB connection is blocked on customer-IT questions (same as the Entra seam). | `BackgroundService` + `IStoreSyncService` |
 | Panel | Single-page workspace: Map \| Schedule \| Table over ONE shared filter/selection state (design §6.0) | React + TS, generated client |
 | Mobile | **DEFERRED.** Field behavior simulated: seeder writes visit outcomes/check-ins to DB; agent-facing APIs mocked where the panel needs them | (later: React Native/Expo) |
 | Seeder | `Evo.Seeder` console app — realistic Turkish fake data (stores, routes, merchandisers, visits, outcomes) written directly to DB; profiles: `demo` (small, readable) and `scale` (~hundreds of stores) | .NET console + Bogus |
@@ -42,10 +42,13 @@ backend/
   src/Evo.Api/Auth/        JWT/refresh-token services, JwtSettings, AuthenticationExtensions (Entra seam)
   src/Evo.Api/Errors/      EvoProblemDetails customizer, EvoExceptionHandler, ValidationProblem factory
   src/Evo.Api/Audit/       IAuditWriter/AuditWriter, audit-log DTOs, AuditLogController
-  src/Evo.Domain/          Entities, domain logic (no infra dependencies)
+  src/Evo.Api/Stores/      StoreSyncBackgroundService, store read DTOs (StoresController lives in Controllers/)
+  src/Evo.Domain/          Cross-cutting domain logic (Errors, Exceptions, Auth Roles) — NOT persisted entities (see Folder structure note below)
   src/Evo.Domain/Errors/   ErrorCodes, UserErrorMessages (in-code Turkish catalog, no DB table)
   src/Evo.Domain/Exceptions/  EvoException taxonomy (NotFoundException, ConflictException, EvoValidationException)
-  src/Evo.Infrastructure/  EF Core (EvoDbContext), external service clients
+  src/Evo.Infrastructure/  EF Core (EvoDbContext) + all persisted entities, colocated with their EF config
+  src/Evo.Infrastructure/Stores/       Store, Chain, StoreType, StoreRevenue, StoreFlag entities
+  src/Evo.Infrastructure/Stores/Sync/  IStoreSyncSource seam, FakeStoreSyncSource, IStoreSyncService
   src/Evo.Seeder/          Bogus-based console app — writes test data directly to DB
   tests/Evo.Tests/         xUnit (WebApplicationFactory integration tests)
 panel/
@@ -65,6 +68,7 @@ was available when spec 001 was scaffolded (see `docs/DECISIONS.md`, 2026-07-15)
 - Auth: spec 002 — COMPLETE. ASP.NET Identity, 2 roles, AD/Entra extension seam (see docs/AUTH.md).
 - Error handling: spec 003 — COMPLETE. Shared ProblemDetails shape everywhere (`code`/`title`/`detail`/`userTitle`/`userMessage`/`traceId`/`errors`); panel consumes it directly (see docs/API.md).
 - Audit: spec 003 — COMPLETE. Single generic append-only `audit_log` table (deviation from design doc's RouteChangeLog + admin_audit_log split — see docs/DECISIONS.md); supervisor-only `GET /audit-log`.
+- Store master data: spec 004 — COMPLETE. `IStoreSyncSource` extension seam (mirrors the Entra seam) + `FakeStoreSyncSource` for dev/seed/test; idempotent `IStoreSyncService` upsert (overwrites synced fields, preserves planner-owned fields, never auto-deactivates); nightly `BackgroundService` + on-demand Supervisor endpoint; minimal `GET /stores`/`GET /stores/{id}` read surface. **M0 platform foundation is now COMPLETE** — M1 feature modules (Routes/Patches) build on this.
 - Contract pipeline: spec 001 — OpenAPI → generated TS clients, regenerated on API change
 - Config/secrets: appsettings + env vars; never committed
-- KVKK: content-free FCM payloads; photo/location retention policy per customer answers (open question)
+- KVKK: content-free FCM payloads; photo/location retention policy per customer answers (open question); store master data carries no personal data (spec 004)

@@ -1,6 +1,58 @@
 # Decisions Log
 
 <!-- Newest first — insert new entries directly below this line -->
+## 2026-07-16 — Real EVO sales sync source remains an open customer-IT question (spec 004)
+- **Decision:** Spec 004 ships only an `IStoreSyncSource` abstraction + a deterministic
+  `FakeStoreSyncSource` for dev/seed/test — no real connector to the EVO sales system (live SQL
+  connection, file drop, or API) exists. Same seam pattern as spec 002's `AddEvoAuthentication`
+  Entra extension point.
+- **Why:** How EVO's backend actually reaches the sales system — which DB/view/API, field→column
+  mapping, source auth, full-refresh-vs-incremental — is one of the 9 open customer-IT questions
+  from the tech-stack review. Building against a guessed schema now risks a wrong contract.
+- **Consequences:** M0 platform foundation is complete with store data flowing entirely from fake
+  data. The real source, store-disappearance policy (auto-deactivate vs tombstone vs flag), and
+  wall-clock sync scheduling (vs the current configurable interval) all stay open — revisit once
+  customer IT answers land. See `specs/004-store-sync/spec.md` Open questions.
+
+## 2026-07-16 — chain modeled as a real lookup entity (deviation from planner recommendation)
+- **Decision:** `chain(id, name)` is a real EF entity with `store.chain_id` FK, upserted by sync
+  (find-or-create by name). The planner had recommended a denormalized `chain` string column on
+  `store` instead, since no chain-management feature exists yet to own a `chain` table.
+- **Why (human's call, overriding the recommendation):** chain is foundational structure —
+  chain-scoped Rules, map color-coding, and chain filters all appear in the design doc (§2.9/§6.1)
+  — not speculative. Modeling it as a real entity from the first synced store avoids a later
+  string→FK migration + de-duplication pass once a chain-management feature does land.
+- **Consequences:** `chain` ships now with exactly one consumer (store sync) and no
+  chain-management UI/API — same shape spec 003's `audit_log` collapse avoided, but here the human
+  chose the opposite tradeoff deliberately. `docs/DATABASE.md` documents this as outside design §5.
+
+## 2026-07-16 — Store geography via NetTopologySuite now; no spatial queries until M1
+- **Decision:** `store.Location` is a SQL Server `geography` `Point` (SRID 4326) via
+  `Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite`, with a spatial index added via raw
+  SQL in the `AddStores` migration (EF Core doesn't emit `CREATE SPATIAL INDEX` automatically).
+  No spatial query endpoints (bbox, lasso, in-scope, overlap) exist in spec 004 — the point is
+  only written and read back.
+- **Why:** Storing the real point now means M1's spatial features (the map, lasso-add, geo-scope
+  enforcement) need no data backfill — the PostgreSQL→SQL Server `geography` mapping decided in
+  principle in spec 001 gets its first real implementation here.
+- **Consequences:** `docs/DATABASE.md`'s PG→SQL Server mapping table now documents the concrete
+  realization. `NetTopologySuite` is wired on every `UseSqlServer` call site (Api, Seeder); the
+  test suite needed a dedicated database (`EvoDb_StoreSyncTests`) since `FakeStoreSyncSource`'s
+  deterministic `EvoStoreId`s would otherwise collide across test runs sharing the dev DB.
+
+## 2026-07-16 — Sync overwrites synced fields, preserves planner-owned fields, never auto-deactivates
+- **Decision:** `StoreSyncService` overwrites `Name`, `ChainId`, `Location`, `Channel`,
+  `Province`/`District`/`Neighborhood`, `Category`, `Format`, and revenue/flags on every run, but
+  never touches `DefaultServiceMinutes` or `Active` (planner-owned). Stores present in the DB but
+  absent from a sync batch are left completely untouched — no auto-deactivate, no delete.
+- **Why:** Matches the design doc's planner-set vs sync-set field split and the project-wide
+  no-delete rule. Guessing a disappearance policy (deactivate? tombstone? flag for review?) without
+  knowing whether the real feed is full-refresh or incremental would likely be wrong.
+- **Consequences:** `store_revenue` retains only the latest 12 months (older rows pruned each
+  sync) — confirm this window still suits the panel's revenue math once M2 needs it. Fixed
+  `store_type` taxonomy (codes 1–6, migration-seeded, not admin-editable) — a per-chain taxonomy
+  was explicitly reverted in the design doc.
+
 ## 2026-07-16 — decision_journal deferred to M1
 - **Decision:** The `decision_journal` table (design §11.3/§755 — the "why" behind
   publish-with-errors, repairs, and permanents; distinct from the generic `audit_log`, which

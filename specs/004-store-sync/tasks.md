@@ -150,30 +150,30 @@
 - Files: `backend/src/Evo.Seeder/Modules/StoreSyncSeederModule.cs`
 - Do: `StoreSyncSeederModule : ISeederModule`, `Name => "StoreSync"`. In `SeedAsync`, resolve `IStoreSyncService` from the passed `services` provider and call `RunAsync(ct)` — do NOT insert store rows directly (spec Clarification #2). Idempotent by construction (the service upserts against the deterministic fake). No profile guard needed for correctness, but the **store count differs by profile**, which is controlled by which `FakeStoreSyncSource` is registered in Task 22 (demo = small, scale = large). Log the returned summary.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 22: Wire seeder DI (sync source + service) + register module
 - Files: `backend/src/Evo.Seeder/Program.cs`
 - Do: in the seeder's `ServiceCollection`, register `services.AddScoped<IStoreSyncService, StoreSyncService>();` and a profile-sized fake: `services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: profile == SeedProfile.Demo ? 15 : 400));` (compute `storeCount` from the already-parsed `profile`). Add `new StoreSyncSeederModule()` to the `modules` list. Confirm Task 2 already added `UseNetTopologySuite()` to this file's `UseSqlServer` (required now that stores have a `geography` column).
 - Verify: with the compose SQL up + `AddStores` applied, `dotnet run --project backend/src/Evo.Seeder -- --profile demo` exits 0 and creates ~15 stores; re-running keeps the store count stable (idempotent upsert) — query `SELECT COUNT(*) FROM stores` before/after.
-- Status: [ ]
+- Status: [x]
 
 ## Task 23: Regenerate contract + TS client
 - Files: `contracts/openapi.json`, `panel/src/api/generated/` (generated)
 - Do: rebuild the Api so Swashbuckle emits `/api/v1/stores`, `/api/v1/stores/{id}`, and `/api/v1/stores/sync` into `contracts/openapi.json`; then run `npm run generate-api-client` from `panel/`. **No panel store UI** — client regen only (spec Non-goals).
 - Verify: `contracts/openapi.json` contains `/api/v1/stores` and `/api/v1/stores/sync`; `grep -ri stores panel/src/api/generated` finds the generated operations.
-- Status: [ ]
+- Status: [x]
 
 ## Task 24: Update docs + decisions
 - Files: `docs/DATABASE.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DECISIONS.md`
 - Do: `docs/DATABASE.md` — flip the schema-status row `store, store_revenue, store_flag, store_type` to ☑ (spec 004), add a `chain` row (☑ 004), and add a note under the PostgreSQL→SQL Server mapping that `geography(Point)` is realized via NetTopologySuite (`UseNetTopologySuite`) with a `CREATE SPATIAL INDEX`, and that `store_type` is a 6-row `HasData` seed. `docs/ARCHITECTURE.md` — mark the "Store Sync worker" COMPLETE (spec 004), noting the dual trigger (on-demand supervisor endpoint + nightly `BackgroundService`) and the `IStoreSyncSource` seam. **Also fix the entity-placement convention:** the source-tree map (line ~45, `src/Evo.Domain/  Entities, domain logic`) implies EF entities live in `Evo.Domain`, but every entity built so far lives in `Evo.Infrastructure` colocated with its EF configuration (spec 002 `ApplicationUser`/`RefreshToken`, spec 003 `AuditLogEntry`, spec 004 `Store` family). Correct the doc to state the actual convention — EF entities live in `Evo.Infrastructure` (colocated with their EF config); `Evo.Domain` holds cross-cutting domain logic (Errors, Exceptions, Auth `Roles`), not persisted entities. `docs/API.md` — add rows for the three store endpoints. `docs/DECISIONS.md` (newest-first) — record: (a) **chain as a real lookup entity — deviation from the planner recommendation** (denormalized string column was recommended; human chose a real `chain(id,name)` FK as foundational, why); (b) `geography` via NetTopologySuite stored now but **no spatial query endpoints** until M1; (c) fixed migration-seeded `store_type` taxonomy (codes 1–6); (d) sync **overwrites synced fields / preserves planner-owned** `default_service_minutes` + `active` / **no auto-deactivate** of vanished stores; (e) the real `IStoreSyncSource` remains an **open customer-IT question** (seam only in 004).
 - Verify: all four docs updated; `docs/DATABASE.md` schema-status table shows the store tables + chain as migrated; `docs/ARCHITECTURE.md` source-tree map no longer says entities live in `Evo.Domain` (states `Evo.Infrastructure` colocated with EF config); `docs/DECISIONS.md` names the chain deviation explicitly.
-- Status: [ ]
+- Status: [x]
 
 ## Task 25: Re-run the full backend suite as regression proof
 - Files: none (verification task)
 - Do: run the full backend suite and confirm all prior spec 001/002/003 tests still pass alongside the new 004 store tests after the schema + DI additions.
 - Verify: `dotnet test backend/Evo.sln` → all green; report the pass count (prior total + new 004 tests).
-- Status: [ ]
+- Status: [x]
 
 **PHASE 4 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (seeder run output showing stable store count on re-run, regenerated contract diff + client grep, full-suite green count), give the human a 1-minute API test script (start backend → POST /api/v1/stores/sync as the seeded Supervisor → GET /api/v1/stores?province=… returns rows → GET /api/v1/stores/{id} shows revenue + flags → check the audit_log row), commit `feat(004): store seeder via real sync + contract + docs`, then run /end-session and END TURN. M0 platform specs are COMPLETE — do NOT start an M1 feature module.**

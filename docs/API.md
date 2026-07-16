@@ -36,7 +36,8 @@
 | Auth | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password` | 002 |
 | Users | `POST /users` (Supervisor only), `GET /users`, `GET /users/{id}`, `PATCH /users/{id}`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` (no delete) | 002 |
 | Audit | `GET /audit-log?entityType=&page=&pageSize=` (Supervisor only, paged, newest-first) | 003 |
-| Stores/map | `GET /stores` (bbox/polygon/unassigned filters), `GET /stores/{id}/summary`, `GET /stores/{id}/task-plan` | 004 + M1 |
+| Stores | `POST /stores/sync` (Supervisor only, audit-logged, on-demand — also runs nightly via a BackgroundService), `GET /stores?province=&district=&active=&format=&page=&pageSize=` (paged), `GET /stores/{id}` (with revenue + flags) | 004 |
+| Stores/map (later) | `GET /stores` bbox/polygon/unassigned filters, `GET /stores/{id}/summary`, `GET /stores/{id}/task-plan` — spatial/route-dependent, deferred | M1 |
 | Routes | `POST /routes`, `POST /routes/{id}/stops:bulk`, `POST /routes/{id}/stops/{sid}:move` (atomic), `PATCH .../stops/{sid}`, `GET /routes/{id}/plan?from&to`, `GET /routes/{id}/health` | M1 |
 | Patches/assignment | `POST /routes/{id}/patches` (expiry REQUIRED), `POST /routes/{id}/assignment` (reason REQUIRED) | M1 |
 | Simulation | `POST /simulate/route` (what-if: stores[] → revenue+minutes) | M1 |
