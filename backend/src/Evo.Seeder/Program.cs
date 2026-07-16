@@ -50,6 +50,7 @@ if (wipe)
 var modules = new List<ISeederModule>
 {
     new IdentitySeederModule(),
+    new AuditLogSeederModule(),
 };
 
 var faker = new Faker("tr");

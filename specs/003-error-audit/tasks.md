@@ -57,37 +57,37 @@
 - Files: `backend/src/Evo.Infrastructure/Audit/AuditLogEntry.cs`
 - Do: entity `Id (Guid)`, `ActorId (Guid?)`, `OccurredAt (DateTimeOffset)`, `EntityType (string)`, `EntityKey (string)`, `Event (string)`, `BeforeJson (string?)`, `AfterJson (string?)`. Append-only — no mutation methods. XML doc comment: this generic table backs the future `RouteChangeLog` / `admin_audit_log` facades (spec 003 deviation).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 8: EF config + DbSet on EvoDbContext
 - Files: `backend/src/Evo.Infrastructure/EvoDbContext.cs`
 - Do: add `public DbSet<AuditLogEntry> AuditLog => Set<AuditLogEntry>();`; in `OnModelCreating` (after `base.OnModelCreating`) configure `AuditLogEntry`: `EntityType`/`Event` max length 100, `EntityKey` max length 200, `BeforeJson`/`AfterJson` as `nvarchar(max)`; indexes on `EntityType`, composite (`EntityType`,`EntityKey`), and `OccurredAt`.
 - Verify: `dotnet build` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 9: EF migration AddAuditLog
 - Files: `backend/src/Evo.Infrastructure/Migrations/` (generated)
 - Do: `dotnet ef migrations add AddAuditLog -p backend/src/Evo.Infrastructure -s backend/src/Evo.Api`.
 - Verify: migration file exists and its `Up()` creates the `AuditLog` table with the three indexes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 10: Append-only audit writer service
 - Files: `backend/src/Evo.Api/Audit/IAuditWriter.cs`, `backend/src/Evo.Api/Audit/AuditWriter.cs`, `backend/src/Evo.Api/Program.cs`
 - Do: `IAuditWriter.WriteAsync(string entityType, string entityKey, string @event, object? before = null, object? after = null, Guid? actorId = null, CancellationToken ct = default)`. Implementation injects `EvoDbContext` + `IHttpContextAccessor`; serializes `before`/`after` with `System.Text.Json` (null → null); resolves `actorId` from the current user's `sub`/NameIdentifier claim when not passed; sets `OccurredAt = DateTimeOffset.UtcNow`; inserts one row and `SaveChangesAsync`. Expose NO update/delete method. Register `AddScoped<IAuditWriter, AuditWriter>()` and ensure `AddHttpContextAccessor()` is present.
 - Verify: `dotnet build`; covered by Task 11 tests.
-- Status: [ ]
+- Status: [x]
 
 ## Task 11: Backend tests — audit writer
 - Files: `backend/tests/Evo.Tests/Audit/AuditWriterTests.cs`
 - Do: with a test DbContext (sqlite or the compose SQL, matching the spec-002 test setup), call `WriteAsync("User", key, "created", before: null, after: new {...})`; assert one row exists with serialized `AfterJson`, `OccurredAt` set, and `EntityType`/`Event` populated; assert actor resolution (pass an explicit `actorId` → stored) ; assert the `IAuditWriter` surface has no update/delete member (compile-time / reflection check).
 - Verify: `dotnet test backend/Evo.sln` → these tests pass.
-- Status: [ ]
+- Status: [x]
 
 ## Task 12: Seeder module — demo audit rows
 - Files: `backend/src/Evo.Seeder/Modules/AuditLogSeederModule.cs`, `backend/src/Evo.Seeder/Program.cs`
 - Do: implement the `SeederModule` interface (spec 001); in the **demo** profile only, insert a handful of illustrative `AuditLogEntry` rows (system actor = `null` ActorId, `entityType="User"`, sample events) idempotently (skip if any `audit_log` rows already exist); the **scale** profile inserts none. Register the module in Program.cs. Satisfies the CLAUDE.md "every spec that adds a table extends the seeder" rule.
 - Verify: with the compose SQL up + `AddAuditLog` applied, `dotnet run --project backend/src/Evo.Seeder -- --profile demo` exits 0 and creates the rows; re-running creates no duplicates (row count stable).
-- Status: [ ]
+- Status: [x]
 
 **PHASE 2 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (build, migration file, audit-writer test output, seeder run output), commit `feat(003): generic append-only audit log`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 

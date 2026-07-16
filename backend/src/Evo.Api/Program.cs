@@ -1,3 +1,4 @@
+using Evo.Api.Audit;
 using Evo.Api.Auth;
 using Evo.Api.Errors;
 using Evo.Infrastructure;
@@ -12,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditWriter, AuditWriter>();
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = EvoProblemDetails.Customize);
 builder.Services.AddExceptionHandler<EvoExceptionHandler>();
