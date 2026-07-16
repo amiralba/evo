@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { LoginError, useAuth } from '../auth/AuthContext'
 
 export function Login() {
   const { login } = useAuth()
@@ -17,8 +17,11 @@ export function Login() {
     try {
       await login(email, password)
       navigate('/')
-    } catch {
-      setError('E-posta veya parola hatalı.')
+    } catch (err) {
+      // LOGIN PAGE ONLY: reuses this page's own inline error element. No app-wide error
+      // notification component (toast/popup/inline pattern is a deferred decision — see
+      // specs/003-error-audit/spec.md Non-goals).
+      setError(err instanceof LoginError ? err.apiError.userMessage : 'Beklenmeyen bir hata oluştu.')
     } finally {
       setIsSubmitting(false)
     }

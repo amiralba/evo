@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { parseApiError, type ApiError } from '../api/errors'
 import {
   clearSession,
   getAccessToken,
@@ -8,6 +9,15 @@ import {
   subscribe,
   type MeResponse,
 } from './session'
+
+export class LoginError extends Error {
+  apiError: ApiError
+
+  constructor(apiError: ApiError) {
+    super(apiError.userMessage)
+    this.apiError = apiError
+  }
+}
 
 interface AuthContextValue {
   user: MeResponse | null
@@ -40,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     })
     if (!response.ok) {
-      throw new Error('Giriş başarısız. E-posta veya parola hatalı.')
+      throw new LoginError(await parseApiError(response))
     }
     const body = (await response.json()) as { accessToken: string; user: MeResponse }
     setSession(body.accessToken, body.user)

@@ -143,24 +143,24 @@
 - Files: `panel/src/api/generated/` (generated)
 - Do: with `contracts/openapi.json` updated (Task 18), run `npm run generate-api-client` from `panel/`.
 - Verify: generated types include the `audit-log` operation (grep the generated folder for `audit-log`).
-- Status: [ ]
+- Status: [x]
 
 ## Task 20: Typed ApiError parser
 - Files: `panel/src/api/errors.ts`
 - Do: `type ApiError = { code: string; title: string; detail?: string; userTitle: string; userMessage: string; status: number; traceId?: string; errors?: Record<string, string[]> }`; `parseApiError(response: Response): Promise<ApiError>` that reads the `problem+json` body and returns a typed `ApiError`, with a safe fallback (`code: 'internal_error'`, generic Turkish `userTitle`/`userMessage`, the status) if the body is missing/not JSON.
 - Verify: `npm run build` (panel) type-checks.
-- Status: [ ]
+- Status: [x]
 
 ## Task 21: Wire the login page to the unified shape
 - Files: `panel/src/pages/Login.tsx` (and `panel/src/api/client.ts` if the wrapper throws raw responses)
 - Do: on a failed login, `parseApiError` the response and display `error.userMessage` (Turkish, backend-provided) instead of the hardcoded client-side string; keep the field intact for correct credentials. LOGIN PAGE ONLY — reuse the page's existing inline error element; do NOT introduce a general/app-wide error notification component (toast/popup/inline pattern is an explicitly deferred decision — see spec Non-goals). Do NOT build any audit-log viewer UI.
 - Verify: `npm run dev` with the backend running — wrong credentials show the backend's Turkish `userMessage`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 22: Vitest — parser
 - Files: `panel/src/api/errors.test.ts`
 - Do: test `parseApiError` returns the typed object incl. `userTitle`/`userMessage`/`errors` for a validation body, and the generic Turkish fallback for a non-JSON/malformed body.
 - Verify: `npm test` (panel) → these pass.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 4 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (client regen grep, panel tests, manual wrong-credentials screenshot showing the Turkish message), give the human a 1-minute UI test script (open panel → /login → enter wrong credentials → Turkish error renders → correct credentials log in), commit `feat(003): panel unified-error-shape consumption`, then run /end-session and END TURN. Do NOT start spec 004.**
