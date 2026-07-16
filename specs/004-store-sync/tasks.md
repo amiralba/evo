@@ -70,43 +70,43 @@
 - Files: `backend/src/Evo.Infrastructure/Stores/Sync/StoreSyncRecord.cs`
 - Do: in one file, immutable `record` types the source returns: `StoreSyncRevenueRecord(DateOnly Month, decimal Revenue)`; `StoreSyncFlagRecord(StoreFlagType Type, string? Reason, DateOnly StartsOn, DateOnly? EndsOn)`; `StoreSyncRecord(string EvoStoreId, string Name, string? ChainName, string? Channel, string Province, string District, string? Neighborhood, double Latitude, double Longitude, StoreCategory Category, byte Format, IReadOnlyList<StoreSyncRevenueRecord> Revenue, IReadOnlyList<StoreSyncFlagRecord> Flags)`. These are the source-shaped inputs (lat/lng doubles — the service builds the `Point`), decoupled from the `Store` entity.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 10: IStoreSyncSource interface + extension seam
 - Files: `backend/src/Evo.Infrastructure/Stores/Sync/IStoreSyncSource.cs`
 - Do: `public interface IStoreSyncSource { Task<IReadOnlyList<StoreSyncRecord>> FetchAsync(CancellationToken ct = default); }`. Add a clearly-marked `// EXTENSION SEAM:` XML/inline doc block explaining the real EVO source (SQL view / API against the EVO sales DB) implements this interface and is registered in place of `FakeStoreSyncSource`; note it is **blocked on the open customer-IT questions** (field→column mapping, source auth, full-vs-incremental) — same pattern as spec 002's `AddEvoAuthentication` Entra seam.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 11: FakeStoreSyncSource (deterministic Turkish fake)
 - Files: `backend/src/Evo.Infrastructure/Stores/Sync/FakeStoreSyncSource.cs`
 - Do: `FakeStoreSyncSource : IStoreSyncSource`. Ctor takes `int storeCount`. `FetchAsync` builds `storeCount` `StoreSyncRecord`s with a **fixed Bogus seed** (`new Faker("tr") { Random = new Randomizer(12345) }` or `Randomizer.Seed = new Random(12345)`) so `EvoStoreId`s are stable (`$"EVO-{i:D5}"` for i = 1..count) and re-running yields the same stores. Populate realistic Turkish province/district/neighborhood, a chain name drawn from a fixed small list (`Migros`, `A101`, `BİM`, `ŞOK`, `CarrefourSA`), lat/lng inside Turkey's bounds, `Category` and `Format` (1–6) pseudo-randomly, 6–12 months of revenue, and a BANNED flag on a small deterministic subset. No DB access — pure generation.
 - Verify: `dotnet build backend/Evo.sln` succeeds; (behavior covered by Task 15).
-- Status: [ ]
+- Status: [x] (also required adding a `Bogus` package reference to `Evo.Infrastructure.csproj` — previously only `Evo.Seeder` referenced it)
 
 ## Task 12: StoreSyncRunSummary DTO
 - Files: `backend/src/Evo.Infrastructure/Stores/Sync/StoreSyncRunSummary.cs`
 - Do: immutable `record StoreSyncRunSummary(DateTimeOffset StartedAt, long DurationMs, int ChainsCreated, int StoresCreated, int StoresUpdated, int RevenueRowsUpserted, int FlagsUpserted)`. Returned by the service and by `POST /stores/sync`.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 13: IStoreSyncService + upsert ingestion logic
 - Files: `backend/src/Evo.Infrastructure/Stores/Sync/IStoreSyncService.cs`, `backend/src/Evo.Infrastructure/Stores/Sync/StoreSyncService.cs`
 - Do: `IStoreSyncService { Task<StoreSyncRunSummary> RunAsync(CancellationToken ct = default); }`. `StoreSyncService` injects `EvoDbContext` + `IStoreSyncSource`. `RunAsync`: start a stopwatch; `FetchAsync`; **(a) chains** — for each distinct `ChainName`, find-or-create a `Chain` (count creates); **(b) stores** — for each record, look up `Store` by `EvoStoreId`: if missing, create (new Guid, `Active = true`, `DefaultServiceMinutes = null`) and count created; if present, count updated and **do NOT touch** `Active` or `DefaultServiceMinutes`. Either way overwrite `Name`, `ChainId`, `Channel`, `Province`, `District`, `Neighborhood`, `Category`, `Format`, `Location = new Point(lng, lat) { SRID = 4326 }`, `SyncedAt = DateTimeOffset.UtcNow`; **(c) revenue** — upsert `store_revenue` by `(StoreId, Month)`, then prune each store to its latest **12** months; **(d) flags** — remove the store's existing `store_flag`s and re-insert from the record's flags. Stores in the DB but absent from the batch are **left untouched** (never queried for deactivation). One `SaveChangesAsync`; return the summary. Note the `Point` constructor is `(x=longitude, y=latitude)`.
 - Verify: `dotnet build backend/Evo.sln` succeeds; (behavior covered by Task 15).
-- Status: [ ]
+- Status: [x]
 
 ## Task 14: Register sync source + service in Api DI
 - Files: `backend/src/Evo.Api/Program.cs`
 - Do: register `builder.Services.AddScoped<IStoreSyncService, StoreSyncService>();` and `builder.Services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: 40));` (or bind the count from `StoreSync:FakeStoreCount` config with a 40 default). Add a `// EXTENSION SEAM` comment: swap `FakeStoreSyncSource` for the real `IStoreSyncSource` here once customer-IT answers land.
 - Verify: `dotnet build`; `dotnet run --project backend/src/Evo.Api` starts without error.
-- Status: [ ]
+- Status: [x]
 
 ## Task 15: Backend tests — sync upsert semantics
 - Files: `backend/tests/Evo.Tests/Stores/StoreSyncServiceTests.cs`
 - Do: using the spec-002/003 test DbContext setup (compose SQL via `WebApplicationFactory`, or a dedicated `EvoDbContext` against the compose connection), run `StoreSyncService` with a small `FakeStoreSyncSource`. Assert: (a) first `RunAsync` creates N stores + the chains; (b) a second run (same fake seed) keeps the store count stable and re-updates the same rows (`StoresUpdated == N`, `StoresCreated == 0`); (c) manually set one store's `DefaultServiceMinutes = 55` and `Active = false`, run again, and assert both are **preserved** while a synced field (e.g. `Name`) is refreshed; (d) a store given 15 revenue months retains only 12 after sync; (e) a store removed from the source batch (use a shrinkable fake or delete one source record) is **not** deactivated (its `Active` unchanged). Use a distinct test database name so it doesn't collide with auth/audit tests.
 - Verify: `dotnet test backend/Evo.sln` → these tests pass.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 2 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (build, sync-service test output proving overwrite-synced / preserve-planner-fields / 12-month prune / no-auto-deactivate), commit `feat(004): store sync source abstraction + idempotent ingestion`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 
