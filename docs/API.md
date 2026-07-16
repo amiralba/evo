@@ -11,7 +11,7 @@
   002, see `docs/AUTH.md` for the full token model. Two roles — `Supervisor` (full), `FieldAgent`
   (read-only + notes, seeder-only — no account-creation API).
 - Error format: unified `application/problem+json` shape (spec 003, implemented — spec 002's auth
-  endpoints are being retrofitted onto it in spec 003 Phase 3). `code` is the stable English key
+  and users endpoints are retrofitted onto it). `code` is the stable English key
   a client switches on; `title`/`detail` are English/developer-facing; `userTitle`/`userMessage`
   are Turkish, curated per `code` in `Evo.Domain.Errors.UserErrorMessages` (an in-code catalog,
   not a DB table — error text is part of the API contract, deploy-reviewed like any other code
@@ -35,6 +35,7 @@
 |---|---|---|
 | Auth | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password` | 002 |
 | Users | `POST /users` (Supervisor only), `GET /users`, `GET /users/{id}`, `PATCH /users/{id}`, `POST /users/{id}/activate`, `POST /users/{id}/deactivate` (no delete) | 002 |
+| Audit | `GET /audit-log?entityType=&page=&pageSize=` (Supervisor only, paged, newest-first) | 003 |
 | Stores/map | `GET /stores` (bbox/polygon/unassigned filters), `GET /stores/{id}/summary`, `GET /stores/{id}/task-plan` | 004 + M1 |
 | Routes | `POST /routes`, `POST /routes/{id}/stops:bulk`, `POST /routes/{id}/stops/{sid}:move` (atomic), `PATCH .../stops/{sid}`, `GET /routes/{id}/plan?from&to`, `GET /routes/{id}/health` | M1 |
 | Patches/assignment | `POST /routes/{id}/patches` (expiry REQUIRED), `POST /routes/{id}/assignment` (reason REQUIRED) | M1 |

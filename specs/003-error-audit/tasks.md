@@ -97,37 +97,37 @@
 - Files: `backend/src/Evo.Api/Controllers/AuditLogController.cs`, `backend/src/Evo.Api/Audit/Dtos/AuditLogEntryDto.cs`, `backend/src/Evo.Api/Audit/Dtos/PagedResult.cs`
 - Do: `[Authorize(Roles = Roles.Supervisor)] GET /api/v1/audit-log`. Query params `entityType?` (filter), `page = 1`, `pageSize = 50` (cap at 200). Return `PagedResult<AuditLogEntryDto>` (items + `page`, `pageSize`, `total`), newest-first by `OccurredAt`. `AuditLogEntryDto(Id, ActorId, OccurredAt, EntityType, EntityKey, Event, BeforeJson, AfterJson)`.
 - Verify: `dotnet build`; covered by Task 16 test.
-- Status: [ ]
+- Status: [x]
 
 ## Task 14: Retrofit UsersController + change-password to write audit rows
 - Files: `backend/src/Evo.Api/Controllers/UsersController.cs`, `backend/src/Evo.Api/Controllers/AuthController.cs`
 - Do: inject `IAuditWriter`. In `UsersController`: after a successful create → `WriteAsync("User", userId, "created", after: summary)`; activate → `"activated"`; deactivate → `"deactivated"` (with `before`/`after` IsActive). In `AuthController.change-password`: after success → `WriteAsync("User", userId, "password_changed")` with NO secret material in `before`/`after`.
 - Verify: `dotnet build`; audit writes covered by Task 16 test.
-- Status: [ ]
+- Status: [x]
 
 ## Task 15: Retrofit AuthController + UsersController onto the unified shape
 - Files: `backend/src/Evo.Api/Controllers/AuthController.cs`, `backend/src/Evo.Api/Controllers/UsersController.cs`
 - Do: replace the interim built-in `Problem(...)` calls with the unified shape: login invalid/not-found → `this.EvoProblem(401, ErrorCodes.AuthInvalidCredentials, ...)`; inactive user → `ErrorCodes.AuthAccountInactive`; lockout → `ErrorCodes.AuthLockedOut`; change-password Identity failures → throw `EvoValidationException` with the Identity error list (so it renders `errors` + `code=validation_error`); user-not-found in Users endpoints → throw `NotFoundException`; duplicate email on create → throw `ConflictException`. Remove the now-stale interim comments.
 - Verify: `dotnet build`; behavior covered by Task 16 + the existing spec-002 tests (Task 17).
-- Status: [ ]
+- Status: [x]
 
 ## Task 16: Backend tests — audit endpoint + audit writes on user actions
 - Files: `backend/tests/Evo.Tests/Audit/AuditEndpointTests.cs`
 - Do: Supervisor creates a user → `GET /api/v1/audit-log?entityType=User` returns a `created` row for that user; deactivate → a `deactivated` row appears; a Field agent calling `/audit-log` → 403 (unified shape, `code=forbidden`); unauthenticated → 401 (`code=unauthorized`); paging (`page`/`pageSize`) returns the correct slice + `total`.
 - Verify: `dotnet test backend/Evo.sln` → these tests pass.
-- Status: [ ]
+- Status: [x]
 
 ## Task 17: Re-run the existing spec-002 suite as regression proof
 - Files: none (verification task)
 - Do: run the full backend suite and confirm the 15 pre-existing spec 001/002 tests still pass alongside the new 003 tests after the error-shape + audit retrofit. If any spec-002 test asserted an interim-shape internal that legitimately changed, update that single assertion and note it in the checkpoint summary.
 - Verify: `dotnet test backend/Evo.sln` → all green; report the pass count (should be 15 prior + new 003 tests).
-- Status: [ ]
+- Status: [x]
 
 ## Task 18: Regenerate contract + update docs + decisions
 - Files: `contracts/openapi.json`, `docs/API.md`, `docs/AUTH.md`, `docs/DATABASE.md`, `docs/DECISIONS.md`
 - Do: rebuild so Swashbuckle emits `/api/v1/audit-log` into `contracts/openapi.json`. In `docs/API.md`: add an `Audit` endpoint row and a "Unified error shape" section (fields `code`/`title`/`detail`/`status`/`traceId`/`errors`, no `instance`, prod 500 behavior). In `docs/AUTH.md`: replace the "Error shape (interim)" section with a pointer to the now-unified shape (spec 003 landed). In `docs/DATABASE.md`: document the `audit_log` table + note it backs future `RouteChangeLog`/`admin_audit_log` facades. In `docs/DECISIONS.md` (newest-first): (a) the deviation collapsing `RouteChangeLog` + `admin_audit_log` into one generic `audit_log`; (b) the unified error-shape decision (`AddProblemDetails` + `IExceptionHandler` + model-state factory, stable `code`, prod-hides-details); (c) the `decision_journal` deferral to M1.
 - Verify: `contracts/openapi.json` contains `/api/v1/audit-log`; all four docs updated; `docs/AUTH.md` no longer says the error shape is "interim".
-- Status: [ ]
+- Status: [x]
 
 **PHASE 3 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (audit-endpoint test output, full-suite green count, regenerated contract diff), commit `feat(003): audit read endpoint + spec-002 error-shape retrofit`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 

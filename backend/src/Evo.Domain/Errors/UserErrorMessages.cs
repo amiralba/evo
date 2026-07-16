@@ -23,6 +23,7 @@ public static class UserErrorMessages
         [ErrorCodes.AuthInvalidCredentials] = new("Giriş başarısız", "E-posta veya parola hatalı."),
         [ErrorCodes.AuthAccountInactive] = new("Hesap pasif", "Hesabınız pasif durumda. Yöneticinizle iletişime geçin."),
         [ErrorCodes.AuthLockedOut] = new("Hesap kilitli", "Çok fazla başarısız deneme nedeniyle hesabınız geçici olarak kilitlendi."),
+        [ErrorCodes.UserOnlySupervisorCreatable] = new("İşlem yapılamadı", "Bu API üzerinden yalnızca Süpervizör hesabı oluşturulabilir."),
     };
 
     public static Entry For(string code) => Catalog.GetValueOrDefault(code, Fallback);

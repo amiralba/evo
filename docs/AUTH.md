@@ -46,11 +46,14 @@ No self-registration exists anywhere. A bootstrap Supervisor is created by the s
 | PATCH | `/api/v1/users/{id}` | Supervisor only | Display name only. |
 | POST | `/api/v1/users/{id}/activate`, `/deactivate` | Supervisor only | No delete endpoint exists — activate/deactivate only, per the no-delete domain rule. Deactivate also revokes the user's sessions. |
 
-## Error shape (interim)
+## Error shape
 
-Auth failures use ASP.NET Core's built-in `Problem(...)` (→ `application/problem+json`). This
-is an **interim shape** — spec 003 defines the project-wide unified error shape; when it lands,
-these call sites should be updated to match rather than kept as a one-off.
+Auth failures use the project-wide unified error shape (spec 003, `application/problem+json` —
+see `docs/API.md`). Login/refresh use `code`s `auth.invalid_credentials`, `auth.account_inactive`,
+`auth.locked_out`; change-password Identity failures throw `EvoValidationException` (422,
+`code=validation_error`); users-endpoint not-found/conflict throw `NotFoundException`/
+`ConflictException`. No one-off shape remains — see `backend/src/Evo.Api/Errors/` for the
+implementation.
 
 ## How to add AD/Entra SSO later
 

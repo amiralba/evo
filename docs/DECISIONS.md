@@ -1,6 +1,52 @@
 # Decisions Log
 
 <!-- Newest first — insert new entries directly below this line -->
+## 2026-07-16 — decision_journal deferred to M1
+- **Decision:** The `decision_journal` table (design §11.3/§755 — the "why" behind
+  publish-with-errors, repairs, and permanents; distinct from the generic `audit_log`, which
+  records the "what") is out of scope for spec 003. It ships with M1 alongside Routes/Patches,
+  the first entities it has anything to record decisions about.
+- **Why:** Nothing exists yet for a publish-gate override to override — building it now would be
+  speculative and likely need rework once Routes/Patches define the real shape of what's overridden.
+- **Consequences:** `docs/AUTH.md`/`docs/API.md` do not mention it; flag it explicitly in the M1
+  spec's clarifications so it isn't silently dropped.
+
+## 2026-07-16 — Generic append-only audit_log replaces route_change_log/admin_audit_log for now
+- **Decision:** Spec 003 built one generic `audit_log` table (`ActorId`, `OccurredAt`,
+  `EntityType`, `EntityKey`, `Event`, `BeforeJson`/`AfterJson`) instead of the design doc's two
+  separate tables (`route_change_log`, `admin_audit_log`, design §5/§2.7). Write-only via
+  `IAuditWriter` (no update/delete). Currently used by `UsersController` and
+  `AuthController.change-password`; `route_change_log`/`admin_audit_log` become typed facade
+  queries over this same table once Routes/Settings exist.
+- **Why:** Neither design-doc table has an owning entity yet (Route, Setting) — building two
+  near-identical, mostly-empty tables now would be premature; a single generic table lets
+  security-relevant actions (user lifecycle events) get recorded starting today.
+- **Alternatives rejected:** two separate physical tables now (structurally identical, no
+  consumers yet); event-sourcing/outbox (over-engineered for a single VM, 2 roles); DB triggers
+  (invisible, hard to test, can't cleanly capture the acting user).
+- **Consequences:** `docs/DATABASE.md` documents this deviation against design §5. No schema
+  change expected when Routes/Settings land — just query-layer facades.
+
+## 2026-07-16 — Unified API error shape (AddProblemDetails + IExceptionHandler, stable code, prod hides details)
+- **Decision:** Every non-2xx API response uses one shape: `code` (stable English key), `title`/
+  `detail` (English, dev-facing), `userTitle`/`userMessage` (Turkish, see the entry below),
+  `status`, `traceId`, no RFC 7807 `instance`, `errors={field:[msg]}` on validation failures.
+  Built entirely on ASP.NET Core's built-in pipeline: `AddProblemDetails(CustomizeProblemDetails)`
+  normalizes every framework-generated ProblemDetails; a domain-exception taxonomy
+  (`EvoException` → `NotFoundException` 404, `ConflictException` 409, `EvoValidationException`
+  422) is mapped by an `IExceptionHandler`; a custom `InvalidModelStateResponseFactory` renders
+  model-binding failures (400) in the same shape. Unhandled exceptions never leak
+  message/stack outside `Development`. Spec 002's `AuthController`/`UsersController` are
+  retrofitted onto this shape in the same spec (003).
+- **Why:** No hand-rolled middleware needed — the built-in customization hooks cover every case
+  (auth short-circuits, model-binding, thrown exceptions) without duplicating framework
+  machinery. `EvoValidationException` (422) vs model-binding (400) — same `code`, different
+  status — distinguishes "well-formed but violates a domain rule" from "malformed request."
+- **Consequences:** `docs/API.md` documents the shape; `docs/AUTH.md`'s formerly-interim shape
+  section now points here. The 15 pre-existing spec 001/002 tests needed exactly one assertion
+  updated (change-password wrong-current-password: 400→422) — everything else asserted
+  content-type/status only, not shape internals, confirming the retrofit was low-risk as planned.
+
 ## 2026-07-16 — Error responses carry Turkish userTitle/userMessage from an in-code catalog, not a DB table
 - **Decision:** The unified error shape (spec 003) gained `userTitle`/`userMessage` fields
   (Turkish, user-facing) alongside the existing `title`/`detail` (English, developer-facing).

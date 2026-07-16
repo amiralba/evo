@@ -65,8 +65,10 @@ public class MeAndPasswordTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task ChangePassword_WithWrongCurrentPassword_Returns400ProblemDetails()
+    public async Task ChangePassword_WithWrongCurrentPassword_Returns422ProblemDetails()
     {
+        // 422, not 400: a wrong current password is a domain-rule violation (EvoValidationException,
+        // spec 003), not a malformed request. See docs/DECISIONS.md / specs/003-error-audit.
         const string email = "changepw-fail@evo.local";
         await TestAuthHelper.EnsureUserAsync(_factory, email, "Passw0rd!", Roles.Supervisor);
         var client = await TestAuthHelper.LoginAsync(_factory, email, "Passw0rd!");
@@ -77,7 +79,7 @@ public class MeAndPasswordTests : IClassFixture<WebApplicationFactory<Program>>
             NewPassword = "NewPassw0rd!",
         });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal((HttpStatusCode)422, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 }
