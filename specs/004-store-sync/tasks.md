@@ -116,31 +116,31 @@
 - Files: `backend/src/Evo.Api/Controllers/StoresController.cs`
 - Do: `[ApiController] [Route("api/v1/stores")]` controller. `[Authorize(Roles = Roles.Supervisor)] [HttpPost("sync")] public async Task<ActionResult<StoreSyncRunSummary>> Sync(...)`: inject `IStoreSyncService` + `IAuditWriter`; call `RunAsync`; then `await auditWriter.WriteAsync("StoreSync", "sync", "run", after: summary)`; return `Ok(summary)`. Uses `Evo.Domain.Auth.Roles.Supervisor` (spec 002) and spec 003's `IAuditWriter`.
 - Verify: `dotnet build`; (behavior covered by Task 20).
-- Status: [ ]
+- Status: [x]
 
 ## Task 17: Nightly StoreSyncBackgroundService
 - Files: `backend/src/Evo.Api/Stores/StoreSyncBackgroundService.cs`, `backend/src/Evo.Api/Program.cs`
 - Do: `StoreSyncBackgroundService : BackgroundService` injecting `IServiceScopeFactory` + `ILogger` + `IConfiguration`. In `ExecuteAsync`: read `StoreSync:IntervalHours` (default 24); loop until cancellation — create a DI scope, resolve `IStoreSyncService`, `RunAsync`, log the summary; wrap in try/catch so a failed run is logged and does NOT crash the host; `await Task.Delay(interval, stoppingToken)`. Register with `builder.Services.AddHostedService<StoreSyncBackgroundService>();`. Add a comment that a wall-clock cron window is an open question (spec Open questions) — interval timer is the M0 choice.
 - Verify: `dotnet build`; `dotnet run --project backend/src/Evo.Api` starts and logs one startup sync run (or the first-interval schedule) without crashing.
-- Status: [ ]
+- Status: [x]
 
 ## Task 18: Store read DTOs
 - Files: `backend/src/Evo.Api/Stores/Dtos/StoreDtos.cs`
 - Do: `record StoreSummaryDto(Guid Id, string EvoStoreId, string Name, string? ChainName, string Province, string District, byte Format, StoreCategory Category, bool Active, DateTimeOffset SyncedAt)`; `record StoreRevenueDto(DateOnly Month, decimal Revenue)`; `record StoreFlagDto(StoreFlagType Type, string? Reason, DateOnly StartsOn, DateOnly? EndsOn)`; `record StoreDetailDto(Guid Id, string EvoStoreId, string Name, string? ChainName, string? Channel, string Province, string District, string? Neighborhood, double? Latitude, double? Longitude, byte Format, StoreCategory Category, int? DefaultServiceMinutes, bool Active, DateTimeOffset SyncedAt, IReadOnlyList<StoreRevenueDto> Revenue, IReadOnlyList<StoreFlagDto> Flags)`. (Lat/lng projected from `Location.Y`/`Location.X`.)
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 19: Store read endpoints (list + detail)
 - Files: `backend/src/Evo.Api/Controllers/StoresController.cs`
 - Do: add `[Authorize] [HttpGet] public async Task<ActionResult<PagedResult<StoreSummaryDto>>> List(string? province, string? district, bool? active, byte? format, int page = 1, int pageSize = 50)`: build an `IQueryable<Store>` (join Chain for the name), apply each supplied filter, order by `SyncedAt` descending, cap `pageSize` at 200, project to `StoreSummaryDto`, return `PagedResult<StoreSummaryDto>` (reuse `Evo.Api.Audit.Dtos.PagedResult`). Add `[Authorize] [HttpGet("{id:guid}")] public async Task<ActionResult<StoreDetailDto>> Get(Guid id)`: load the store with its chain, revenue (latest-month first), and flags; if null → `throw new NotFoundException(...)` (spec 003 taxonomy → 404 unified shape); else project to `StoreDetailDto`.
 - Verify: `dotnet build`; (behavior covered by Task 20).
-- Status: [ ]
+- Status: [x]
 
 ## Task 20: Backend tests — endpoints (sync + list + detail + authz)
 - Files: `backend/tests/Evo.Tests/Stores/StoreEndpointTests.cs`
 - Do: with the `WebApplicationFactory` (seeded Supervisor + Field agent from the spec-002/003 test helpers): Supervisor `POST /api/v1/stores/sync` → 200 with a `StoreSyncRunSummary` (StoresCreated > 0) and an `audit_log` row `entityType="StoreSync" event="run"`; Field agent `POST /stores/sync` → 403 (`code=forbidden`); unauthenticated → 401 (`code=unauthorized`). After a sync: `GET /api/v1/stores?province=<known>` returns only that province, paging returns the right slice + `total`; `GET /api/v1/stores/{id}` returns revenue + flags; `GET /api/v1/stores/{unknownGuid}` → 404 (`code=not_found`).
 - Verify: `dotnet test backend/Evo.sln` → these tests pass.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 3 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (endpoint test output showing sync summary + audit row + authz 403/401 + list filter/paging + detail + 404, and a startup log line from the BackgroundService), commit `feat(004): store sync endpoint + nightly worker + read endpoints`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 

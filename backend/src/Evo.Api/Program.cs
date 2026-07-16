@@ -3,6 +3,7 @@ using Evo.Api.Auth;
 using Evo.Api.Errors;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Identity;
+using Evo.Api.Stores;
 using Evo.Infrastructure.Stores.Sync;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,7 @@ builder.Services.AddScoped<IStoreSyncService, StoreSyncService>();
 // answers land (see IStoreSyncSource.cs).
 builder.Services.AddSingleton<IStoreSyncSource>(
     new FakeStoreSyncSource(storeCount: builder.Configuration.GetValue("StoreSync:FakeStoreCount", 40)));
+builder.Services.AddHostedService<StoreSyncBackgroundService>();
 
 // AddIdentityCore (not AddIdentity) — avoids registering the default cookie auth schemes,
 // since this API uses JWT bearer auth (see Auth/AuthenticationExtensions.cs).
