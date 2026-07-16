@@ -1,5 +1,7 @@
 using Evo.Infrastructure.Audit;
 using Evo.Infrastructure.Identity;
+using Evo.Infrastructure.People;
+using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -20,6 +22,9 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<StoreType> StoreTypes => Set<StoreType>();
     public DbSet<StoreRevenue> StoreRevenues => Set<StoreRevenue>();
     public DbSet<StoreFlag> StoreFlags => Set<StoreFlag>();
+    public DbSet<Merchandiser> Merchandisers => Set<Merchandiser>();
+    public DbSet<Route> Routes => Set<Route>();
+    public DbSet<RouteStop> RouteStops => Set<RouteStop>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -88,6 +93,36 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<StoreFlag>(entity =>
         {
             entity.HasIndex(e => e.StoreId);
+        });
+
+        builder.Entity<Merchandiser>(entity =>
+        {
+            entity.ToTable("merchandiser");
+            entity.Property(e => e.HomeLocation).HasColumnType("geography");
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(e => e.UserId).IsUnique();
+        });
+
+        builder.Entity<Route>(entity =>
+        {
+            entity.ToTable("route");
+            entity.Property(e => e.RouteCode).HasMaxLength(30);
+            entity.HasIndex(e => e.RouteCode).IsUnique();
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Province).HasMaxLength(100);
+            entity.Property(e => e.DistrictsJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.GeoScope).HasColumnType("geography");
+            entity.Property(e => e.RevenueTarget).HasColumnType("decimal(18,2)");
+        });
+
+        builder.Entity<RouteStop>(entity =>
+        {
+            entity.ToTable("route_stop");
+            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Store>().WithMany().HasForeignKey(e => e.StoreId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(e => e.StoreId)
+                .HasFilter("[EffectiveTo] IS NULL")
+                .IsUnique();
         });
     }
 }
