@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Evo.Domain.Errors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -25,9 +24,8 @@ public static class ValidationProblem
             Status = StatusCodes.Status400BadRequest,
             Title = "One or more validation errors occurred.",
         };
-        problemDetails.Extensions["code"] = ErrorCodes.ValidationError;
         problemDetails.Extensions["errors"] = errors;
-        problemDetails.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
+        EvoProblemDetails.Finalize(problemDetails, context.HttpContext, ErrorCodes.ValidationError);
 
         return new ObjectResult(problemDetails)
         {

@@ -10,11 +10,21 @@
   refresh cookie (14 days, path-scoped to `/api/v1/auth`) via ASP.NET Identity — decided in spec
   002, see `docs/AUTH.md` for the full token model. Two roles — `Supervisor` (full), `FieldAgent`
   (read-only + notes, seeder-only — no account-creation API).
-- Error format (interim, spec 002 auth endpoints): ASP.NET Core's built-in `ProblemDetails`
-  (`application/problem+json`). The unified shape below is spec 003's job — auth endpoints will
-  move onto it when 003 lands rather than staying a one-off:
+- Error format: unified `application/problem+json` shape (spec 003, implemented — spec 002's auth
+  endpoints are being retrofitted onto it in spec 003 Phase 3). `code` is the stable English key
+  a client switches on; `title`/`detail` are English/developer-facing; `userTitle`/`userMessage`
+  are Turkish, curated per `code` in `Evo.Domain.Errors.UserErrorMessages` (an in-code catalog,
+  not a DB table — error text is part of the API contract, deploy-reviewed like any other code
+  change) — the panel displays these directly and maintains no translation map of its own. No
+  RFC 7807 `instance` field. `errors` is present only on validation failures (422 domain-rule
+  violations via `EvoValidationException`, or 400 model-binding failures — same `code`, different
+  status). Unhandled exceptions never leak details outside `Development`.
 ```json
-{ "type": "...", "title": "...", "status": 422, "detail": "...", "errors": { "field": ["msg"] }, "traceId": "..." }
+{
+  "type": "...", "title": "...", "status": 422, "detail": "...",
+  "code": "validation_error", "userTitle": "Geçersiz bilgi", "userMessage": "Girdiğiniz bilgilerde bir sorun var...",
+  "errors": { "field": ["msg"] }, "traceId": "..."
+}
 ```
 - Validation: same rule set runs live in UI and enforced at write (design §3.2). Validation failures that are overridable return the violation list; publishing past 🔴 errors requires `justification` + actor in the request (design v0.5 publish gate).
 - Versioning: URL segment v1; breaking changes need a flagged decision

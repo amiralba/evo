@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Evo.Domain.Errors;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -43,6 +44,8 @@ public class ErrorShapeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.False(doc.RootElement.TryGetProperty("instance", out _));
         Assert.True(doc.RootElement.TryGetProperty("traceId", out var traceId));
         Assert.False(string.IsNullOrEmpty(traceId.GetString()));
+        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("userTitle").GetString()));
+        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("userMessage").GetString()));
     }
 
     [Fact]
@@ -109,5 +112,15 @@ public class ErrorShapeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.DoesNotContain("InvalidOperationException", detail);
         Assert.True(doc.RootElement.TryGetProperty("traceId", out var traceId));
         Assert.False(string.IsNullOrEmpty(traceId.GetString()));
+        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("userMessage").GetString()));
+    }
+
+    [Fact]
+    public void UserErrorMessages_UnmappedCode_ReturnsGenericFallback()
+    {
+        var entry = UserErrorMessages.For("some.code.nobody.registered");
+
+        Assert.False(string.IsNullOrEmpty(entry.Title));
+        Assert.False(string.IsNullOrEmpty(entry.Message));
     }
 }

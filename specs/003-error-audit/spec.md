@@ -66,8 +66,15 @@ are retrofitted onto the new shape; and the existing 15 backend tests still pass
 ## Acceptance criteria (testable)
 ### Error shape
 - [ ] Unified error body for every non-2xx API response: JSON with `code` (stable English key),
-      `title`, `detail` (English/dev-facing), `status`, `traceId`; **no `instance` field**; validation
-      failures additionally carry `errors = { field: [messages] }`.
+      `title`, `detail` (English/dev-facing), `status`, `traceId`, **`userTitle`/`userMessage`**
+      (Turkish, user-facing — see below); **no `instance` field**; validation failures additionally
+      carry `errors = { field: [messages] }`.
+- [ ] **`userTitle`/`userMessage`** (Turkish) are attached to every error response via an in-code
+      catalog (`UserErrorMessages`, keyed by `code`, with a generic fallback for unmapped codes) — not
+      a database table (error text is part of the API contract, deploy-reviewed like any other code
+      change; a DB round-trip on the error-response path is a liability, especially when the DB itself
+      may be why the request failed). The panel displays these fields directly; it never maintains its
+      own translation map. *(Mid-implementation amendment — see Clarifications #8.)*
 - [ ] `traceId` is `Activity.Current?.Id ?? HttpContext.TraceIdentifier` and is present on every error.
 - [ ] A domain-exception taxonomy exists: abstract `EvoException` (carries `Code`, optional `Errors`),
       `NotFoundException` → 404, `ConflictException` → 409, `EvoValidationException` → **422** (with
@@ -111,9 +118,10 @@ are retrofitted onto the new shape; and the existing 15 backend tests still pass
       deferral to M1. `docs/DATABASE.md` documents the `audit_log` table.
 
 ### Panel (consume the shape — no viewer UI)
-- [ ] A typed `ApiError` parser reads the unified body (`code`, `errors`, `traceId`) from a
-      `problem+json` response; a Turkish message map keyed by `code` (with a generic fallback) renders
-      user-facing text; the existing login error display uses it. Vitest covers parse + map.
+- [ ] A typed `ApiError` parser reads the unified body (`code`, `userTitle`, `userMessage`, `errors`,
+      `traceId`) from a `problem+json` response; the existing login error display renders
+      `userMessage` directly — **no client-side Turkish message map** (the backend now owns all
+      user-facing text via `UserErrorMessages`, see Clarification #8). Vitest covers the parser.
 - [ ] No panel audit-log viewer UI is built (out of scope for 003).
 
 ## Clarifications
@@ -127,6 +135,7 @@ are retrofitted onto the new shape; and the existing 15 backend tests still pass
 | 5 | Error shape? | Confirmed as proposed: add a stable machine-readable `code` (English stable key, e.g. `auth.invalid_credentials`, panel translates to Turkish; `title`/`detail` stay English/dev-facing); `errors = { field: [msg] }` for validation failures; `traceId` from `Activity.Current?.Id ?? HttpContext.TraceIdentifier`; omit RFC 7807 `instance`; production hides exception details behind a generic 500 + `code=internal_error` + `traceId` only (no stack/message outside Development). |
 | 6 | Implementation approach? | Customize the built-in `IProblemDetailsService` via `AddProblemDetails(CustomizeProblemDetails)`, an `IExceptionHandler` for a domain-exception taxonomy (`EvoException` → `NotFoundException`, `ConflictException`, `EvoValidationException`, etc. mapped to statuses/codes), and a customized `[ApiController]` model-state 400 factory — NOT hand-rolled middleware. |
 | 7 | Retrofit spec 002? | Retrofit `AuthController` + `UsersController` onto the new shape within 003; update `docs/AUTH.md`'s "Error shape (interim)" section; re-run the existing 15 backend tests as proof nothing broke (they assert content-type + status, not shape internals — should be safe). |
+| 8 | (Mid-implementation, after Phase 1 checkpoint) Should error responses carry separate dev-facing and user-facing text, and where should the user-facing text live/be managed? | Add `userTitle`/`userMessage` (Turkish) fields alongside the existing dev-facing `title`/`detail` — additive, not a rename, so Phase 1's already-committed work needed no rework. Storage: an **in-code dictionary** (`Evo.Domain.Errors.UserErrorMessages`, keyed by `code`, generic fallback for unmapped codes) — not a database table. Standard practice: error text is part of the API contract and should be deploy-reviewed like any other code change; a DB lookup on the error-response path is a liability, especially since the DB itself may be why the request failed. Consequence: **Phase 4 simplifies** — the panel just displays `userMessage` directly; it no longer needs its own `code`→Turkish message map (the originally-planned `panel/src/api/errorMessages.ts` is dropped). |
 
 ## Non-goals
 - No `decision_journal` (deferred to M1 — the "why" behind publish-with-errors/repairs/permanents).

@@ -1,6 +1,29 @@
 # Decisions Log
 
 <!-- Newest first — insert new entries directly below this line -->
+## 2026-07-16 — Error responses carry Turkish userTitle/userMessage from an in-code catalog, not a DB table
+- **Decision:** The unified error shape (spec 003) gained `userTitle`/`userMessage` fields
+  (Turkish, user-facing) alongside the existing `title`/`detail` (English, developer-facing).
+  These are resolved from `Evo.Domain.Errors.UserErrorMessages` — a static in-code dictionary
+  keyed by the stable `code`, with a generic fallback for unmapped codes — attached to every
+  error response via `EvoProblemDetails.Finalize`. The panel displays `userMessage` directly and
+  maintains no translation map of its own.
+- **Why:** Raised mid-implementation (after the spec 003 Phase 1 checkpoint) — the human wants
+  user-facing error text manageable "from the backend" without a database round-trip on every
+  error response (explicitly rejected: "no db is bad, for every error we connect to db"). An
+  in-code catalog is standard practice (Stripe/GitHub-style): error text is part of the API
+  contract, deploy-reviewed like any other code change, and doesn't add a DB dependency to the
+  failure path — important since the DB itself may be why a request failed.
+- **Alternatives rejected:** a DB-backed `error_message` table (runtime-editable, but couples the
+  error path to the database and needs a lookup/cache layer); repurposing `title`/`detail` as the
+  user-facing fields (would have required reworking the already-committed Phase 1 error-shape
+  work; additive fields kept that work intact).
+- **Consequences:** Phase 4 (panel) simplified — the originally-planned client-side Turkish
+  `code`→message map (`panel/src/api/errorMessages.ts`) is dropped; the panel's `ApiError` parser
+  just surfaces the backend-provided `userMessage`. Every new `ErrorCodes` entry going forward
+  needs a matching `UserErrorMessages` catalog entry (falls back to a generic Turkish message
+  otherwise, so nothing breaks if forgotten — but the UX degrades to generic text).
+
 ## 2026-07-16 — Local ASP.NET Identity now; AD/Entra as an extension seam; JWT + rotating refresh
 - **Decision:** Spec 002 implements local ASP.NET Identity auth (JWT bearer access token in
   panel memory, rotating refresh token in an httpOnly cookie) as the must-have baseline. AD/Entra

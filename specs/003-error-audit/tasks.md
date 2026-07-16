@@ -46,6 +46,11 @@
 
 **PHASE 1 CHECKPOINT — HARD STOP (rule 3d): summarize + evidence (build, error-shape test output), commit `feat(003): unified api error shape`, numbered questions, then say 'CHECKPOINT — waiting for your go' and END TURN.**
 
+<!-- AMENDMENT (post-Phase-1-checkpoint, spec Clarification #8): added userTitle/userMessage
+     (Turkish, in-code UserErrorMessages catalog) to the shape — additive to Task 3's
+     EvoProblemDetails.Finalize + Task 4/5's emission points, Task 6 gained assertions for the
+     new fields. Committed as a small follow-up before Phase 2 started; see commit history. -->
+
 ## Phase 2 — Audit log data foundation
 
 ## Task 7: AuditLogEntry entity
@@ -129,7 +134,10 @@
 ## Phase 4 — Panel consumes the unified error shape (no viewer UI)
 
 <!-- SCOPE NOTE: see spec Open Questions — if the human wants 003 strictly backend-only, SKIP this
-     entire phase and file it as a fast follow. Otherwise it is minimal: parse + translate + wire login. -->
+     entire phase and file it as a fast follow. Otherwise it is minimal: parse + wire login.
+     AMENDED after the Phase 1 checkpoint (spec Clarification #8): the backend now returns
+     userTitle/userMessage (Turkish) directly via UserErrorMessages — the panel has NO Turkish
+     message map of its own anymore. Original Task 21 (errorMessages.ts) is DROPPED. -->
 
 ## Task 19: Regenerate the TS client
 - Files: `panel/src/api/generated/` (generated)
@@ -139,25 +147,19 @@
 
 ## Task 20: Typed ApiError parser
 - Files: `panel/src/api/errors.ts`
-- Do: `type ApiError = { code: string; title: string; detail?: string; status: number; traceId?: string; errors?: Record<string, string[]> }`; `parseApiError(response: Response): Promise<ApiError>` that reads the `problem+json` body and returns a typed `ApiError`, with a safe fallback (`code: 'internal_error'`, the status) if the body is missing/not JSON.
+- Do: `type ApiError = { code: string; title: string; detail?: string; userTitle: string; userMessage: string; status: number; traceId?: string; errors?: Record<string, string[]> }`; `parseApiError(response: Response): Promise<ApiError>` that reads the `problem+json` body and returns a typed `ApiError`, with a safe fallback (`code: 'internal_error'`, generic Turkish `userTitle`/`userMessage`, the status) if the body is missing/not JSON.
 - Verify: `npm run build` (panel) type-checks.
 - Status: [ ]
 
-## Task 21: Turkish error-code message map
-- Files: `panel/src/api/errorMessages.ts`
-- Do: `const errorMessages: Record<string, string>` mapping stable codes → Turkish user text, at minimum `auth.invalid_credentials` ("E-posta veya parola hatalı."), `auth.account_inactive`, `auth.locked_out`, `validation_error`, `not_found`, `forbidden`, `unauthorized`, `internal_error`; `messageFor(code: string): string` returns the mapped text or a generic Turkish fallback ("Beklenmeyen bir hata oluştu.").
-- Verify: `npm run build` type-checks.
-- Status: [ ]
-
-## Task 22: Wire the login page to the unified shape
+## Task 21: Wire the login page to the unified shape
 - Files: `panel/src/pages/Login.tsx` (and `panel/src/api/client.ts` if the wrapper throws raw responses)
-- Do: on a failed login, `parseApiError` the response and display `messageFor(error.code)` (Turkish) instead of the raw English `detail`; keep the field intact for correct credentials. LOGIN PAGE ONLY — reuse the page's existing inline error element; do NOT introduce a general/app-wide error notification component (toast/popup/inline pattern is an explicitly deferred decision — see spec Non-goals). Do NOT build any audit-log viewer UI.
-- Verify: `npm run dev` with the backend running — wrong credentials show the Turkish message from the map.
+- Do: on a failed login, `parseApiError` the response and display `error.userMessage` (Turkish, backend-provided) instead of the hardcoded client-side string; keep the field intact for correct credentials. LOGIN PAGE ONLY — reuse the page's existing inline error element; do NOT introduce a general/app-wide error notification component (toast/popup/inline pattern is an explicitly deferred decision — see spec Non-goals). Do NOT build any audit-log viewer UI.
+- Verify: `npm run dev` with the backend running — wrong credentials show the backend's Turkish `userMessage`.
 - Status: [ ]
 
-## Task 23: Vitest — parser + message map
+## Task 22: Vitest — parser
 - Files: `panel/src/api/errors.test.ts`
-- Do: test `parseApiError` returns the typed object incl. `errors` dict for a validation body and the fallback for a non-JSON body; test `messageFor` returns the Turkish string for a known code and the generic fallback for an unknown code.
+- Do: test `parseApiError` returns the typed object incl. `userTitle`/`userMessage`/`errors` for a validation body, and the generic Turkish fallback for a non-JSON/malformed body.
 - Verify: `npm test` (panel) → these pass.
 - Status: [ ]
 
