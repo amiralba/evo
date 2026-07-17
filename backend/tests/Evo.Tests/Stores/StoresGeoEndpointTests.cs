@@ -14,11 +14,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Evo.Tests.Stores;
 
 [Collection("SharedEvoDb")]
-public class StoresGeoEndpointTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+public class StoresGeoEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public StoresGeoEndpointTests(WebApplicationFactory<Program> factory)
+    public StoresGeoEndpointTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

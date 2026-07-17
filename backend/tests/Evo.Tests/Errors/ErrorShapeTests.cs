@@ -10,11 +10,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Evo.Tests.Errors;
 
-public class ErrorShapeTests : IClassFixture<WebApplicationFactory<Program>>
+public class ErrorShapeTests : IClassFixture<EvoApiTestFactory>
 {
     private readonly WebApplicationFactory<Program> _factory;
 
-    public ErrorShapeTests(WebApplicationFactory<Program> factory)
+    public ErrorShapeTests(EvoApiTestFactory factory)
     {
         // Registers TestThrowController (lives in this test assembly) as an MVC application part —
         // it isn't discovered automatically since the "entry point" for controller scanning is

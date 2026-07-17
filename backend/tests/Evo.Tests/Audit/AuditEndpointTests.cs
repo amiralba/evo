@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Evo.Tests.Audit;
 
-public class AuditEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class AuditEndpointTests : IClassFixture<EvoApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public AuditEndpointTests(WebApplicationFactory<Program> factory)
+    public AuditEndpointTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

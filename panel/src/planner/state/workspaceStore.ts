@@ -17,7 +17,7 @@ interface WorkspaceState {
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
-  province: 'Adana',
+  province: 'Ankara',
   focusedRouteId: null,
   selection: new Set<string>(),
   layout: 'split',

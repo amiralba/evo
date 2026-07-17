@@ -8,11 +8,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Evo.Tests.Stores;
 
-public class StoreEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class StoreEndpointTests : IClassFixture<EvoApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public StoreEndpointTests(WebApplicationFactory<Program> factory)
+    public StoreEndpointTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

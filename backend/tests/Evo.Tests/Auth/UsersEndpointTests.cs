@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Evo.Tests.Auth;
 
-public class UsersEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class UsersEndpointTests : IClassFixture<EvoApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public UsersEndpointTests(WebApplicationFactory<Program> factory)
+    public UsersEndpointTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

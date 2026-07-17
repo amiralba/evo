@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Evo.Tests;
 
-public class HealthTests : IClassFixture<WebApplicationFactory<Program>>
+public class HealthTests : IClassFixture<EvoApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public HealthTests(WebApplicationFactory<Program> factory)
+    public HealthTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

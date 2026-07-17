@@ -24,11 +24,11 @@ namespace Evo.Tests.Routing;
 /// (StoresGeoEndpointTests, RouteStopsReorderTests) that touch the same deterministic store set.
 /// </summary>
 [Collection("SharedEvoDb")]
-public class RouteEndpointTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public RouteEndpointTests(WebApplicationFactory<Program> factory)
+    public RouteEndpointTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

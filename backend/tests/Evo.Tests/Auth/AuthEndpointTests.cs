@@ -8,11 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Evo.Tests.Auth;
 
-public class AuthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class AuthEndpointTests : IClassFixture<EvoApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public AuthEndpointTests(WebApplicationFactory<Program> factory)
+    public AuthEndpointTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

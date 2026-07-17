@@ -14,11 +14,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Evo.Tests.Routing;
 
 [Collection("SharedEvoDb")]
-public class RouteStopsReorderTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+public class RouteStopsReorderTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public RouteStopsReorderTests(WebApplicationFactory<Program> factory)
+    public RouteStopsReorderTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }

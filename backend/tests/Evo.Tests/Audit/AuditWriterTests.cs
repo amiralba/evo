@@ -6,11 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Evo.Tests.Audit;
 
-public class AuditWriterTests : IClassFixture<WebApplicationFactory<Program>>
+public class AuditWriterTests : IClassFixture<EvoApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly EvoApiTestFactory _factory;
 
-    public AuditWriterTests(WebApplicationFactory<Program> factory)
+    public AuditWriterTests(EvoApiTestFactory factory)
     {
         _factory = factory;
     }
