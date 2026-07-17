@@ -41,7 +41,7 @@ export function StopsList({ stops }: StopsListProps) {
           <span style={{ color: colors.text3, minWidth: 18 }}>{stop.sequence}</span>
           <span style={{ flex: 1 }}>{stop.storeName}</span>
           <span style={{ color: colors.text2, fontSize: fontSize.sm }}>
-            {formatMinutes(stop.serviceMinutes ?? 0)}
+            {stop.serviceMinutes != null ? formatMinutes(stop.serviceMinutes) : t('planner.defaultDuration', 'varsayılan')}
           </span>
           <span
             style={{
