@@ -170,31 +170,31 @@
 - Files: `backend/src/Evo.Domain/Scheduling/RouteValidator.cs`
 - Do: EF-free input records + evaluators for the M1-core set. `record StopEval(Guid StoreId, string Province, string District, StoreCategory Category, int Minutes, TimeOnly? WindowStart, TimeOnly? WindowEnd, bool BannedOnDate)`; `record RouteEval(string Province, IReadOnlyList<string> Districts, decimal RevenueTarget, decimal SixMonthRevenue, int ServiceMixCapPct, IReadOnlyList<StopEval> Stops)`. Static methods returning `IReadOnlyList<ValidationFinding>`: `V3_GeoScope` (Error/block if a stop's province≠route province or district∉route districts when districts non-empty), `V4` (Error/block — flagged by caller from the DB unique check), `V5_Revenue` (Warning if `SixMonthRevenue < RevenueTarget`), `V6_ServiceMix` (Warning if SERVICE-category count share > cap %), `V7_TimeWindowBan` (Error if a visit falls outside a store's time window or on a banned date). V1/V2 come from DayScheduler; V12 comes from Task 24. Provide one aggregate `Evaluate(RouteEval)` returning all applicable findings.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 24: Overlap (V12) evaluator
 - Files: `backend/src/Evo.Domain/Scheduling/OverlapValidator.cs`
 - Do: `static IReadOnlyList<ValidationFinding> V12_Overlaps(IEnumerable<(Guid MerchandiserId, DateOnly Date, TimeOnly Start, TimeOnly End)> visits)` → for the same merchandiser+date, any pair whose time spans intersect yields an Error finding (design V12). Pure, no DB.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 25: Validation unit tests
 - Files: `backend/tests/Evo.Tests/Scheduling/RouteValidatorTests.cs`
 - Do: assert V3 blocks an out-of-province stop and passes an in-scope one; V5 warns when revenue < target; V6 warns when SERVICE share exceeds the cap and not below; V7 blocks a visit outside its time window and on a banned date; V12 flags two overlapping visits for one person/day and not two non-overlapping ones.
 - Verify: `dotnet test backend/Evo.sln --filter RouteValidatorTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 26: IRouteChangeLog facade over audit_log
 - Files: `backend/src/Evo.Api/Audit/IRouteChangeLog.cs`, `backend/src/Evo.Api/Audit/RouteChangeLog.cs`
 - Do: `enum RouteChangeEvent { StopAdded, StopRemoved, StopMoved, FreqChanged, Assigned, Unassigned, Patched, Published }`. `interface IRouteChangeLog { Task WriteAsync(Guid routeId, RouteChangeEvent evt, object? before, object? after, CancellationToken ct = default); }`. `RouteChangeLog` implements it by delegating to spec 003's `IAuditWriter.WriteAsync(entityType: "Route", entityKey: routeId.ToString(), event: evt.ToString(), before, after)`. XML doc: realizes the design's `route_change_log` as typed facade queries over the generic `audit_log` (DECISIONS 2026-07-16) — no new table.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 27: Register RouteChangeLog in DI
 - Files: `backend/src/Evo.Api/Program.cs`
 - Do: `builder.Services.AddScoped<IRouteChangeLog, RouteChangeLog>();` next to the existing `IAuditWriter` registration.
 - Verify: `dotnet build`; `dotnet run --project backend/src/Evo.Api` starts without a DI resolution error.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 4 CHECKPOINT — HARD STOP: summarize + evidence (build, validator tests green, RouteChangeLog wired), commit `feat(005): route validation rules (V1-V7,V9,V12) + route-change-log facade`, numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 

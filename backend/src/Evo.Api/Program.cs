@@ -17,6 +17,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditWriter, AuditWriter>();
+builder.Services.AddScoped<IRouteChangeLog, RouteChangeLog>();
 
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = EvoProblemDetails.Customize);
 builder.Services.AddExceptionHandler<EvoExceptionHandler>();
