@@ -1087,6 +1087,191 @@
         }
       }
     },
+    "/api/v1/rules": {
+      "get": {
+        "tags": [
+          "Rules"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuleDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuleDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Rules"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rules/impact": {
+      "get": {
+        "tags": [
+          "Rules"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/RuleScopeLevel"
+            }
+          },
+          {
+            "name": "taskTemplateId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "chainId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "routeId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "storeId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/TaskEffectOp"
+            }
+          },
+          {
+            "name": "setValue",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "scaleValue",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleImpactDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleImpactDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleImpactDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stores/sync": {
       "post": {
         "tags": [
@@ -1288,6 +1473,182 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StoreDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stores/{id}/task-plan": {
+      "get": {
+        "tags": [
+          "Stores"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPlanDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPlanDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPlanDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-instances/{id}": {
+      "patch": {
+        "tags": [
+          "TaskInstances"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTaskInstanceRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTaskInstanceRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTaskInstanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/adhoc": {
+      "post": {
+        "tags": [
+          "TaskInstances"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdhocTaskRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdhocTaskRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdhocTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocTaskResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocTaskResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdhocTaskResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-templates": {
+      "get": {
+        "tags": [
+          "TaskTemplates"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskTemplateDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskTemplateDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaskTemplateDto"
+                  }
                 }
               }
             }
@@ -1525,6 +1886,52 @@
   },
   "components": {
     "schemas": {
+      "AdhocTaskRequest": {
+        "type": "object",
+        "properties": {
+          "templateCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "targetChain": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "targetFormat": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdhocTaskResponse": {
+        "type": "object",
+        "properties": {
+          "taskTemplateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "matchingStoreCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "AssignmentDto": {
         "type": "object",
         "properties": {
@@ -1743,6 +2150,39 @@
           "revenueTarget": {
             "type": "number",
             "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateRuleRequest": {
+        "type": "object",
+        "properties": {
+          "taskTemplateId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "scope": {
+            "$ref": "#/components/schemas/RuleScopeLevel"
+          },
+          "condition": {
+            "$ref": "#/components/schemas/RuleConditionDto"
+          },
+          "effect": {
+            "$ref": "#/components/schemas/RuleEffectDto"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date",
             "nullable": true
           }
         },
@@ -1969,6 +2409,20 @@
         "type": "integer",
         "format": "int32"
       },
+      "PatchTaskInstanceRequest": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scope": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PatchType": {
         "enum": [
           1,
@@ -2048,6 +2502,15 @@
         "type": "integer",
         "format": "int32"
       },
+      "ProofRequired": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
       "PublishRequest": {
         "type": "object",
         "properties": {
@@ -2119,6 +2582,35 @@
             "items": {
               "type": "string",
               "format": "uuid"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolvedTaskDto": {
+        "type": "object",
+        "properties": {
+          "templateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "trace": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceTraceStepDto"
             },
             "nullable": true
           }
@@ -2294,6 +2786,155 @@
             "format": "int32"
           },
           "total": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuleConditionDto": {
+        "type": "object",
+        "properties": {
+          "chainId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "format": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "channel": {
+            "type": "string",
+            "nullable": true
+          },
+          "province": {
+            "type": "string",
+            "nullable": true
+          },
+          "routeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "storeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskTemplateId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "scope": {
+            "$ref": "#/components/schemas/RuleScopeLevel"
+          },
+          "condition": {
+            "$ref": "#/components/schemas/RuleConditionDto"
+          },
+          "effect": {
+            "$ref": "#/components/schemas/RuleEffectDto"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuleEffectDto": {
+        "type": "object",
+        "properties": {
+          "op": {
+            "$ref": "#/components/schemas/TaskEffectOp"
+          },
+          "setValue": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "scaleValue": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuleImpactDto": {
+        "type": "object",
+        "properties": {
+          "stores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "visitsPerWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "deltaMinutesPerWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "daysOver450": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuleScopeLevel": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "SourceTraceStepDto": {
+        "type": "object",
+        "properties": {
+          "layer": {
+            "type": "string",
+            "nullable": true
+          },
+          "op": {
+            "type": "string",
+            "nullable": true
+          },
+          "before": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "after": {
             "type": "integer",
             "format": "int32"
           }
@@ -2583,6 +3224,96 @@
         },
         "additionalProperties": false
       },
+      "TaskEffectOp": {
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "TaskPlanDto": {
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "visitTotalMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolvedTaskDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TaskRecurrence": {
+        "enum": [
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "TaskTemplateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/TaskRecurrence"
+          },
+          "proofRequired": {
+            "$ref": "#/components/schemas/ProofRequired"
+          },
+          "targetChain": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "targetFormat": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "UpdateRouteRequest": {
         "type": "object",
         "properties": {
@@ -2677,7 +3408,16 @@
       "name": "Routes"
     },
     {
+      "name": "Rules"
+    },
+    {
       "name": "Stores"
+    },
+    {
+      "name": "TaskInstances"
+    },
+    {
+      "name": "TaskTemplates"
     },
     {
       "name": "Users"

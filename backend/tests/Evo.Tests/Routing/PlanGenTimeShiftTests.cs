@@ -4,6 +4,7 @@ using Evo.Infrastructure.Identity;
 using Evo.Infrastructure.People;
 using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores;
+using Evo.Infrastructure.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -151,7 +152,7 @@ public class PlanGenTimeShiftTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider);
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
         await service.RegenerateFutureAsync(route.Id, today, today);
 
         var visitA = await db.PlannedVisits.FirstAsync(v => v.RouteStopId == stopA.Id && v.VisitDate == today);

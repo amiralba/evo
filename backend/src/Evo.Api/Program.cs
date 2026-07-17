@@ -5,6 +5,7 @@ using Evo.Api.Routing;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Identity;
 using Evo.Infrastructure.Routing;
+using Evo.Infrastructure.Tasks;
 using Evo.Api.Stores;
 using Evo.Infrastructure.Stores.Sync;
 using Microsoft.AspNetCore.Identity;
@@ -43,6 +44,7 @@ builder.Services.AddSingleton<IStoreSyncSource>(
 builder.Services.AddHostedService<StoreSyncBackgroundService>();
 
 builder.Services.AddScoped<ISettingsProvider, SettingsProvider>();
+builder.Services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 builder.Services.AddScoped<IPlanGenerationService, PlanGenerationService>();
 builder.Services.AddHostedService<PlanHorizonBackgroundService>();
 

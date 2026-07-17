@@ -1,11 +1,14 @@
 using Evo.Api.Audit;
 using Evo.Api.Audit.Dtos;
 using Evo.Api.Stores.Dtos;
+using Evo.Api.Tasks.Dtos;
 using Evo.Domain.Auth;
 using Evo.Domain.Exceptions;
+using Evo.Domain.Tasks;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Stores.Sync;
 using Evo.Infrastructure.Routing;
+using Evo.Infrastructure.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,12 +24,14 @@ public class StoresController : ControllerBase
     private readonly IStoreSyncService _syncService;
     private readonly IAuditWriter _auditWriter;
     private readonly EvoDbContext _db;
+    private readonly ITaskPlanProvider _taskPlanProvider;
 
-    public StoresController(IStoreSyncService syncService, IAuditWriter auditWriter, EvoDbContext db)
+    public StoresController(IStoreSyncService syncService, IAuditWriter auditWriter, EvoDbContext db, ITaskPlanProvider taskPlanProvider)
     {
         _syncService = syncService;
         _auditWriter = auditWriter;
         _db = db;
+        _taskPlanProvider = taskPlanProvider;
     }
 
     [Authorize(Roles = Roles.Supervisor)]
@@ -195,5 +200,37 @@ public class StoresController : ControllerBase
             store.SyncedAt,
             revenue,
             flags);
+    }
+
+    [Authorize]
+    [HttpGet("{id:guid}/task-plan")]
+    public async Task<ActionResult<TaskPlanDto>> GetTaskPlan(Guid id, [FromQuery] DateOnly date)
+    {
+        var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id) ?? throw new NotFoundException("Store");
+
+        var activeRouteId = await _db.RouteStops
+            .Where(rs => rs.StoreId == id && rs.EffectiveTo == null)
+            .Select(rs => (Guid?)rs.RouteId)
+            .FirstOrDefaultAsync();
+
+        var attributes = new StoreAttributes(
+            store.Id, store.ChainId, store.Format, store.Category.ToString(), store.Channel, store.Province, activeRouteId);
+
+        var resolved = await _taskPlanProvider.ResolveAsync(attributes, date);
+        var templateIds = resolved.Select(r => r.TaskTemplateId).ToList();
+        var namesByTemplateId = await _db.TaskTemplates
+            .Where(t => templateIds.Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t.Name);
+
+        var taskDtos = resolved
+            .Select(r => new ResolvedTaskDto(
+                r.TaskTemplateId,
+                r.Code,
+                namesByTemplateId.GetValueOrDefault(r.TaskTemplateId, r.Code),
+                r.Minutes,
+                r.Trace.Select(t => new SourceTraceStepDto(t.Layer, t.Op.ToString(), t.BeforeMinutes, t.AfterMinutes)).ToList()))
+            .ToList();
+
+        return new TaskPlanDto(id, date, taskDtos.Sum(t => t.Minutes), taskDtos);
     }
 }

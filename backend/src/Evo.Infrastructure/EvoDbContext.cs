@@ -3,6 +3,7 @@ using Evo.Infrastructure.Identity;
 using Evo.Infrastructure.People;
 using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores;
+using Evo.Infrastructure.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,9 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<PlannedVisit> PlannedVisits => Set<PlannedVisit>();
     public DbSet<DecisionJournalEntry> DecisionJournal => Set<DecisionJournalEntry>();
     public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
+    public DbSet<Rule> Rules => Set<Rule>();
+    public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -186,6 +190,38 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
                     RegionId = "",
                     ValueJson = "[{\"label\":\"Ogle Yemegi\",\"start\":\"12:30\",\"end\":\"13:15\"}]",
                 });
+        });
+
+        builder.Entity<TaskTemplate>(entity =>
+        {
+            entity.ToTable("task_template");
+            entity.Property(e => e.Code).HasMaxLength(50);
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.InstructionsText).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ModulesJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.DefaultDeadlinePolicy).HasMaxLength(200);
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        builder.Entity<Rule>(entity =>
+        {
+            entity.ToTable("rule");
+            entity.Property(e => e.ConditionJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.EffectJson).HasColumnType("nvarchar(max)");
+            entity.HasOne<TaskTemplate>().WithMany().HasForeignKey(e => e.TaskTemplateId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.Scope);
+            entity.HasIndex(e => new { e.TaskTemplateId, e.EffectiveFrom, e.EffectiveTo });
+        });
+
+        builder.Entity<TaskInstance>(entity =>
+        {
+            entity.ToTable("task_instance");
+            entity.Property(e => e.CancelReason).HasMaxLength(1000);
+            entity.Property(e => e.ResultJson).HasColumnType("nvarchar(max)");
+            entity.HasOne<PlannedVisit>().WithMany().HasForeignKey(e => e.PlannedVisitId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<TaskTemplate>().WithMany().HasForeignKey(e => e.TaskTemplateId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(e => e.PlannedVisitId);
+            entity.HasIndex(e => new { e.PlannedVisitId, e.TaskTemplateId }).IsUnique();
         });
     }
 }
