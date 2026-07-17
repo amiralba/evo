@@ -1,7 +1,11 @@
+using Evo.Infrastructure.Tasks;
+
 namespace Evo.Api.Tasks.Dtos;
 
 public record SourceTraceStepDto(string Layer, string Op, int Before, int After);
 
-public record ResolvedTaskDto(Guid TemplateId, string Code, string Name, int Minutes, IReadOnlyList<SourceTraceStepDto> Trace, Guid? TaskInstanceId);
+public record ResolvedTaskDto(
+    Guid TemplateId, string Code, string Name, int Minutes, IReadOnlyList<SourceTraceStepDto> Trace, Guid? TaskInstanceId,
+    TaskInstanceStatus? Status, string? ResultJson);
 
 public record TaskPlanDto(Guid StoreId, DateOnly Date, int VisitTotalMinutes, IReadOnlyList<ResolvedTaskDto> Tasks);

@@ -2783,6 +2783,13 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskInstanceStatus"
+          },
+          "resultJson": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -3400,6 +3407,17 @@
           2,
           3,
           4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "TaskInstanceStatus": {
+        "enum": [
+          1,
+          2,
+          3,
+          4,
+          5
         ],
         "type": "integer",
         "format": "int32"

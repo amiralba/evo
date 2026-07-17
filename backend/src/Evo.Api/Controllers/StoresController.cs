@@ -226,20 +226,26 @@ public class StoresController : ControllerBase
             .Where(v => v.StoreId == id && v.VisitDate == date)
             .Select(v => (Guid?)v.Id)
             .FirstOrDefaultAsync();
-        var instanceIdByTemplateId = plannedVisitId is null
-            ? new Dictionary<Guid, Guid>()
+        var instanceByTemplateId = plannedVisitId is null
+            ? new Dictionary<Guid, TaskInstance>()
             : await _db.TaskInstances
                 .Where(ti => ti.PlannedVisitId == plannedVisitId)
-                .ToDictionaryAsync(ti => ti.TaskTemplateId, ti => ti.Id);
+                .ToDictionaryAsync(ti => ti.TaskTemplateId, ti => ti);
 
         var taskDtos = resolved
-            .Select(r => new ResolvedTaskDto(
-                r.TaskTemplateId,
-                r.Code,
-                namesByTemplateId.GetValueOrDefault(r.TaskTemplateId, r.Code),
-                r.Minutes,
-                r.Trace.Select(t => new SourceTraceStepDto(t.Layer, t.Op.ToString(), t.BeforeMinutes, t.AfterMinutes)).ToList(),
-                instanceIdByTemplateId.GetValueOrDefault(r.TaskTemplateId) is { } instanceId && instanceId != Guid.Empty ? instanceId : null))
+            .Select(r =>
+            {
+                var instance = instanceByTemplateId.GetValueOrDefault(r.TaskTemplateId);
+                return new ResolvedTaskDto(
+                    r.TaskTemplateId,
+                    r.Code,
+                    namesByTemplateId.GetValueOrDefault(r.TaskTemplateId, r.Code),
+                    r.Minutes,
+                    r.Trace.Select(t => new SourceTraceStepDto(t.Layer, t.Op.ToString(), t.BeforeMinutes, t.AfterMinutes)).ToList(),
+                    instance?.Id,
+                    instance?.Status,
+                    instance?.ResultJson);
+            })
             .ToList();
 
         return new TaskPlanDto(id, date, taskDtos.Sum(t => t.Minutes), taskDtos);

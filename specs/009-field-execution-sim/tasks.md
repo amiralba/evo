@@ -73,25 +73,25 @@
 - Files: `backend/src/Evo.Domain/Tasks/TaskResult.cs` (new)
 - Do: records — `PhotoRef(string ObjectKey, string Url)`; `TaskResultNone(DateTimeOffset CompletedAt, string? Note)`; `TaskResultPhoto(DateTimeOffset CompletedAt, IReadOnlyList<PhotoRef> Photos)`; `TaskResultForm(DateTimeOffset CompletedAt, IReadOnlyDictionary<string,string> Answers)`. Pure — no EF/DB references.
 - Verify: build compiles; file has no `using Microsoft.EntityFrameworkCore`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 12: Add a TaskResult (de)serialization helper
 - Files: `backend/src/Evo.Domain/Tasks/TaskResultJson.cs` (new)
 - Do: static `Serialize(object result)` / `TryDeserialize(string json, ProofRequired proof)` using `System.Text.Json`, mapping proof type → concrete record. Locate the existing `ProofRequired` enum first (`grep -rn "enum ProofRequired" backend/src`).
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 13 [P]: Unit test — TaskResult JSON round-trip per proof type
 - Files: `backend/tests/Evo.Tests/Tasks/TaskResultJsonTests.cs` (new)
 - Do: serialize each of the three records, deserialize with the matching `ProofRequired`, assert equality (photos list, answers dict preserved).
 - Verify: `dotnet test backend/Evo.sln --filter TaskResultJsonTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 14: Surface ResultJson + status on the task read DTO
 - Files: `backend/src/Evo.Api/Controllers/TaskInstancesController.cs` and its DTO (find the task-instance/task-plan DTO via `grep -rn "TaskInstanceDto\|task-plan" backend/src/Evo.Api`)
 - Do: ensure the task read DTO exposes `Status` and `ResultJson` (raw string is fine for the panel to parse). Add if missing.
 - Verify: build compiles; `contracts/openapi.json` (after build) includes the result field on the task DTO.
-- Status: [ ]
+- Status: [x]
 
 ## Phase 3 — Note entity + inbox API
 
