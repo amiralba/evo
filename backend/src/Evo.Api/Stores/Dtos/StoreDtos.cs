@@ -18,6 +18,18 @@ public record StoreRevenueDto(DateOnly Month, decimal Revenue);
 
 public record StoreFlagDto(StoreFlagType Type, string? Reason, DateOnly StartsOn, DateOnly? EndsOn);
 
+public record StoreGeoDto(
+    Guid Id,
+    string Name,
+    string? ChainName,
+    byte Format,
+    StoreCategory Category,
+    double Latitude,
+    double Longitude,
+    Guid? ActiveRouteId,
+    string? ActiveRouteCode,
+    decimal SixMonthRevenue);
+
 public record StoreDetailDto(
     Guid Id,
     string EvoStoreId,

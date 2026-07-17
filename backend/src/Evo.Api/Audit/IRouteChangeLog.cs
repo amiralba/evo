@@ -10,6 +10,7 @@ public enum RouteChangeEvent
     Unassigned,
     Patched,
     Published,
+    StopsReordered,
 }
 
 /// <summary>Typed facade over the generic audit_log (IAuditWriter) — realizes the design's

@@ -5,6 +5,7 @@ using Evo.Domain.Auth;
 using Evo.Domain.Exceptions;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Stores.Sync;
+using Evo.Infrastructure.Routing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,72 @@ public class StoresController : ControllerBase
             .ToListAsync();
 
         return new PagedResult<StoreSummaryDto>(items, page, pageSize, total);
+    }
+
+    [Authorize]
+    [HttpGet("geo")]
+    public async Task<ActionResult<IReadOnlyList<StoreGeoDto>>> Geo(
+        [FromQuery] string? province,
+        [FromQuery] string? district,
+        [FromQuery] bool? onRoute)
+    {
+        if (string.IsNullOrWhiteSpace(province))
+        {
+            throw new EvoValidationException(new Dictionary<string, string[]> { ["province"] = ["province is required."] });
+        }
+
+        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+
+        var query = _db.Stores.Where(s => s.Province == province && s.Location != null);
+        if (!string.IsNullOrEmpty(district))
+        {
+            query = query.Where(s => s.District == district);
+        }
+
+        var stores = await query.Take(5000).ToListAsync();
+        var storeIds = stores.Select(s => s.Id).ToList();
+
+        var activeStops = await _db.RouteStops
+            .Where(rs => rs.EffectiveTo == null && storeIds.Contains(rs.StoreId))
+            .ToListAsync();
+        var routeIds = activeStops.Select(rs => rs.RouteId).Distinct().ToList();
+        var routeCodes = await _db.Routes.Where(r => routeIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => r.RouteCode);
+        var activeRouteByStore = activeStops.ToDictionary(rs => rs.StoreId, rs => rs.RouteId);
+
+        if (onRoute.HasValue)
+        {
+            stores = onRoute.Value
+                ? stores.Where(s => activeRouteByStore.ContainsKey(s.Id)).ToList()
+                : stores.Where(s => !activeRouteByStore.ContainsKey(s.Id)).ToList();
+            storeIds = stores.Select(s => s.Id).ToList();
+        }
+
+        var revenueByStore = await _db.StoreRevenues
+            .Where(r => storeIds.Contains(r.StoreId) && r.Month >= sixMonthsAgo)
+            .GroupBy(r => r.StoreId)
+            .Select(g => new { StoreId = g.Key, Revenue = g.Sum(r => r.Revenue) })
+            .ToDictionaryAsync(g => g.StoreId, g => g.Revenue);
+
+        var chainNames = await _db.Chains.ToDictionaryAsync(c => c.Id, c => c.Name);
+
+        var result = stores.Select(s =>
+        {
+            Guid? activeRouteId = activeRouteByStore.TryGetValue(s.Id, out var routeId) ? routeId : null;
+            return new StoreGeoDto(
+                s.Id,
+                s.Name,
+                s.ChainId is { } chainId ? chainNames.GetValueOrDefault(chainId) : null,
+                s.Format,
+                s.Category,
+                s.Location!.Y,
+                s.Location!.X,
+                activeRouteId,
+                activeRouteId is { } id ? routeCodes.GetValueOrDefault(id) : null,
+                revenueByStore.GetValueOrDefault(s.Id, 0m));
+        }).ToList();
+
+        return result;
     }
 
     [Authorize]

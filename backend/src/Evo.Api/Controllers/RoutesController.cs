@@ -316,6 +316,35 @@ public class RoutesController : ControllerBase
         return new RouteStopDto(stop.Id, stop.StoreId, storeName, stop.Frequency, stop.WeekdayMask, stop.ServiceMinutes, stop.Sequence, stop.EffectiveFrom, stop.EffectiveTo);
     }
 
+    [HttpPost("{id:guid}/stops:reorder")]
+    public async Task<ActionResult<RouteDetailDto>> ReorderStops(Guid id, [FromBody] ReorderStopsRequest request)
+    {
+        var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
+        var stops = await _db.RouteStops.Where(rs => rs.RouteId == id && rs.EffectiveTo == null).ToListAsync();
+
+        var stopIdSet = stops.Select(s => s.Id).ToHashSet();
+        var requestIdSet = request.StopIds.ToHashSet();
+        if (stopIdSet.Count != requestIdSet.Count || !stopIdSet.SetEquals(requestIdSet))
+        {
+            throw new EvoValidationException(new Dictionary<string, string[]>
+            {
+                ["stopIds"] = ["stopIds must exactly match the route's active stops."],
+            });
+        }
+
+        var before = stops.OrderBy(s => s.Sequence).Select(s => new { s.Id, s.Sequence }).ToList();
+        var stopsById = stops.ToDictionary(s => s.Id);
+        for (var i = 0; i < request.StopIds.Count; i++)
+        {
+            stopsById[request.StopIds[i]].Sequence = i + 1;
+        }
+
+        await _changeLog.WriteAsync(id, RouteChangeEvent.StopsReordered, before, new { Order = request.StopIds });
+        await _db.SaveChangesAsync();
+
+        return await Get(id);
+    }
+
     [HttpPost("{id:guid}/stops/{stopId:guid}:move")]
     public async Task<ActionResult<RouteStopDto>> MoveStop(Guid id, Guid stopId, [FromBody] MoveStopRequest request)
     {

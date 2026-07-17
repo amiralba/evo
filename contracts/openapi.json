@@ -629,6 +629,65 @@
         }
       }
     },
+    "/api/v1/routes/{id}/stops:reorder": {
+      "post": {
+        "tags": [
+          "Routes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStopsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStopsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStopsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDetailDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDetailDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/routes/{id}/stops/{stopId}:move": {
       "post": {
         "tags": [
@@ -1128,6 +1187,67 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StoreSummaryDtoPagedResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stores/geo": {
+      "get": {
+        "tags": [
+          "Stores"
+        ],
+        "parameters": [
+          {
+            "name": "province",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "onRoute",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StoreGeoDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StoreGeoDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StoreGeoDto"
+                  }
                 }
               }
             }
@@ -1986,6 +2106,20 @@
         },
         "additionalProperties": false
       },
+      "ReorderStopsRequest": {
+        "type": "object",
+        "properties": {
+          "stopIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "RouteDetailDto": {
         "type": "object",
         "properties": {
@@ -2280,6 +2414,52 @@
         ],
         "type": "integer",
         "format": "int32"
+      },
+      "StoreGeoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "chainName": {
+            "type": "string",
+            "nullable": true
+          },
+          "format": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "category": {
+            "$ref": "#/components/schemas/StoreCategory"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "activeRouteId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "activeRouteCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "sixMonthRevenue": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
       },
       "StoreRevenueDto": {
         "type": "object",

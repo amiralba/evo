@@ -1,0 +1,14 @@
+{
+  "app": {
+    "title": "EVO"
+  },
+  "planner": {
+    "title": "Rota Planlama"
+  },
+  "common": {
+    "clear": "Temizle",
+    "cancel": "Vazgeç",
+    "save": "Kaydet",
+    "publish": "Yayınla"
+  }
+}

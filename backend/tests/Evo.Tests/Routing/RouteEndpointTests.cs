@@ -20,7 +20,10 @@ namespace Evo.Tests.Routing;
 /// isolated EvoDb_RoutingTests — so unlike the other Routing tests it must clean up its own
 /// Route-family rows on start, otherwise a prior run's route_stops on FakeStoreSyncSource's
 /// deterministic stores would make every subsequent run see those stores as "already routed".
+/// [Collection("SharedEvoDb")] serializes this against the other shared-EvoDb test classes
+/// (StoresGeoEndpointTests, RouteStopsReorderTests) that touch the same deterministic store set.
 /// </summary>
+[Collection("SharedEvoDb")]
 public class RouteEndpointTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
 {
     private readonly WebApplicationFactory<Program> _factory;

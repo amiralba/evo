@@ -11,3 +11,5 @@ public record RejectedStoreDto(Guid StoreId, string Reason);
 public record UpdateStopRequest(Frequency? Frequency, int? ServiceMinutes, int? Sequence);
 
 public record MoveStopRequest(Guid TargetRouteId);
+
+public record ReorderStopsRequest(IReadOnlyList<Guid> StopIds);

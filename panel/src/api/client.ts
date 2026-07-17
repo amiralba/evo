@@ -3,7 +3,7 @@ import type { paths } from './generated/schema'
 
 type HealthResponse = paths['/api/v1/health']['get']['responses']['200']['content']['application/json']
 
-async function authorizedFetch(input: string, init: RequestInit = {}, isRetry = false): Promise<Response> {
+export async function authorizedFetch(input: string, init: RequestInit = {}, isRetry = false): Promise<Response> {
   const token = getAccessToken()
   const headers = new Headers(init.headers)
   if (token) {
