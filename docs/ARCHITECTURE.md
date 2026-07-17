@@ -65,6 +65,13 @@ docs/ specs/ .claude/
 Backend targets **.NET 10**, not the .NET 8 named in the Stack section above — only .NET 10 SDK
 was available when spec 001 was scaffolded (see `docs/DECISIONS.md`, 2026-07-15).
 
+**Layering rule:** `Evo.Domain` must never reference `Evo.Infrastructure` (entities/EF types) —
+it stays pure/testable and infrastructure-free. Spec 005's `RouteValidator` needed to distinguish
+SERVICE-category stops (V6) without depending on `Evo.Infrastructure.Stores.StoreCategory`, so its
+`StopEval` input carries a plain `bool IsServiceCategory` instead; the caller (infrastructure/API
+layer) maps the real enum down to that bool before invoking the validator. Follow the same pattern
+for any future pure-`Evo.Domain` logic that needs to reason about an `Evo.Infrastructure` type.
+
 ## Cross-cutting concerns (platform specs — build first)
 - Auth: spec 002 — COMPLETE. ASP.NET Identity, 2 roles, AD/Entra extension seam (see docs/AUTH.md).
 - Error handling: spec 003 — COMPLETE. Shared ProblemDetails shape everywhere (`code`/`title`/`detail`/`userTitle`/`userMessage`/`traceId`/`errors`); panel consumes it directly (see docs/API.md).

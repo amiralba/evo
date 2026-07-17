@@ -14,7 +14,13 @@
 - Sequence optimization button (nearest-neighbor suggest, never forced)
 
 ## Next up
-- M1 route planning core: Route/RouteStop/Assignment entities, scheduling engine (450-min rule), Baseline+Patch model with auto-expiry, publish gate with override-with-reason — needs a `/plan` pass to generate its spec.
+- Planner UI spec (M1, web panel): map/schedule grid/table workspace, lasso multi-select, live health
+  card, drag-drop stop editing against 005-route-planning-core's generated TS client. `POST
+  /simulate/route` deferred into this spec. Not started — needs a `/plan` pass to generate its spec.
+- Conflict Center — may land inside the planner UI spec or split out; decide at `/plan` time.
 
 ## Recently completed features
 - M0 — Platform foundation (specs 001–004): solution scaffold, auth/roles, error/audit, store sync — all COMPLETE.
+- M1 — 005-route-planning-core (backend): Route/RouteStop/Assignment/Patch/PlannedVisit/DecisionJournal
+  schema, pure scheduling engine (450-min rule, Baseline+Patch resolution), validation engine, full REST
+  API, publish gate with override-with-reason. Panel UI not yet built (separate spec). COMPLETE.

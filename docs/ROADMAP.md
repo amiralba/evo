@@ -21,13 +21,16 @@ Goal: everything modules depend on, built once.
 - [x] 003-error-audit — shared ProblemDetails error shape; RouteChangeLog audit pattern
 - [x] 004-store-sync — nightly ingestion from EVO sales (stores, formats, revenue snapshots)
 
-### M1 — Route planning core (web panel) — NEXT UP
+### M1 — Route planning core (web panel)
 Goal: a supervisor can build and publish a valid plan.
-- [ ] Routes & stops lifecycle (draft/active/inactive, geo scope)
-- [ ] Assignments with history
-- [ ] Scheduling engine: plan generation, 450-min rule, live validation
-- [ ] Baseline + Patch model with auto-expiry
-- [ ] Publish gate with override-with-reason + Conflict Center
+- [x] 005-route-planning-core — Routes & stops lifecycle (draft/active/inactive, geo scope), Assignments
+      with history, scheduling engine (plan generation, 450-min rule, live validation), Baseline + Patch
+      model with auto-expiry, publish gate with override-with-reason (`decision_journal`) — BACKEND ONLY,
+      full REST API, no panel UI. 48/48 tasks complete.
+- [ ] Planner UI spec (NOT STARTED, NEXT UP) — map/schedule grid/table workspace, lasso multi-select,
+      live health card, drag-drop stop editing against 005's generated TS client. Needs a `/plan` pass.
+      `POST /simulate/route` deferred into this spec.
+- [ ] Conflict Center (may land with the planner UI spec or split out — decide at `/plan` time)
 
 ### M2 — Tasks & rules
 - [ ] TaskTemplate + Rule resolution (format-driven durations, per-store/route exceptions)

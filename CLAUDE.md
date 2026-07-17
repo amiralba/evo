@@ -99,6 +99,28 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0 — Platform foundation is COMPLETE. All 4 platform specs done: 001-solution-scaffold (18 tasks), 002-auth-roles (33 tasks), 003-error-audit (22 tasks), 004-store-sync (25 tasks). Every spec's tasks.md is fully checked off and committed to main.
-- Active feature: none in progress — next step is the FIRST M1 FEATURE MODULE (not another platform spec): route planning core — Route/RouteStop/Assignment entities, scheduling engine (450-min rule), Baseline+Patch model, publish gate. Per docs/ROADMAP.md this needs a `/plan` pass to produce its own `specs/00X-.../tasks.md`.
-- Last session summary: Built the full 004-store-sync spec across 4 committed phases. Store schema: `Chain` (real lookup entity — deviation from the planner's denormalized-string recommendation, human's explicit call), `StoreType` (fixed migration-seeded 1–6 format taxonomy), `Store` (geography `Point` SRID 4326 via NetTopologySuite — first spatial data in the project — plus planner-owned `DefaultServiceMinutes`/`Active` that sync never touches), `StoreRevenue` (12-month retention) and `StoreFlag`, with a raw-SQL spatial index migration. `IStoreSyncSource` seam (mirrors spec 002's Entra seam) + `FakeStoreSyncSource` (deterministic Turkish fake data) + `StoreSyncService` upsert logic enforcing overwrite-synced-fields / preserve-planner-owned-fields / no-auto-deactivate rules. Supervisor-only audit-logged `POST /stores/sync`, nightly `StoreSyncBackgroundService`, `GET /stores` (paged/filtered) and `GET /stores/{id}`. Seeder now triggers a REAL sync run (not direct inserts) sized per profile (demo=15, scale=400), verified idempotent. Contract + TS client regenerated; docs/DATABASE.md, ARCHITECTURE.md, API.md, DECISIONS.md updated. Verified: 38/38 backend xUnit (28 prior + 10 new), nightly worker startup run logged, seeder stable across re-runs.
+- Milestone: M0 — Platform foundation is COMPLETE (4 platform specs). M1 — the first feature module,
+  005-route-planning-core (backend), is now COMPLETE: all 7 phases, 48/48 tasks checked off and committed
+  to main.
+- Active feature: none in progress — next step is the PLANNER UI spec (map/schedule grid/table workspace,
+  lasso multi-select, live health card, drag-drop stop editing) built against 005's generated TS client.
+  Not started; needs a `/plan` pass to produce its own `specs/00X-.../tasks.md`. `POST /simulate/route`
+  is deferred into that spec.
+- Last session summary: Built the full 005-route-planning-core spec (first M1 feature module) across 7
+  committed phases. Phase 1: `Merchandiser`/`Route`/`RouteStop` entities + one-active-route-per-store DB
+  constraint. Phase 2: `Assignment`/`Patch`/`PlannedVisit`/`DecisionJournalEntry`/`Setting` entities +
+  one-active-assignment (both directions) constraints + 8 seeded global settings. Phase 3: a pure,
+  EF-free scheduling engine in `Evo.Domain/Scheduling` — `FrequencyExpander`, `DayScheduler` (450-min
+  rule, break avoidance), `PatchResolver` (baseline ⊕ patches, SKIP>TIME_SHIFT>ADD>REASSIGN priority).
+  Phase 4: `RouteValidator` (V3/V5/V6/V7), `OverlapValidator` (V12), `IRouteChangeLog` facade over
+  spec 003's `audit_log`. Phase 5: `SettingsProvider`, `PlanGenerationService` (orchestrates the engine
+  into `planned_visit` upserts), nightly `PlanHorizonBackgroundService` (patch-expiry + horizon regen).
+  Phase 6: full `RoutesController` (create/list/get/patch/stops-bulk/stops-move/assignment/patches/plan/
+  health/validate/publish) + `MerchandisersController`, plus a same-session IDOR fix giving
+  `GET /merchandisers/{id}/day` proper self-or-Supervisor authorization. Phase 7: seeder extended with
+  `MerchandiserSeederModule`/`RouteSeederModule` (routes materialize through the real engine, not direct
+  inserts), contract/TS client regenerated, docs updated, full suite verified at 74/74 (28 prior + 46
+  new). Also corrected a prior doc error: `merchandiser` was wrongly attributed to 002-auth-roles in
+  docs/DATABASE.md — fixed to 005. Explicitly deferred out of 005 (not "todo" under this spec, but future
+  scope): the planner UI itself, `POST /simulate/route`, the M2 task/rule engine, OSRM/travel-time,
+  leave/Onarım (M4).
