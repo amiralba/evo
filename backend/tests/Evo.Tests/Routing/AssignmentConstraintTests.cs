@@ -12,6 +12,7 @@ namespace Evo.Tests.Routing;
 /// unique indexes): a route can't hold two active assignments, and a merchandiser can't hold
 /// two active assignments, at the same time.
 /// </summary>
+[Collection("RoutingDb")]
 public class AssignmentConstraintTests
 {
     private const string ConnectionString =
@@ -25,6 +26,8 @@ public class AssignmentConstraintTests
         var db = provider.GetRequiredService<EvoDbContext>();
         await db.Database.MigrateAsync();
 
+        await db.PlannedVisits.ExecuteDeleteAsync();
+        await db.Patches.ExecuteDeleteAsync();
         await db.Assignments.ExecuteDeleteAsync();
         await db.RouteStops.ExecuteDeleteAsync();
         await db.Routes.ExecuteDeleteAsync();

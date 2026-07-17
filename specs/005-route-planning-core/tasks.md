@@ -204,31 +204,31 @@
 - Files: `backend/src/Evo.Infrastructure/Routing/ISettingsProvider.cs`, `backend/src/Evo.Infrastructure/Routing/SettingsProvider.cs`
 - Do: `interface ISettingsProvider { Task<SchedulingSettings> GetAsync(string? regionId = null, CancellationToken ct = default); }`. Implementation reads the `setting` rows: load all global rows (`RegionId == ""`) plus, when `regionId` is non-null/non-empty, the matching region rows; a region row overrides the global row of the same `Key`. Parse each `ValueJson` (numbers, the `day_start` `"HH:mm"`, the `break_blocks` JSON array of `{label,start,end}`) into a `SchedulingSettings` record. Treat the `regionId` param `null` as the global-only (`""`) case. XML doc: this is the only mapping from the EF `setting` table to the EF-free engine record.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 29: PlanGenerationService
 - Files: `backend/src/Evo.Infrastructure/Routing/IPlanGenerationService.cs`, `backend/src/Evo.Infrastructure/Routing/PlanGenerationService.cs`
 - Do: `interface IPlanGenerationService { Task<int> RegenerateFutureAsync(Guid routeId, DateOnly from, DateOnly to, CancellationToken ct = default); }`. Implementation injects `EvoDbContext` + `ISettingsProvider`. Steps: load the route, its active `route_stop`s, its current assignment (for `MerchandiserId`), and active patches; for each stop call `FrequencyExpander.ExpandVisitDates`; resolve each visit's minutes = `stop.ServiceMinutes ?? store.DefaultServiceMinutes ?? settings.DefaultServiceMinutes`; per date, order visits by `Sequence`, call `DayScheduler.ScheduleDay`; apply `PatchResolver.Apply` per date; **upsert** `planned_visit` rows by `(RouteStopId, VisitDate)` for dates `>= from` (never touch `VisitDate < today` — past is frozen); delete future baseline visits that no longer project. Return the count of upserted rows. One `SaveChangesAsync`.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 30: PlanGenerationService integration test
 - Files: `backend/tests/Evo.Tests/Routing/PlanGenerationServiceTests.cs`
 - Do: integration test (`EvoDb_RoutingTests`, seeded store + route + stop + assignment): first `RegenerateFutureAsync` over a 2-week range materializes the expected number of `planned_visit` rows with `PlannedStart` set and breaks respected; a second run is **idempotent** (count stable, upsert not duplicate); a past-dated visit inserted manually is **not** modified by a regenerate whose `from` is today; adding an active SkipStore patch then regenerating removes that store's visits inside the window and restores them past `EndsOn`.
 - Verify: `dotnet test backend/Evo.sln --filter PlanGenerationServiceTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 31: PlanHorizonBackgroundService
 - Files: `backend/src/Evo.Api/Routing/PlanHorizonBackgroundService.cs`, `backend/src/Evo.Api/Program.cs`
 - Do: `PlanHorizonBackgroundService : BackgroundService` injecting `IServiceScopeFactory` + `ILogger` + `IConfiguration`. In `ExecuteAsync`: read `Routing:HorizonIntervalHours` (default 24); loop until cancellation — in a DI scope, advance patch statuses by date (`Pending→Active` when `StartsOn<=today`, `Active→Expired` when `today>EndsOn`), then for every ACTIVE route call `RegenerateFutureAsync(route, today, today + settings.PlanHorizonWeeks*7)`; log a summary; try/catch so a failed cycle never crashes the host; `await Task.Delay(interval, stoppingToken)`. Register `builder.Services.AddHostedService<PlanHorizonBackgroundService>();` and `AddScoped<IPlanGenerationService, PlanGenerationService>()` + `AddScoped<ISettingsProvider, SettingsProvider>()`.
 - Verify: `dotnet build`; `dotnet run --project backend/src/Evo.Api` starts and logs one horizon cycle (or first-interval schedule) without crashing.
-- Status: [ ]
+- Status: [x]
 
 ## Task 32: Patch-expiry status transition test
 - Files: `backend/tests/Evo.Tests/Routing/PatchExpiryTests.cs`
 - Do: unit/integration test of the status-advance logic used by the background service (extract it into a small pure/testable method if convenient, e.g. `PatchStatusAdvancer.NextStatus(patch, today)`): a Pending patch whose `StartsOn<=today` becomes Active; an Active patch whose `EndsOn<today` becomes Expired; a Cancelled patch is never changed.
 - Verify: `dotnet test backend/Evo.sln --filter PatchExpiryTests` passes.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 5 CHECKPOINT — HARD STOP: summarize + evidence (build, plan-generation integration test showing idempotent materialization + past-frozen + patch apply/revert, background service startup log, patch-expiry test green), commit `feat(005): plan generation service + nightly horizon/patch-expiry background job`, numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 

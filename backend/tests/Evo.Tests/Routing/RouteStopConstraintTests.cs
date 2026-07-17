@@ -10,6 +10,7 @@ namespace Evo.Tests.Routing;
 /// Proves the DB-enforced one-active-route rule: a store can only carry one open-ended
 /// (EffectiveTo IS NULL) route_stop at a time (spec 005 Task 5's filtered unique index).
 /// </summary>
+[Collection("RoutingDb")]
 public class RouteStopConstraintTests
 {
     private const string ConnectionString =
@@ -23,6 +24,9 @@ public class RouteStopConstraintTests
         var db = provider.GetRequiredService<EvoDbContext>();
         await db.Database.MigrateAsync();
 
+        await db.PlannedVisits.ExecuteDeleteAsync();
+        await db.Patches.ExecuteDeleteAsync();
+        await db.Assignments.ExecuteDeleteAsync();
         await db.RouteStops.ExecuteDeleteAsync();
         await db.Routes.ExecuteDeleteAsync();
         await db.Stores.ExecuteDeleteAsync();
