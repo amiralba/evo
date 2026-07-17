@@ -220,4 +220,53 @@ public class RouteEndpointTests : IClassFixture<WebApplicationFactory<Program>>,
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task MerchandiserDay_FieldAgent_CanReadOwnDay_ButNotAnothers()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+
+        var (selfMerchandiserId, selfClient) = await CreateFieldAgentWithMerchandiserAsync(suffix + "-self");
+        var (otherMerchandiserId, _) = await CreateFieldAgentWithMerchandiserAsync(suffix + "-other");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var ownDayResponse = await selfClient.GetAsync($"/api/v1/merchandisers/{selfMerchandiserId}/day?date={today:yyyy-MM-dd}");
+        Assert.Equal(HttpStatusCode.OK, ownDayResponse.StatusCode);
+
+        var otherDayResponse = await selfClient.GetAsync($"/api/v1/merchandisers/{otherMerchandiserId}/day?date={today:yyyy-MM-dd}");
+        Assert.Equal(HttpStatusCode.Forbidden, otherDayResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task MerchandiserDay_Supervisor_CanReadAnyDay()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var (merchandiserId, _) = await CreateFieldAgentWithMerchandiserAsync(suffix);
+        var supervisorClient = await SupervisorClientAsync("merch-day-" + suffix);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var response = await supervisorClient.GetAsync($"/api/v1/merchandisers/{merchandiserId}/day?date={today:yyyy-MM-dd}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private async Task<(Guid MerchandiserId, HttpClient Client)> CreateFieldAgentWithMerchandiserAsync(string suffix)
+    {
+        var email = $"route-test-agent-{suffix}@evo.local";
+        var user = await TestAuthHelper.EnsureUserAsync(_factory, email, "Passw0rd!", Roles.FieldAgent);
+        var client = await TestAuthHelper.LoginAsync(_factory, email, "Passw0rd!");
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<EvoDbContext>();
+        var merchandiser = await db.Merchandisers.FirstOrDefaultAsync(m => m.UserId == user.Id);
+        if (merchandiser is null)
+        {
+            merchandiser = new Merchandiser { Id = Guid.NewGuid(), UserId = user.Id, Active = true };
+            db.Merchandisers.Add(merchandiser);
+            await db.SaveChangesAsync();
+        }
+
+        return (merchandiser.Id, client);
+    }
 }
