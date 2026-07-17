@@ -256,31 +256,31 @@
 - Files: `backend/src/Evo.Seeder/Modules/TaskRuleSeederModule.cs`
 - Do: implement `ISeederModule`; seed ≥6 templates (BEFORE_PHOTO, SHELF_WORK, SKT_CHECK, PRICE_COLLECT, DISPLAY_CHECK, SURVEY) with realistic default_minutes + recurrence + Turkish names.
 - Verify: build; Task 44.
-- Status: [ ]
+- Status: [x]
 
 ## Task 41: TaskRuleSeederModule — rules
 - Files: `backend/src/Evo.Seeder/Modules/TaskRuleSeederModule.cs`
 - Do: seed a realistic rule set — format SCALE rules (MM ×1.3, 4M ×1.6, 5M ×2.0), 1–2 store-specific SET rules, 1 route rule, 1 dated rule (window = this week), 1 EXCLUDE rule.
 - Verify: build; Task 44.
-- Status: [ ]
+- Status: [x]
 
 ## Task 42: TaskRuleSeederModule — adhoc survey
 - Files: `backend/src/Evo.Seeder/Modules/TaskRuleSeederModule.cs`
 - Do: seed one ONCE survey template targeting Migros MM with a deadline ~10 days out.
 - Verify: build; Task 44.
-- Status: [ ]
+- Status: [x]
 
 ## Task 43: Register seeder module (after routes) + regenerate instances
 - Files: `backend/src/Evo.Seeder/Program.cs`
 - Do: register `TaskRuleSeederModule` AFTER `RouteSeederModule`; after seeding rules, trigger `PlanGenerationService.RegenerateFutureAsync` for seeded routes so TaskInstances materialize (or document that first panel load regenerates).
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 44: Run seeder end-to-end
 - Files: (none)
 - Do: `dotnet run --project backend/src/Evo.Seeder -- --profile demo --wipe`.
 - Verify: completes without error; query DB — `task_template` ≥6 rows, `rule` ≥6 rows, `task_instance` non-empty on future dates.
-- Status: [ ]
+- Status: [x]
 
 <!-- CHECKPOINT after Task 44: data exists. Commit, report seeder counts. -->
 

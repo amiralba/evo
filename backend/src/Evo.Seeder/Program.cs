@@ -3,6 +3,7 @@ using Evo.Infrastructure;
 using Evo.Infrastructure.Identity;
 using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores.Sync;
+using Evo.Infrastructure.Tasks;
 using Evo.Seeder;
 using Evo.Seeder.Modules;
 using Microsoft.AspNetCore.Identity;
@@ -38,6 +39,7 @@ services.AddIdentityCore<ApplicationUser>()
 services.AddScoped<IStoreSyncService, StoreSyncService>();
 services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: profile == SeedProfile.Demo ? 15 : 400));
 services.AddScoped<ISettingsProvider, SettingsProvider>();
+services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 services.AddScoped<IPlanGenerationService, PlanGenerationService>();
 
 await using var provider = services.BuildServiceProvider();
@@ -60,6 +62,7 @@ var modules = new List<ISeederModule>
     new StoreSyncSeederModule(),
     new MerchandiserSeederModule(),
     new RouteSeederModule(),
+    new TaskRuleSeederModule(),
 };
 
 var faker = new Faker("tr");
