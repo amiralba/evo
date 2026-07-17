@@ -1,6 +1,7 @@
 using Evo.Api.Audit;
 using Evo.Api.Auth;
 using Evo.Api.Errors;
+using Evo.Api.Notifications;
 using Evo.Api.Routing;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Identity;
@@ -46,6 +47,7 @@ builder.Services.AddHostedService<StoreSyncBackgroundService>();
 builder.Services.AddScoped<ISettingsProvider, SettingsProvider>();
 builder.Services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 builder.Services.AddScoped<IPlanGenerationService, PlanGenerationService>();
+builder.Services.AddScoped<INotificationDispatcher, MockNotificationDispatcher>();
 builder.Services.AddHostedService<PlanHorizonBackgroundService>();
 
 // AddIdentityCore (not AddIdentity) — avoids registering the default cookie auth schemes,

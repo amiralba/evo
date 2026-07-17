@@ -1,6 +1,7 @@
 using Evo.Infrastructure.Audit;
 using Evo.Infrastructure.Identity;
 using Evo.Infrastructure.Notes;
+using Evo.Infrastructure.Notifications;
 using Evo.Infrastructure.People;
 using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores;
@@ -38,6 +39,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<VisitRealization> VisitRealizations => Set<VisitRealization>();
     public DbSet<MerchandiserLocationPing> LocationPings => Set<MerchandiserLocationPing>();
     public DbSet<Note> Notes => Set<Note>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -249,6 +251,14 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(e => e.AuthorId).OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => new { e.AnchorType, e.AnchorId });
             entity.HasIndex(e => new { e.Status, e.Kind });
+        });
+
+        builder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notification");
+            entity.Property(e => e.PayloadJson).HasColumnType("nvarchar(max)");
+            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(e => new { e.MerchandiserId, e.CreatedAt });
         });
     }
 }

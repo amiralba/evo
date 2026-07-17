@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using Evo.Api.Audit;
+using Evo.Api.Notifications;
 using Evo.Api.Routing.Dtos;
 using Evo.Domain.Auth;
 using Evo.Domain.Exceptions;
@@ -28,13 +29,19 @@ public class RoutesController : ControllerBase
     private readonly IRouteChangeLog _changeLog;
     private readonly IPlanGenerationService _planGenerationService;
     private readonly ISettingsProvider _settingsProvider;
+    private readonly INotificationDispatcher _notificationDispatcher;
+    private readonly ILogger<RoutesController> _logger;
 
-    public RoutesController(EvoDbContext db, IRouteChangeLog changeLog, IPlanGenerationService planGenerationService, ISettingsProvider settingsProvider)
+    public RoutesController(
+        EvoDbContext db, IRouteChangeLog changeLog, IPlanGenerationService planGenerationService,
+        ISettingsProvider settingsProvider, INotificationDispatcher notificationDispatcher, ILogger<RoutesController> logger)
     {
         _db = db;
         _changeLog = changeLog;
         _planGenerationService = planGenerationService;
         _settingsProvider = settingsProvider;
+        _notificationDispatcher = notificationDispatcher;
+        _logger = logger;
     }
 
     private Guid? CurrentUserId
@@ -707,6 +714,15 @@ public class RoutesController : ControllerBase
 
         await _changeLog.WriteAsync(id, RouteChangeEvent.Published, null, new { VisitsMaterialized = visitsMaterialized, OverrodeErrors = errors.Count > 0 });
         await _db.SaveChangesAsync();
+
+        try
+        {
+            await _notificationDispatcher.DispatchPublishAsync(id, $"{route.RouteCode} yayınlandı — {visitsMaterialized} ziyaret güncellendi.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Notification dispatch failed for route {RouteId} publish — publish result is unaffected.", id);
+        }
 
         return new PublishResultDto(visitsMaterialized, errors.Count > 0, decisionJournalId);
     }

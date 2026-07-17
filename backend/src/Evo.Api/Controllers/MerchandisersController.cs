@@ -87,6 +87,24 @@ public class MerchandisersController : ControllerBase
 
         return new PagedResult<LocationPingDto>(items, page, pageSize, total);
     }
+
+    [HttpGet("{id:guid}/notifications")]
+    public async Task<ActionResult<IReadOnlyList<NotificationDto>>> GetNotifications(Guid id)
+    {
+        var merchandiser = await _db.Merchandisers.FirstOrDefaultAsync(m => m.Id == id) ?? throw new NotFoundException("Merchandiser");
+        if (!CanAccessMerchandiser(merchandiser.UserId))
+        {
+            return Forbid();
+        }
+
+        return await _db.Notifications
+            .Where(n => n.MerchandiserId == id)
+            .OrderByDescending(n => n.CreatedAt)
+            .Select(n => new NotificationDto(n.Id, n.PayloadJson, n.CreatedAt, n.ReadAt))
+            .ToListAsync();
+    }
 }
 
 public record LocationPingDto(DateTimeOffset RecordedAt, double Lat, double Lng);
+
+public record NotificationDto(Guid Id, string PayloadJson, DateTimeOffset CreatedAt, DateTimeOffset? ReadAt);

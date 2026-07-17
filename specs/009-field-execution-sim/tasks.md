@@ -149,43 +149,43 @@
 - Files: `backend/src/Evo.Infrastructure/Notifications/Notification.cs` (new)
 - Do: `Guid Id`, `Guid MerchandiserId`, `string PayloadJson`, `DateTimeOffset CreatedAt`, `DateTimeOffset? ReadAt`.
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 24: Register Notification DbSet + config
 - Files: `backend/src/Evo.Infrastructure/EvoDbContext.cs`
 - Do: `DbSet<Notification> Notifications`; `builder.Entity<Notification>` → `ToTable("notification")`, `PayloadJson` `nvarchar(max)`, FK `MerchandiserId`→`Merchandiser` `OnDelete(NoAction)`, index `(MerchandiserId, CreatedAt)`.
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 25: Create the Notification migration
 - Files: generated migration
 - Do: `dotnet ef migrations add AddNotification --project backend/src/Evo.Infrastructure --startup-project backend/src/Evo.Api`
 - Verify: migration creates `notification`; build passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 26: Define INotificationDispatcher + mock impl
 - Files: `backend/src/Evo.Api/Notifications/INotificationDispatcher.cs` + `MockNotificationDispatcher.cs` (new)
 - Do: `Task DispatchPublishAsync(Guid routeId, string diffSummary, CancellationToken ct)`; mock resolves the route's active assignment → merchandiser and writes one `Notification` row (`PayloadJson` = `{ "summary": diffSummary }`, `ReadAt=null`). Register in DI (`Program.cs`, scoped).
 - Verify: build compiles; `grep -n "INotificationDispatcher" backend/src/Evo.Api/Program.cs` shows the registration.
-- Status: [ ]
+- Status: [x]
 
 ### Task 27: Fire the dispatcher from publish
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs` (the `POST /routes/{id}/publish` action)
 - Do: after a successful publish, call `dispatcher.DispatchPublishAsync(routeId, summary, ct)` with a short diff summary string. Keep it non-blocking to the publish result (log-and-continue on dispatcher failure).
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 28: Add NotificationsController — GET receipts
 - Files: `backend/src/Evo.Api/Controllers/MerchandisersController.cs` (add action) or new `NotificationsController.cs`
 - Do: `GET /merchandisers/{id}/notifications` → `NotificationDto[]` newest-first; scoping mirrors `/merchandisers/{id}/day` (Supervisor any, FieldAgent self else 403). Add `record NotificationDto(Guid Id, string PayloadJson, DateTimeOffset CreatedAt, DateTimeOffset? ReadAt)`.
 - Verify: build compiles; endpoint in `contracts/openapi.json`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 29: Endpoint tests — publish writes a notification; scoping enforced
 - Files: `backend/tests/Evo.Tests/Notifications/NotificationEndpointTests.cs` (new)
 - Do: publish an assigned route → assert exactly one notification row for the assigned merchandiser; GET as that agent returns it; GET another agent's notifications as FieldAgent → 403. Isolated test DB.
 - Verify: `dotnet test backend/Evo.sln --filter NotificationEndpointTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Phase 5 — Seeder extension
 
