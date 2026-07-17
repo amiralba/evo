@@ -78,43 +78,43 @@
 - Files: `backend/src/Evo.Infrastructure/Routing/AssignmentReason.cs`, `backend/src/Evo.Infrastructure/Routing/Assignment.cs`
 - Do: `public enum AssignmentReason : byte { NewHire = 1, Resignation = 2, Swap = 3, Coverage = 4, Restructure = 5 }` (design §2.4). `Assignment` entity: `Guid Id`, `Guid RouteId`, `Guid MerchandiserId`, `DateOnly StartDate`, `DateOnly? EndDate`, `AssignmentReason Reason`, `Guid? CreatedBy`. XML doc: replaces the seat; `EndDate IS NULL` = current; closed on reassignment (design §2.4).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 10: Patch enums + entity
 - Files: `backend/src/Evo.Domain/Scheduling/PatchType.cs`, `backend/src/Evo.Infrastructure/Routing/PatchStatus.cs`, `backend/src/Evo.Infrastructure/Routing/Patch.cs`
 - Do: `public enum PatchType : byte { SkipStore = 1, SkipRange = 2, AddStore = 3, ReassignTemp = 4, TimeShift = 5 }` in **Evo.Domain/Scheduling** (namespace `Evo.Domain.Scheduling`) — the pure `PatchResolver` (Task 21) consumes it. `public enum PatchStatus : byte { Pending = 1, Active = 2, Expired = 3, Cancelled = 4 }` in **Evo.Infrastructure** (entity/status enum, not engine input). No retroactive enum moves later. `Patch` entity: `Guid Id`, `Guid RouteId`, `PatchType Type`, `Guid? StoreId`, `Guid? CoverMerchandiserId`, `DateOnly StartsOn`, `DateOnly EndsOn` (NOT NULL — mandatory expiry, V9), `string? ParamsJson`, `PatchStatus Status = PatchStatus.Pending`, `string? Reason`, `Guid? CreatedBy`. (`PatchType` is in `Evo.Domain.Scheduling` — add `using Evo.Domain.Scheduling;`). XML doc: never mutates baseline; applied at generation time; auto-reverts past `EndsOn` (design §2.5).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 11: PlannedVisit enums + entity
 - Files: `backend/src/Evo.Domain/Scheduling/PlannedVisitSource.cs`, `backend/src/Evo.Infrastructure/Routing/PlannedVisitStatus.cs`, `backend/src/Evo.Infrastructure/Routing/PlannedVisit.cs`
 - Do: `public enum PlannedVisitSource : byte { Baseline = 1, Patch = 2 }` in **Evo.Domain/Scheduling** (namespace `Evo.Domain.Scheduling`) — the pure `PatchResolver` (Task 21) consumes it. `public enum PlannedVisitStatus : byte { Planned = 1, Done = 2, Missed = 3, Skipped = 4 }` in **Evo.Infrastructure** (entity/status enum). No retroactive enum moves later. `PlannedVisit` entity: `Guid Id`, `Guid RouteId`, `Guid RouteStopId`, `Guid StoreId`, `Guid? MerchandiserId`, `DateOnly VisitDate`, `DateTimeOffset? PlannedStart`, `DateTimeOffset? PlannedEnd`, `PlannedVisitSource Source = PlannedVisitSource.Baseline`, `Guid? PatchId`, `PlannedVisitStatus Status = PlannedVisitStatus.Planned`. (`PlannedVisitSource` is in `Evo.Domain.Scheduling` — add `using Evo.Domain.Scheduling;`). XML doc: materialized calendar projection; future rows regenerated, past frozen (design §2.6).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 12: DecisionJournal + Setting entities
 - Files: `backend/src/Evo.Infrastructure/Routing/DecisionKind.cs`, `backend/src/Evo.Infrastructure/Routing/DecisionJournalEntry.cs`, `backend/src/Evo.Infrastructure/Routing/Setting.cs`
 - Do: `public enum DecisionKind : byte { PublishOverride = 1, Repair = 2, Permanent = 3 }`. `DecisionJournalEntry`: `Guid Id`, `DecisionKind Kind`, `string Description = ""`, `string Reason = ""`, `string Objective = ""`, `string? ErrorsJson`, `Guid? AuthorId`, `DateTimeOffset CreatedAt`. XML doc: the "why" behind publish-with-errors/repairs/permanents; append-only; distinct from `audit_log` (design §11.3, deferred-to-M1 per DECISIONS 2026-07-16). `Setting`: `string Key = ""`, `string RegionId = ""` (empty = global; non-empty = region override — see Task 13), `string ValueJson = ""` (composite key `(Key, RegionId)` configured in Task 13).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 13: EF config + DbSets + settings seed
 - Files: `backend/src/Evo.Infrastructure/EvoDbContext.cs`
 - Do: add DbSets `Assignments`, `Patches`, `PlannedVisits`, `DecisionJournal`, `Settings`. In `OnModelCreating`: `Assignment` — table `assignment`, FK `RouteId`/`MerchandiserId` (no cascade), **two filtered unique indexes**: on `RouteId` `HasFilter("[end_date] IS NULL").IsUnique()`, on `MerchandiserId` `HasFilter("[end_date] IS NULL").IsUnique()`. `Patch` — table `patch`, index `(RouteId, Status, EndsOn)`, `Reason` max length 1000, `ParamsJson` `nvarchar(max)`. `PlannedVisit` — table `planned_visit`, unique index `(RouteStopId, VisitDate)`, index `(MerchandiserId, VisitDate)`. `DecisionJournalEntry` — table `decision_journal`, `Description`/`Reason`/`Objective` max length 2000, `ErrorsJson` `nvarchar(max)`. `Setting` — table `setting`, composite primary key `(Key, RegionId)` where `RegionId` is **non-nullable `string` with an empty-string (`""`) sentinel meaning global** (avoids the nullable-key problem; `SettingsProvider` in Task 28 treats `""` as global and a non-empty value as a region override). Change the `Setting.RegionId` property in Task 12 to `string RegionId = ""` accordingly. `Key` max length 100, `RegionId` max length 50, `ValueJson` `nvarchar(max)`; `HasData` seed the global defaults from spec (daily_work_minutes=450, default_service_minutes=30, day_start="09:00", over_450_tolerance_minutes=0, service_mix_cap_pct=20, plan_horizon_weeks=6, snap_minutes=5, break_blocks as a JSON array of {label,start,end}).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 14: EF migration AddRouting2 + apply
 - Files: `backend/src/Evo.Infrastructure/Migrations/` (generated)
 - Do: `dotnet ef migrations add AddRouting2 -p backend/src/Evo.Infrastructure -s backend/src/Evo.Api`; confirm the generated `Up()` creates `assignment` (both filtered unique indexes with `IS NULL` filters), `patch`, `planned_visit` (unique `(route_stop_id, visit_date)`), `decision_journal`, `setting` (with the `HasData` seed `InsertData` rows). Then `dotnet ef database update` against compose SQL.
 - Verify: migration file shows the two assignment filtered-unique indexes + the settings seed rows; `database update` exits 0; `SELECT * FROM setting` returns the seeded default rows.
-- Status: [ ]
+- Status: [x]
 
 ## Task 15: Assert assignment uniqueness constraints
 - Files: `backend/tests/Evo.Tests/Routing/AssignmentConstraintTests.cs`
 - Do: integration test (`EvoDb_RoutingTests`): create a Route + two Merchandisers; insert an active assignment (route→M1, `EndDate=null`) → ok; a second active assignment for the **same route** (→M2) → assert throws; close the first (`EndDate` set) then assign M2 → ok. Symmetrically: a merchandiser can't hold two active assignments on two routes at once → assert throws.
 - Verify: `dotnet test backend/Evo.sln --filter AssignmentConstraintTests` passes.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 2 CHECKPOINT — HARD STOP: summarize + evidence (build, AddRouting2 migration showing both assignment filtered-unique indexes + settings seed, `database update` applied, constraint test green), commit `feat(005): assignment + patch + planned_visit + decision_journal + settings schema`, numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 
