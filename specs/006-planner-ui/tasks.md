@@ -327,73 +327,73 @@
 - Files: `panel/src/planner/schedule/week.ts`
 - Do: export `currentWeek(): { from: string; to: string }` (ISO Mon–Fri of the current week), plus `prevWeek(from)` and `nextWeek(from)` that shift a given `from` date by ∓7 days and return the new Mon–Fri `{ from, to }` range. These drive the plan query window and the week navigator (clarification #11).
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 45 [P]: Week helper unit test
 - Files: `panel/src/planner/schedule/week.test.ts`
 - Do: Vitest — for a fixed date, assert `currentWeek()` returns the correct Mon–Fri range; `nextWeek(from)` returns the range +7 days; `prevWeek(from)` returns −7 days.
 - Verify: `npm test -- week` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 46: SchedulePane scaffold + plan query (week held in local state)
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: hold the visible week in local state `const [week, setWeek] = useState(currentWeek())`; read `usePlan(focusedRouteId, week.from, week.to)`; render a day-column grid (Mon–Fri) shell with a time axis (day_start 09:00 → ~18:00). Mount into the WorkspaceLayout `schedule` slot.
 - Verify: `npm run dev` → focusing a route shows a 5-day grid with a time axis for the current week.
-- Status: [ ]
+- Status: [x]
 
 ## Task 47: Week navigator (prev / this-week / next)
 - Files: `panel/src/planner/components/schedule/WeekNavigator.tsx`, `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: a header showing the visible week's Mon–Fri date range (formatted `tr-TR`) with **‹ prev** and **next ›** buttons and a **"Bu hafta"** reset button (all labels via `t()`). Wire prev → `setWeek(prevWeek(week.from))`, next → `setWeek(nextWeek(week.from))`, reset → `setWeek(currentWeek())`; the plan query re-runs for the new window.
 - Verify: `npm run dev` → clicking next/prev shifts the visible week (date range + visits update); "Bu hafta" returns to the current week.
-- Status: [ ]
+- Status: [x]
 
 ## Task 48: Time-accurate visit blocks
 - Files: `panel/src/planner/components/schedule/VisitBlock.tsx`, `SchedulePane.tsx`
 - Do: for each `PlanDayDto.visits`, position/size a block by `start`/`end` (top/height from minutes-since-day-start). Label = store name + minutes. `source == Patch` (2) → dashed border. Color by category if available else neutral.
 - Verify: `npm run dev` → visits render as calendar-style blocks at the right times; patched ones dashed.
-- Status: [ ]
+- Status: [x]
 
 ## Task 49: Statutory break blocks
 - Files: `panel/src/planner/schedule/breaks.ts`, `SchedulePane.tsx`
 - Do: a shared constant for the three breaks (lunch 12:30–13:30, tea 10:30–10:45, tea 15:00–15:15 — matching 005's seeded `break_blocks`, clarification #12); render them as locked grey blocks in every day column, non-interactive.
 - Verify: `npm run dev` → grey break blocks appear at the right times in each column.
-- Status: [ ]
+- Status: [x]
 
 ## Task 50: Per-day minutes vs 450
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: each column footer shows `PlanDayDto.plannedMinutes` / 450 with over/under coloring (`theme/tokens` loadStatusColors).
 - Verify: `npm run dev` → each day shows its minutes total, colored.
-- Status: [ ]
+- Status: [x]
 
 ## Task 51: Finding chips per day
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: render `PlanDayDto.findings` as small chips under the affected day, severity-colored (`severityColors`), tooltip = message.
 - Verify: `npm run dev` → a day with an under/over-450 finding shows a chip.
-- Status: [ ]
+- Status: [x]
 
 ## Task 52: Schedule loading/empty/error states
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: handle no focused route (prompt to pick one), loading spinner, error retry, and a draft route with no plan (friendly empty state) — no crash.
 - Verify: `npm run dev` → each state renders cleanly.
-- Status: [ ]
+- Status: [x]
 
 ## Task 53 [P]: Visit-block positioning unit test
 - Files: `panel/src/planner/schedule/position.ts`, `panel/src/planner/schedule/position.test.ts`
 - Do: extract a pure `blockGeometry(start, end, dayStart)` → `{ topPx, heightPx }`; Vitest for a 10:00–10:30 visit vs day_start 09:00.
 - Verify: `npm test -- position` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 54: Mount schedule respecting layout presets
 - Files: `panel/src/planner/PlannerPage.tsx`
 - Do: ensure the `schedule`/`split` layout presets show the SchedulePane and `map` hides it (and vice-versa), via WorkspaceLayout.
 - Verify: `npm run dev` → layout buttons correctly show/hide the schedule.
-- Status: [ ]
+- Status: [x]
 
 ## Task 55: Phase-5 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; schedule renders time-accurate visits, breaks, per-day minutes, findings, and the week navigator shifts weeks.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 5 checkpoint: summarize schedule grid + week navigator, evidence, commit
      `feat(006): time-accurate schedule grid + week navigator (breaks, minutes, findings)`. Manual UI test
