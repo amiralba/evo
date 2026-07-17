@@ -7,10 +7,11 @@ type StoreGeoDto = components['schemas']['StoreGeoDto']
 const SOURCE_ID = 'stores'
 const LAYER_ID = 'stores-circles'
 
+// StoreCategory (backend/src/Evo.Infrastructure/Stores/StoreCategory.cs): 1=Potential, 2=HighValue, 3=Service
 const CATEGORY_STROKE: Record<number, string> = {
-  1: colors.tealDark, // Planlanan
-  2: colors.amberDark, // Değişken
-  3: colors.text2, // Sabit
+  1: colors.amberDark,
+  2: colors.tealDark,
+  3: colors.text2,
 }
 
 export function toFeatureCollection(stores: StoreGeoDto[]): GeoJSON.FeatureCollection {

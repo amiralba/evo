@@ -33,22 +33,40 @@ export function subscribe(listener: Listener): () => void {
   return () => listeners.delete(listener)
 }
 
+let refreshInFlight: Promise<boolean> | null = null
+
 /**
  * Calls POST /auth/refresh directly (not through client.ts's wrapper, to avoid a circular
  * 401-interceptor dependency) using the httpOnly refresh cookie. Shared by AuthContext's
  * mount-time session restore and client.ts's 401 interceptor — both need the exact same
  * "try to get a fresh access token" behavior.
+ *
+ * Concurrent calls dedupe into a single in-flight request (React StrictMode double-invokes
+ * AuthProvider's mount effect in dev, and two callers can otherwise race here). The backend
+ * rotates the refresh token on use and treats a second concurrent use of the same token as
+ * reuse/theft, revoking every refresh token for the user — so an un-deduped race would have
+ * one caller's success immediately invalidated by the other caller's "reuse" failure.
  */
-export async function refreshSession(): Promise<boolean> {
-  const response = await fetch('/api/v1/auth/refresh', {
-    method: 'POST',
-    credentials: 'include',
-  })
-  if (!response.ok) {
-    clearSession()
-    return false
+export function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight
   }
-  const body = (await response.json()) as { accessToken: string; user: MeResponse }
-  setSession(body.accessToken, body.user)
-  return true
+
+  refreshInFlight = (async () => {
+    const response = await fetch('/api/v1/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      clearSession()
+      return false
+    }
+    const body = (await response.json()) as { accessToken: string; user: MeResponse }
+    setSession(body.accessToken, body.user)
+    return true
+  })()
+
+  return refreshInFlight.finally(() => {
+    refreshInFlight = null
+  })
 }

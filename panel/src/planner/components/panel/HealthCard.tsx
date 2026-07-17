@@ -12,7 +12,7 @@ const WEEKDAY_LABEL: Record<string, string> = {
   Thursday: 'Per',
   Friday: 'Cum',
 }
-const CATEGORY_LABEL: Record<string, string> = { Planned: 'P', Variable: 'V', Service: 'S', Potential: 'Pot' }
+const CATEGORY_LABEL: Record<string, string> = { Potential: 'Potansiyel', HighValue: 'Yüksek Değer', Service: 'Servis' }
 const DONUT_COLORS = [colors.teal, colors.amber, colors.grayMid, colors.blue]
 
 interface HealthCardProps {
