@@ -34,7 +34,12 @@
     "startsOn": "Başlangıç",
     "endsOn": "Bitiş (zorunlu)",
     "reason": "Neden",
-    "patchExpiryRequired": "Bir bitiş tarihi zorunludur ve başlangıçtan önce olamaz."
+    "patchExpiryRequired": "Bir bitiş tarihi zorunludur ve başlangıçtan önce olamaz.",
+    "publishReview": "Yayın öncesi inceleme",
+    "noFindings": "Doğrulama bulgusu yok.",
+    "objective": "Amaç",
+    "visitsMaterialized": "Oluşturulan ziyaret sayısı",
+    "decisionRecorded": "Karar kaydedildi"
   },
   "common": {
     "clear": "Temizle",
@@ -42,6 +47,7 @@
     "save": "Kaydet",
     "publish": "Yayınla",
     "loading": "Yükleniyor…",
-    "loadError": "Yüklenemedi. Tekrar deneyin."
+    "loadError": "Yüklenemedi. Tekrar deneyin.",
+    "close": "Kapat"
   }
 }

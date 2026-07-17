@@ -488,55 +488,55 @@
 - Files: `panel/src/planner/components/publish/PublishModal.tsx`
 - Do: modal opened by a "Yayınla" button in the panel/toolbar; on open fetch `validateRoute(id)` (or reuse `useHealth`) and list findings grouped by severity (🔴 errors, 🟡 warnings), each with code + message.
 - Verify: `npm run dev` → clicking Publish opens the modal listing the route's findings.
-- Status: [ ]
+- Status: [x]
 
 ## Task 68: Clean publish path (no errors)
 - Files: `panel/src/planner/components/publish/PublishModal.tsx`
 - Do: when `errorCount == 0`, the Publish button calls `usePublish(id, {})`; on success show `visitsMaterialized` (`t()`) and a close button.
 - Verify: `npm run dev` → publishing an error-free route succeeds and shows the materialized count.
-- Status: [ ]
+- Status: [x]
 
 ## Task 69: Override-with-reason gate
 - Files: `panel/src/planner/components/publish/PublishModal.tsx`
 - Do: when `errorCount > 0`, show required `reason` + `objective` textareas; the Publish button stays disabled until both non-empty (mirrors backend 422); submit passes them to `usePublish`.
 - Verify: `npm run dev` → publishing a route with errors requires both fields before enabling.
-- Status: [ ]
+- Status: [x]
 
 ## Task 70: Override result display
 - Files: `panel/src/planner/components/publish/PublishModal.tsx`
 - Do: on override success show `overrodeErrors: true` + the `decisionJournalId` (`t('planner.decisionRecorded')`).
 - Verify: `npm run dev` → overriding shows the recorded-decision confirmation with an id.
-- Status: [ ]
+- Status: [x]
 
 ## Task 71: Post-publish invalidation
 - Files: `panel/src/planner/api/mutations.ts`, `PublishModal.tsx`
 - Do: confirm `usePublish.onSuccess` invalidates `['route', id]`, `['plan', id]`, `['health', id]`; close the modal after success so the workspace reflects the published plan.
 - Verify: `npm run dev` → after publish, the schedule/health refresh without a manual reload.
-- Status: [ ]
+- Status: [x]
 
 ## Task 72: Publish button placement + guards
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`
 - Do: add the "Yayınla" button to the panel header, disabled when no route is focused or a publish is in flight (`isPending`).
 - Verify: `npm run dev` → button disabled with no focus, spinner/disabled while publishing.
-- Status: [ ]
+- Status: [x]
 
 ## Task 73 [P]: PublishModal unit test
 - Files: `panel/src/planner/components/publish/PublishModal.test.tsx`
 - Do: Vitest — with mocked findings containing an error, assert Publish is disabled until reason+objective filled; with no errors, assert Publish is enabled immediately.
 - Verify: `npm test -- PublishModal` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 74: Publish i18n keys
 - Files: `panel/src/i18n/locales/tr.json`
 - Do: add all publish strings via `t()` (title, reason/objective labels, success/override messages, warnings).
 - Verify: no hardcoded Turkish in `publish/`; `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 75: Phase-7 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; both publish paths (clean + override) work and refresh the workspace.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 7 checkpoint: summarize publish flow, evidence, commit
      `feat(006): publish flow — review modal + override-with-reason gate`. Manual UI test script: 1) focus a

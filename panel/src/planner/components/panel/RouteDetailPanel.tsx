@@ -5,6 +5,7 @@ import { useRoute } from '../../api/queries'
 import { StopsList } from './StopsList'
 import { HealthCard } from './HealthCard'
 import { PatchForm } from '../editing/PatchForm'
+import { PublishModal } from '../publish/PublishModal'
 import { colors, spacing, radius, fontSize } from '../../../theme/tokens'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
@@ -14,6 +15,7 @@ export function RouteDetailPanel() {
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
   const { data: route, isLoading, isError } = useRoute(focusedRouteId)
   const [showPatchForm, setShowPatchForm] = useState(false)
+  const [showPublishModal, setShowPublishModal] = useState(false)
 
   if (!focusedRouteId) {
     return (
@@ -51,6 +53,13 @@ export function RouteDetailPanel() {
           >
             {route.status !== undefined ? (STATUS_LABEL[route.status] ?? route.status) : '—'}
           </span>
+          <button
+            type="button"
+            onClick={() => setShowPublishModal(true)}
+            style={{ marginLeft: 'auto', borderRadius: radius.md, background: colors.blue, color: 'white', border: 'none', padding: `${spacing.sm} ${spacing.lg}` }}
+          >
+            {t('common.publish', 'Yayınla')}
+          </button>
         </div>
         <div style={{ color: colors.text2, fontSize: fontSize.md }}>{route.name}</div>
         <div style={{ color: colors.text3, fontSize: fontSize.sm, marginTop: spacing.xs }}>
@@ -68,6 +77,9 @@ export function RouteDetailPanel() {
       </div>
       {showPatchForm && (
         <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
+      )}
+      {showPublishModal && (
+        <PublishModal routeId={focusedRouteId} onClose={() => setShowPublishModal(false)} />
       )}
     </div>
   )
