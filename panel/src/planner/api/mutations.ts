@@ -6,6 +6,7 @@ type BulkAddStopsRequest = components['schemas']['BulkAddStopsRequest']
 type UpdateStopRequest = components['schemas']['UpdateStopRequest']
 type CreatePatchRequest = components['schemas']['CreatePatchRequest']
 type PublishRequest = components['schemas']['PublishRequest']
+type PatchTaskInstanceRequest = components['schemas']['PatchTaskInstanceRequest']
 
 function invalidateRoute(queryClient: ReturnType<typeof useQueryClient>, routeId: string, province: string) {
   void queryClient.invalidateQueries({ queryKey: ['route', routeId] })
@@ -90,5 +91,19 @@ export function usePublish(routeId: string, province: string) {
   return useMutation({
     mutationFn: (body: PublishRequest) => planner.publishRoute(routeId, body),
     onSuccess: () => invalidateRoute(queryClient, routeId, province),
+  })
+}
+
+/** Invalidates the schedule/health for the owning route plus this store's task-plan cache, so the
+ * grid, health card, and Görevler tab all reflect the new resolved minutes (design §6.4 save flow). */
+export function useUpdateTaskInstanceScope(routeId: string, province: string, storeId: string, date: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ taskInstanceId, body }: { taskInstanceId: string; body: PatchTaskInstanceRequest }) =>
+      planner.updateTaskInstanceScope(taskInstanceId, body),
+    onSuccess: () => {
+      invalidateRoute(queryClient, routeId, province)
+      void queryClient.invalidateQueries({ queryKey: ['store-task-plan', storeId, date] })
+    },
   })
 }

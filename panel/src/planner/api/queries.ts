@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import * as planner from '../../api/planner'
+import type { RuleImpactParams } from '../../api/planner'
 import type { components } from '../../api/generated/schema'
 
 type RouteStatus = components['schemas']['RouteStatus']
@@ -51,5 +52,31 @@ export function useRouteAuditLog(enabled: boolean) {
     queryKey: ['route-audit-log'],
     queryFn: () => planner.getRouteAuditLog(),
     enabled,
+  })
+}
+
+export function useStoreDetail(storeId: string | null) {
+  return useQuery({
+    queryKey: ['store-detail', storeId],
+    queryFn: () => planner.getStoreDetail(storeId!),
+    enabled: Boolean(storeId),
+  })
+}
+
+export function useStoreTaskPlan(storeId: string | null, date: string) {
+  return useQuery({
+    queryKey: ['store-task-plan', storeId, date],
+    queryFn: () => planner.getStoreTaskPlan(storeId!, date),
+    enabled: Boolean(storeId && date),
+  })
+}
+
+/** Enabled only once the scope modal has a concrete candidate rule to preview (design §6.4 impact
+ * preview) — never fetched just from opening the modal. */
+export function useRuleImpact(params: RuleImpactParams | null) {
+  return useQuery({
+    queryKey: ['rule-impact', params],
+    queryFn: () => planner.getRuleImpact(params!),
+    enabled: Boolean(params),
   })
 }

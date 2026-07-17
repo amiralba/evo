@@ -5,6 +5,7 @@ import { useRoute } from '../../api/queries'
 import { StopsList } from './StopsList'
 import { HealthCard } from './HealthCard'
 import { HistoryTab } from './HistoryTab'
+import { TasksTab } from './TasksTab'
 import { PatchForm } from '../editing/PatchForm'
 import { PublishModal } from '../publish/PublishModal'
 
@@ -19,6 +20,7 @@ export function RouteDetailPanel() {
   const [showPatchForm, setShowPatchForm] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [tab, setTab] = useState<PanelTab>('info')
+  const [focusedStopId, setFocusedStopId] = useState<string | null>(null)
 
   if (!focusedRouteId) {
     return (
@@ -89,7 +91,32 @@ export function RouteDetailPanel() {
           </>
         )}
 
-        {tab === 'tasks' && <div className="empty">{t('planner.tasksComingM2', 'Görev/kural motoru M2 kapsamında gelecek.')}</div>}
+        {tab === 'tasks' && (() => {
+          const stops = route.stops ?? []
+          if (stops.length === 0) {
+            return <div className="empty">{t('planner.noStops', 'Bu rotada durak yok.')}</div>
+          }
+          const selectedStop = stops.find((s) => s.id === focusedStopId) ?? stops[0]
+          const today = new Date().toISOString().slice(0, 10)
+          return (
+            <>
+              <select
+                value={selectedStop.id}
+                onChange={(e) => setFocusedStopId(e.target.value)}
+                style={{ marginBottom: 10, width: '100%' }}
+              >
+                {stops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.storeName}
+                  </option>
+                ))}
+              </select>
+              {selectedStop.storeId && (
+                <TasksTab routeId={focusedRouteId} storeId={selectedStop.storeId} date={today} />
+              )}
+            </>
+          )
+        })()}
 
         {tab === 'history' && <HistoryTab routeId={focusedRouteId} />}
       </div>

@@ -222,13 +222,24 @@ public class StoresController : ControllerBase
             .Where(t => templateIds.Contains(t.Id))
             .ToDictionaryAsync(t => t.Id, t => t.Name);
 
+        var plannedVisitId = await _db.PlannedVisits
+            .Where(v => v.StoreId == id && v.VisitDate == date)
+            .Select(v => (Guid?)v.Id)
+            .FirstOrDefaultAsync();
+        var instanceIdByTemplateId = plannedVisitId is null
+            ? new Dictionary<Guid, Guid>()
+            : await _db.TaskInstances
+                .Where(ti => ti.PlannedVisitId == plannedVisitId)
+                .ToDictionaryAsync(ti => ti.TaskTemplateId, ti => ti.Id);
+
         var taskDtos = resolved
             .Select(r => new ResolvedTaskDto(
                 r.TaskTemplateId,
                 r.Code,
                 namesByTemplateId.GetValueOrDefault(r.TaskTemplateId, r.Code),
                 r.Minutes,
-                r.Trace.Select(t => new SourceTraceStepDto(t.Layer, t.Op.ToString(), t.BeforeMinutes, t.AfterMinutes)).ToList()))
+                r.Trace.Select(t => new SourceTraceStepDto(t.Layer, t.Op.ToString(), t.BeforeMinutes, t.AfterMinutes)).ToList(),
+                instanceIdByTemplateId.GetValueOrDefault(r.TaskTemplateId) is { } instanceId && instanceId != Guid.Empty ? instanceId : null))
             .ToList();
 
         return new TaskPlanDto(id, date, taskDtos.Sum(t => t.Minutes), taskDtos);

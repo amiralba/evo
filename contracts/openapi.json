@@ -2613,6 +2613,11 @@
               "$ref": "#/components/schemas/SourceTraceStepDto"
             },
             "nullable": true
+          },
+          "taskInstanceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         },
         "additionalProperties": false

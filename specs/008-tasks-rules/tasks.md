@@ -290,61 +290,61 @@
 - Files: `panel/src/i18n/locales/tr.json`
 - Do: add keys — `planner.taskSource.*` (template/chain/format/route/store/manual labels), `planner.taskDuration`, `planner.applyScope.thisVisit/thisStore/allFormat`, `planner.impactPreview.*`, `planner.visitTotal`. Remove `planner.tasksComingM2`.
 - Verify: `cd panel && npm run lint`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 46 [P]: task-plan query hook
 - Files: `panel/src/planner/api/queries.ts`
 - Do: add `useStoreTaskPlan(storeId, date)` (TanStack Query → generated `GET /stores/{id}/task-plan`) and `useRuleImpact(params)` (lazy/enabled-on-demand).
 - Verify: `cd panel && npm run build` type-checks.
-- Status: [ ]
+- Status: [x]
 
 ## Task 47: TasksTab component (replaces empty state)
 - Files: `panel/src/planner/components/panel/TasksTab.tsx`
 - Do: render the resolved task list — each row: task name, duration, a source pill (from the last trace step's layer). Footer: visit total + day badge. Loading/empty/error states matching existing panel style.
 - Verify: `cd panel && npm run build`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 48: Wire TasksTab into RouteDetailPanel
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`
 - Do: replace line 92 empty state with `<TasksTab storeId={...} date={...} />` (store/date from the focused visit selection).
 - Verify: `cd panel && npm run build`; Görevler tab renders a list.
-- Status: [ ]
+- Status: [x]
 
 ## Task 49: TaskScopeModal — duration edit + scope choice
 - Files: `panel/src/planner/components/panel/TaskScopeModal.tsx`
 - Do: opened by clicking a task's duration; radio scope (this visit / this store / all {format}); on scope change fetch `useRuleImpact` and show the preview (stores, visits/week, Δmin/week, days over 450); Save calls `PATCH /task-instances/{id}` with the chosen scope.
 - Verify: `cd panel && npm run build`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 50: Refresh schedule/health after save
 - Files: `panel/src/planner/components/panel/TaskScopeModal.tsx`, `panel/src/planner/api/queries.ts`
 - Do: on save success, invalidate plan + health + task-plan queries so the grid/health/Görevler reflect new minutes.
 - Verify: manual — edit a duration, day total updates in the schedule pane.
-- Status: [ ]
+- Status: [x]
 
 ## Task 51: Rule Inspector detail (trace popover)
 - Files: `panel/src/planner/components/panel/TasksTab.tsx`
 - Do: clicking a source pill expands the full trace (template default → each rule → override) with the arithmetic, per design §6.4/§7.5.2.
 - Verify: `cd panel && npm run build`; manual — trace shows the ladder.
-- Status: [ ]
+- Status: [x]
 
 ## Task 52 [P]: TasksTab Vitest
 - Files: `panel/src/planner/components/panel/TasksTab.test.tsx`
 - Do: mock `GET /stores/{id}/task-plan`; assert rows render with duration + source pill and the visit total is the sum.
 - Verify: `cd panel && npm test -- TasksTab` green.
-- Status: [ ]
+- Status: [x]
 
 ## Task 53 [P]: TaskScopeModal Vitest
 - Files: `panel/src/planner/components/panel/TaskScopeModal.test.tsx`
 - Do: assert scope radios render, impact preview appears on scope select (mocked), Save calls PATCH with the chosen scope.
 - Verify: `cd panel && npm test -- TaskScopeModal` green.
-- Status: [ ]
+- Status: [x]
 
 ## Task 54: Playwright — Görevler flow smoke
 - Files: `panel/e2e/tasks-tab.spec.ts`
 - Do: log in, focus a route/visit, open Görevler, assert a non-empty task list with source pills; open the scope modal and assert the impact preview appears.
 - Verify: `cd panel && npx playwright test tasks-tab` green.
-- Status: [ ]
+- Status: [x]
 
 ## Phase 7 — Docs + close-out
 

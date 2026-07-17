@@ -48,8 +48,32 @@
     "tabInfo": "Bilgi",
     "tabTasks": "Görevler",
     "tabHistory": "Geçmiş",
-    "tasksComingM2": "Görev/kural motoru M2 kapsamında gelecek.",
-    "noHistory": "Bu rota için henüz geçmiş kaydı yok."
+    "noHistory": "Bu rota için henüz geçmiş kaydı yok.",
+    "noTasks": "Bu ziyaret için görev bulunamadı.",
+    "visitTotal": "Ziyaret toplamı",
+    "taskDuration": "Süre",
+    "selectStop": "Durak",
+    "taskSource": {
+      "template": "Şablon",
+      "chain": "Zincir",
+      "format": "Format",
+      "route": "Rut",
+      "store": "Mağaza",
+      "manual": "Manuel"
+    },
+    "applyScope": {
+      "title": "Kapsam seç",
+      "thisVisit": "Sadece bu ziyaret",
+      "thisStore": "Bu mağaza için (bundan sonra)",
+      "allFormat": "Tüm {{format}} formatındaki mağazalar için"
+    },
+    "impactPreview": {
+      "title": "Etki önizlemesi",
+      "stores": "mağaza",
+      "visitsPerWeek": "haftalık ziyaret",
+      "deltaMinutesPerWeek": "haftalık dk değişimi",
+      "daysOver450": "450 dk üzeri gün"
+    }
   },
   "common": {
     "clear": "Temizle",
