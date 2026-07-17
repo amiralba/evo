@@ -6,6 +6,8 @@ type StoreGeoDto = components['schemas']['StoreGeoDto']
 
 const SOURCE_ID = 'stores'
 const LAYER_ID = 'stores-circles'
+const ROUTE_LINE_SOURCE_ID = 'route-sequence'
+const ROUTE_LINE_LAYER_ID = 'route-sequence-line'
 
 // StoreCategory (backend/src/Evo.Infrastructure/Stores/StoreCategory.cs): 1=Potential, 2=HighValue, 3=Service
 const CATEGORY_STROKE: Record<number, string> = {
@@ -62,6 +64,41 @@ export function upsertStoreLayer(map: maplibregl.Map, stores: StoreGeoDto[], foc
   }
 
   applyFocusPaint(map, focusedRouteId)
+}
+
+/** Draws the focused route's stop-to-stop polyline in sequence order. `coordinates` must
+ * already be ordered by RouteStopDto.sequence. */
+export function upsertRouteLine(map: maplibregl.Map, coordinates: [number, number][]) {
+  const data: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features:
+      coordinates.length >= 2
+        ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates }, properties: {} }]
+        : [],
+  }
+
+  const existingSource = map.getSource(ROUTE_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+  if (existingSource) {
+    existingSource.setData(data)
+  } else {
+    map.addSource(ROUTE_LINE_SOURCE_ID, { type: 'geojson', data })
+  }
+
+  if (!map.getLayer(ROUTE_LINE_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: ROUTE_LINE_LAYER_ID,
+        type: 'line',
+        source: ROUTE_LINE_SOURCE_ID,
+        paint: {
+          'line-color': colors.blueDark,
+          'line-width': 2,
+          'line-dasharray': [2, 1],
+        },
+      },
+      LAYER_ID,
+    )
+  }
 }
 
 export function applyFocusPaint(map: maplibregl.Map, focusedRouteId: string | null) {

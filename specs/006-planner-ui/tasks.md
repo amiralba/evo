@@ -633,43 +633,52 @@
 - Files: `panel/src/planner/components/TopFilterBar.tsx`, `panel/src/planner/PlannerPage.tsx`
 - Do: match the prototype's top bar (`#topbar`, line ~296-317): app name + version left, province/route/week controls center-left, layout toggle group, right-aligned search + Yayınla + icon buttons. Match spacing/border/font-size exactly, not approximately.
 - Verify: `npm run dev` → side-by-side with the prototype screenshot, top bar matches (spacing, borders, button styles).
-- Status: [ ]
+- Status: [x]
 
 ## Task 88: Route rail parity
 - Files: `panel/src/planner/components/RouteRail.tsx`
 - Do: match the prototype's `#leftPane`/rail rows (line ~110-... `.rutItem`-style rows): route code + assignee + revenue + warning icon + stop count, "Havuz (N)" pool section, "+ Yeni rut" button. Add the pool-count badge next to "Rutlar/Havuz" tabs if present in the prototype.
 - Verify: `npm run dev` → rail matches the prototype's route-list density and iconography.
-- Status: [ ]
+- Status: [x]
 
 ## Task 89: Map pane parity — numbered markers + route polylines
 - Files: `panel/src/planner/components/map/storeLayer.ts`, `MapPane.tsx`
 - Do: add a `symbol` layer showing each stop's sequence number on its marker when a route is focused (matching the prototype's numbered circles), and a `line` layer drawing the focused route's stop-to-stop polyline in sequence order. Match the prototype's pane-head bar (`HARİTA — pin: tıkla · ...`) styling.
 - Verify: `npm run dev` → focusing a route shows numbered pins connected by a polyline, matching the prototype's map pane.
-- Status: [ ]
+- Status: [x]
 
 ## Task 90: Schedule pane parity
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`, `VisitBlock.tsx`, `WeekNavigator.tsx`
 - Do: match the prototype's `TAKVİM` pane-head bar and per-person day-grid layout (each merchandiser gets their own row of day columns, not one grid per route) if that's how multi-person routes render in the prototype; match visit-block styling (colored left-bar, category dot, minutes badge) and the compact weekday+error/warning-count header (`Pzt 🔴2`).
 - Verify: `npm run dev` → schedule pane's block styling and per-person layout matches the prototype.
-- Status: [ ]
+- Status: [~] PARTIAL (2026-07-17) — ported `.pane-head`/`.day-cell`/`.day-total`/`.vblock`/`.brk` classes
+  1:1 from the prototype's CSS (colors, borders, radii). NOT done: per-person swimlane rows (each
+  merchandiser gets their own row of day columns in the prototype; 006's schedule renders one grid
+  per ROUTE instead, since a route may have zero or one active assignment in our data model —
+  needs product input on how to handle unassigned/multi-person routes before porting this
+  structural piece). Follow-up task.
 
 ## Task 91: Detail panel + health card parity
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`, `HealthCard.tsx`, `StopsList.tsx`
 - Do: match the prototype's `Detay` panel (tabs: Bilgi/Görevler/Geçmiş — Bilgi active by default; empty state copy), and the compact health-metric layout (single-line "Ciro: X / Y" + inline bar, "Haftalık dakika" mini-bar row per weekday, "Karışım" donut with legend chips below).
 - Verify: `npm run dev` → detail panel tabs + health metrics match the prototype's density and layout.
-- Status: [ ]
+- Status: [~] PARTIAL (2026-07-17) — ported `.panel-head`/`.panel-body`/`.pill`/`.empty` classes,
+  width now 250px matching the prototype exactly, single-line Ciro bar layout. NOT done: the
+  Bilgi/Görevler/Geçmiş tab switcher (only Bilgi's content exists — Görevler/Geçmiş have no backing
+  data yet, e.g. no task-instance or route-change-log UI). Follow-up task once those data sources
+  are wired.
 
 ## Task 92: Global palette + typography audit
 - Files: `panel/src/theme/tokens.ts` (extend if the prototype's CSS has tokens not yet captured), all `panel/src/planner/**` components
 - Do: diff every color/spacing/font-size literal used in planner components against the prototype's actual `:root` CSS vars and computed styles; fix mismatches. Confirm the type scale (9-15px) and spacing scale (2-14px) are used consistently, not ad hoc pixel values.
 - Verify: `grep -rnE "font-size:\s*[0-9]" panel/src/planner` shows no raw literals outside `theme/tokens.ts` reads; visual spot-check against prototype for at least the map, schedule, and detail panes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 93: Phase-9 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; a full side-by-side comparison against `evo-planner-prototype-v0.5.html` for the Bölünmüş layout shows no unintentional visual differences.
-- Status: [ ]
+- Status: [x]
 
 <!-- FINAL PHASE — run /end-session instead of a plain checkpoint (CLAUDE.md rule 3d). Summarize the whole
      006 spec (geo API + batch reorder + 8 UI phases + visual-parity pass), show the full green suite + a

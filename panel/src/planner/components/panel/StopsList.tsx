@@ -77,11 +77,7 @@ export function StopsList({ routeId, stops }: StopsListProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
   if (ordered.length === 0) {
-    return (
-      <div style={{ padding: spacing.xl, color: colors.text3, fontSize: fontSize.md }}>
-        {t('planner.noStops', 'Bu rotada durak yok.')}
-      </div>
-    )
+    return <div className="empty">{t('planner.noStops', 'Bu rotada durak yok.')}</div>
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -97,7 +93,7 @@ export function StopsList({ routeId, stops }: StopsListProps) {
   const editingStop = ordered.find((s) => s.id === editingStopId) ?? null
 
   return (
-    <div style={{ padding: spacing.xl }}>
+    <div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ordered.map((s) => s.id ?? '')} strategy={verticalListSortingStrategy}>
           {ordered.map((stop) => (

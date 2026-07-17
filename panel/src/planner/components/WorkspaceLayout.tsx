@@ -42,7 +42,7 @@ export function WorkspaceLayout({ map, schedule, bottom }: WorkspaceLayoutProps)
         style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}
       >
         {showMap && (
-          <div style={{ flexBasis: layout === 'split' ? `${splitPct}%` : '100%', minWidth: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flexBasis: layout === 'split' ? `${splitPct}%` : '100%', minWidth: 0, overflow: 'hidden' }}>
             {map}
           </div>
         )}
@@ -60,6 +60,7 @@ export function WorkspaceLayout({ map, schedule, bottom }: WorkspaceLayoutProps)
         {showSchedule && (
           <div
             style={{
+              display: 'flex',
               flexBasis: layout === 'split' ? `${100 - splitPct}%` : '100%',
               minWidth: 0,
               overflow: 'hidden',

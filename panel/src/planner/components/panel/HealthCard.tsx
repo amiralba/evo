@@ -47,7 +47,7 @@ export function HealthCard({ routeId }: HealthCardProps) {
   const mixData = mixEntries.map(([key, value]) => ({ name: CATEGORY_LABEL[key] ?? key, value }))
 
   return (
-    <div style={{ padding: spacing.xl, borderBottom: `1px solid ${colors.border}` }}>
+    <div style={{ paddingBottom: spacing.lg, borderBottom: '1px solid var(--border)', marginBottom: spacing.lg }}>
       <div style={{ fontSize: fontSize.sm, color: colors.text2, marginBottom: spacing.xs }}>
         {t('planner.revenue', 'Ciro')}: {formatTRY(revenue)} / {formatTRY(target)}
       </div>

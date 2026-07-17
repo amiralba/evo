@@ -1,6 +1,5 @@
 import type { components } from '../../../api/generated/schema'
 import { blockGeometry } from '../../schedule/position'
-import { colors, spacing, radius, fontSize } from '../../../theme/tokens'
 import { formatMinutes } from '../../format'
 
 type PlannedVisitDto = components['schemas']['PlannedVisitDto']
@@ -10,6 +9,8 @@ interface VisitBlockProps {
   dayStartMinutes: number
 }
 
+/** Category isn't on PlannedVisitDto (005's plan endpoint doesn't join it), so blocks default
+ * to the prototype's "catS" (neutral) styling until that's threaded through — see Phase 9 follow-up. */
 export function VisitBlock({ visit, dayStartMinutes }: VisitBlockProps) {
   if (!visit.start || !visit.end) return null
 
@@ -19,25 +20,12 @@ export function VisitBlock({ visit, dayStartMinutes }: VisitBlockProps) {
 
   return (
     <div
-      style={{
-        position: 'absolute',
-        top: topPx,
-        height: heightPx,
-        left: 2,
-        right: 2,
-        borderRadius: radius.sm,
-        border: `1px ${isPatch ? 'dashed' : 'solid'} ${colors.blueDark}`,
-        background: colors.blueLight,
-        color: colors.blueDark,
-        fontSize: fontSize.xs,
-        padding: `1px ${spacing.sm}`,
-        overflow: 'hidden',
-        whiteSpace: 'nowrap',
-        textOverflow: 'ellipsis',
-      }}
+      className={`vblock catS${isPatch ? ' patched' : ''}`}
+      style={{ top: topPx, height: heightPx }}
       title={`${visit.storeName ?? ''} — ${formatMinutes(minutes)}`}
     >
-      {visit.storeName} · {formatMinutes(minutes)}
+      <div className="t">{visit.storeName}</div>
+      <div className="s">{formatMinutes(minutes)}</div>
     </div>
   )
 }

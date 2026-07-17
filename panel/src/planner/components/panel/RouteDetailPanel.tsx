@@ -6,7 +6,6 @@ import { StopsList } from './StopsList'
 import { HealthCard } from './HealthCard'
 import { PatchForm } from '../editing/PatchForm'
 import { PublishModal } from '../publish/PublishModal'
-import { colors, spacing, radius, fontSize } from '../../../theme/tokens'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
 
@@ -19,69 +18,61 @@ export function RouteDetailPanel() {
 
   if (!focusedRouteId) {
     return (
-      <div style={{ padding: spacing.xl, color: colors.text3, fontSize: fontSize.md }}>
-        {t('planner.noRouteFocused', 'Haritadan veya listeden bir rota seçin.')}
-      </div>
+      <>
+        <div className="panel-head">
+          <div className="ttl">{t('planner.detail', 'Detay')}</div>
+          <div className="sub">{t('planner.detailEmptySub', 'Bir mağaza, rut veya kişi seç')}</div>
+        </div>
+        <div className="empty">{t('planner.noRouteFocused', 'Haritadan veya listeden bir rota seçin.')}</div>
+      </>
     )
   }
 
   if (isLoading) {
-    return <div style={{ padding: spacing.xl, fontSize: fontSize.md }}>{t('common.loading', 'Yükleniyor…')}</div>
+    return <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>
   }
 
   if (isError || !route) {
-    return (
-      <div style={{ padding: spacing.xl, color: colors.redDark, fontSize: fontSize.md }}>
-        {t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}
-      </div>
-    )
+    return <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
-      <div style={{ padding: spacing.xl, borderBottom: `1px solid ${colors.border}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
-          <strong style={{ fontSize: fontSize.xl }}>{route.routeCode}</strong>
-          <span
-            style={{
-              fontSize: fontSize.xs,
-              padding: `1px ${spacing.sm}`,
-              borderRadius: radius.pill,
-              background: colors.grayLight,
-              color: colors.text2,
-            }}
-          >
-            {route.status !== undefined ? (STATUS_LABEL[route.status] ?? route.status) : '—'}
-          </span>
+    <>
+      <div className="panel-head">
+        <div className="ttl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {route.routeCode}
+          <span className="pill">{route.status !== undefined ? (STATUS_LABEL[route.status] ?? route.status) : '—'}</span>
           <button
             type="button"
+            className="primary"
             data-testid="publish-trigger"
             onClick={() => setShowPublishModal(true)}
-            style={{ marginLeft: 'auto', borderRadius: radius.md, background: colors.blue, color: 'white', border: 'none', padding: `${spacing.sm} ${spacing.lg}` }}
+            style={{ marginLeft: 'auto' }}
           >
             {t('common.publish', 'Yayınla')}
           </button>
         </div>
-        <div style={{ color: colors.text2, fontSize: fontSize.md }}>{route.name}</div>
-        <div style={{ color: colors.text3, fontSize: fontSize.sm, marginTop: spacing.xs }}>
-          {route.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}
+        <div className="sub">{route.name}</div>
+        <div className="sub">{route.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}</div>
+      </div>
+
+      <div className="panel-body">
+        <HealthCard routeId={focusedRouteId} />
+        <StopsList routeId={focusedRouteId} stops={route.stops ?? []} />
+
+        <div style={{ marginTop: 10 }}>
+          <button type="button" onClick={() => setShowPatchForm((v) => !v)}>
+            {t('planner.addPatch', '+ Yama ekle')}
+          </button>
         </div>
+        {showPatchForm && (
+          <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
+        )}
       </div>
 
-      <HealthCard routeId={focusedRouteId} />
-      <StopsList routeId={focusedRouteId} stops={route.stops ?? []} />
-
-      <div style={{ padding: spacing.xl }}>
-        <button type="button" onClick={() => setShowPatchForm((v) => !v)}>
-          {t('planner.addPatch', '+ Yama ekle')}
-        </button>
-      </div>
-      {showPatchForm && (
-        <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
-      )}
       {showPublishModal && (
         <PublishModal routeId={focusedRouteId} onClose={() => setShowPublishModal(false)} />
       )}
-    </div>
+    </>
   )
 }

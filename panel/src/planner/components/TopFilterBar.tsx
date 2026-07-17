@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore, type WorkspaceLayout } from '../state/workspaceStore'
 import { useRoutes } from '../api/queries'
-import { colors, spacing, radius, fontSize } from '../../theme/tokens'
 
 const PROVINCES = ['Adana', 'Ankara', 'İstanbul', 'İzmir', 'Bursa']
 const LAYOUTS: { key: WorkspaceLayout; label: string }[] = [
@@ -22,18 +21,10 @@ export function TopFilterBar() {
   const { data: routesPage } = useRoutes(province)
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: spacing.xl,
-        padding: `${spacing.lg} ${spacing.xl}`,
-        borderBottom: `1px solid ${colors.border}`,
-        background: colors.card,
-        fontSize: fontSize.md,
-      }}
-    >
-      <strong>{t('planner.title')}</strong>
+    <div className="topbar">
+      <span className="logo">
+        EVO · {t('planner.title')} <span className="pill">v0.6</span>
+      </span>
 
       <select value={province} onChange={(e) => setProvince(e.target.value)} aria-label="province">
         {PROVINCES.map((p) => (
@@ -56,25 +47,15 @@ export function TopFilterBar() {
         ))}
       </select>
 
-      <div style={{ display: 'flex', gap: spacing.sm, marginLeft: 'auto' }}>
+      <div className="seg" id="layoutSeg">
         {LAYOUTS.map((l) => (
-          <button
-            key={l.key}
-            type="button"
-            onClick={() => setLayout(l.key)}
-            style={{
-              padding: `${spacing.sm} ${spacing.lg}`,
-              borderRadius: radius.md,
-              border: `1px solid ${colors.border}`,
-              background: layout === l.key ? colors.blueLight : colors.card,
-              color: layout === l.key ? colors.blueDark : colors.text,
-              cursor: 'pointer',
-            }}
-          >
+          <button key={l.key} type="button" className={layout === l.key ? 'on' : ''} onClick={() => setLayout(l.key)}>
             {l.label}
           </button>
         ))}
       </div>
+
+      <div className="spacer" />
     </div>
   )
 }

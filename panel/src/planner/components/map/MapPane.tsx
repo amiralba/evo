@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type maplibregl from 'maplibre-gl'
+import maplibregl from 'maplibre-gl'
 import { useWorkspaceStore } from '../../state/workspaceStore'
-import { useStoresGeo } from '../../api/queries'
+import { useStoresGeo, useRoute } from '../../api/queries'
 import { useMapLibre } from './useMapLibre'
-import { upsertStoreLayer, applyFocusPaint } from './storeLayer'
+import { upsertStoreLayer, applyFocusPaint, upsertRouteLine } from './storeLayer'
 import { StorePopover } from './StorePopover'
 import { LassoTool } from './LassoTool'
 import { useBulkAddStops, useMoveStoreToRoute } from '../../api/mutations'
@@ -23,9 +23,11 @@ export function MapPane() {
   const province = useWorkspaceStore((s) => s.province)
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
   const { data: stores } = useStoresGeo(province)
+  const { data: focusedRoute } = useRoute(focusedRouteId)
   const [popover, setPopover] = useState<PopoverState | null>(null)
   const bulkAdd = useBulkAddStops(focusedRouteId ?? '', province)
   const moveHere = useMoveStoreToRoute(focusedRouteId ?? '', province)
+  const markersRef = useRef<maplibregl.Marker[]>([])
 
   useEffect(() => {
     if (!map || !stores) return
@@ -57,6 +59,46 @@ export function MapPane() {
   useEffect(() => {
     if (!map) return
 
+    markersRef.current.forEach((m) => m.remove())
+    markersRef.current = []
+
+    if (!focusedRouteId || !focusedRoute?.stops || !stores) {
+      upsertRouteLine(map, [])
+      return
+    }
+
+    const storeById = new Map(stores.filter((s) => s.id).map((s) => [s.id!, s]))
+    const orderedStops = [...focusedRoute.stops]
+      .filter((s) => s.storeId && storeById.has(s.storeId))
+      .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+
+    const coordinates: [number, number][] = []
+    orderedStops.forEach((stop, i) => {
+      const store = storeById.get(stop.storeId!)!
+      if (store.longitude == null || store.latitude == null) return
+      coordinates.push([store.longitude, store.latitude])
+
+      const el = document.createElement('div')
+      el.textContent = String(i + 1)
+      el.style.cssText =
+        'width:20px;height:20px;border-radius:50%;background:var(--blue-d);color:#fff;font-size:11px;' +
+        'font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;' +
+        'box-shadow:0 1px 4px rgba(0,0,0,.3);'
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([store.longitude, store.latitude]).addTo(map)
+      markersRef.current.push(marker)
+    })
+
+    upsertRouteLine(map, coordinates)
+
+    return () => {
+      markersRef.current.forEach((m) => m.remove())
+      markersRef.current = []
+    }
+  }, [map, focusedRouteId, focusedRoute, stores])
+
+  useEffect(() => {
+    if (!map) return
+
     function onClick(e: maplibregl.MapMouseEvent) {
       const features = map!.queryRenderedFeatures(e.point, { layers: ['stores-circles'] })
       if (features.length === 0) {
@@ -77,9 +119,14 @@ export function MapPane() {
   }, [map, stores])
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {map && <LassoTool map={map} stores={stores ?? []} />}
-      {popover && (
+    <div className="pane" id="mapPane">
+      <div className="pane-head">
+        HARİTA <span style={{ color: 'var(--tx3)' }}>— pin: tıkla · kement: seç</span>
+        <div className="spacer" />
+      </div>
+      <div ref={containerRef} style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+        {map && <LassoTool map={map} stores={stores ?? []} />}
+        {popover && (
         <StorePopover
           store={popover.store}
           x={popover.x}
@@ -103,7 +150,8 @@ export function MapPane() {
               : undefined
           }
         />
-      )}
+        )}
+      </div>
     </div>
   )
 }

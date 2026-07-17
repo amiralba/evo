@@ -8,7 +8,7 @@ import { SchedulePane } from './components/schedule/SchedulePane'
 import { RouteDetailPanel } from './components/panel/RouteDetailPanel'
 import { SelectionListPane } from './components/editing/SelectionListPane'
 import { SelectionBar } from './components/editing/SelectionBar'
-import { colors } from '../theme/tokens'
+import './planner.css'
 
 export function PlannerPage() {
   const clearFocus = useWorkspaceStore((s) => s.clearFocus)
@@ -26,16 +26,16 @@ export function PlannerPage() {
   }, [clearFocus, clearSelection])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div className="planner-root">
       <TopFilterBar />
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className="main">
         <RouteRail />
         <WorkspaceLayout
           map={<MapPane />}
           schedule={<SchedulePane />}
           bottom={<SelectionListPane />}
         />
-        <div style={{ width: 320, borderLeft: `1px solid ${colors.border}`, background: colors.card, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div className="panel">
           <RouteDetailPanel />
         </div>
       </div>
