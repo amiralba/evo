@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import * as planner from '../../api/planner'
-import type { RuleImpactParams } from '../../api/planner'
+import type { NoteFilters, RuleImpactParams } from '../../api/planner'
 import type { components } from '../../api/generated/schema'
 
 type RouteStatus = components['schemas']['RouteStatus']
@@ -78,5 +78,12 @@ export function useRuleImpact(params: RuleImpactParams | null) {
     queryKey: ['rule-impact', params],
     queryFn: () => planner.getRuleImpact(params!),
     enabled: Boolean(params),
+  })
+}
+
+export function useNotes(filters: NoteFilters = {}) {
+  return useQuery({
+    queryKey: ['notes', filters],
+    queryFn: () => planner.getNotes(filters),
   })
 }

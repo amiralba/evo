@@ -7,6 +7,7 @@ type UpdateStopRequest = components['schemas']['UpdateStopRequest']
 type CreatePatchRequest = components['schemas']['CreatePatchRequest']
 type PublishRequest = components['schemas']['PublishRequest']
 type PatchTaskInstanceRequest = components['schemas']['PatchTaskInstanceRequest']
+type UpdateNoteStatusRequest = components['schemas']['UpdateNoteStatusRequest']
 
 function invalidateRoute(queryClient: ReturnType<typeof useQueryClient>, routeId: string, province: string) {
   void queryClient.invalidateQueries({ queryKey: ['route', routeId] })
@@ -104,6 +105,16 @@ export function useUpdateTaskInstanceScope(routeId: string, province: string, st
     onSuccess: () => {
       invalidateRoute(queryClient, routeId, province)
       void queryClient.invalidateQueries({ queryKey: ['store-task-plan', storeId, date] })
+    },
+  })
+}
+
+export function useUpdateNoteStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateNoteStatusRequest }) => planner.updateNoteStatus(id, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notes'] })
     },
   })
 }

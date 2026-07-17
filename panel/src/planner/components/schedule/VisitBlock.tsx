@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { formatMinutes } from '../../format'
+
+const OUTCOME_CLASS: Record<number, string> = { 2: 'outcome-done', 3: 'outcome-missed', 4: 'outcome-skipped' }
 
 interface VisitBlockProps {
   storeName: string
@@ -8,6 +11,9 @@ interface VisitBlockProps {
   isPatch: boolean
   readOnly: boolean
   ghost?: boolean
+  status?: number
+  checkInAt?: string | null
+  actualMinutes?: number | null
   onMoveStart?: (e: React.PointerEvent) => void
   onResizeStart?: (e: React.PointerEvent) => void
 }
@@ -20,15 +26,24 @@ export function VisitBlock({
   isPatch,
   readOnly,
   ghost,
+  status,
+  checkInAt,
+  actualMinutes,
   onMoveStart,
   onResizeStart,
 }: VisitBlockProps) {
+  const { t } = useTranslation()
   const topPx = (startMin - dayStartMinutes) * 1.2
   const heightPx = Math.max(4, durationMin * 1.2)
+  const outcomeClass = status !== undefined ? OUTCOME_CLASS[status] : undefined
+
+  const title = checkInAt
+    ? `${storeName} — ${t('planner.checkInAt', 'Giriş')}: ${new Date(checkInAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} — ${t('planner.actualVsPlanned', 'gerçekleşen {{actual}} / planlanan {{planned}}', { actual: formatMinutes(actualMinutes ?? 0), planned: formatMinutes(durationMin) })}`
+    : `${storeName} — ${formatMinutes(durationMin)}`
 
   return (
     <div
-      className={`vblock catS${isPatch ? ' patched' : ''}`}
+      className={`vblock${outcomeClass ? ` ${outcomeClass}` : ' catS'}${isPatch ? ' patched' : ''}`}
       style={{
         top: topPx,
         height: heightPx,
@@ -36,7 +51,7 @@ export function VisitBlock({
         cursor: readOnly ? 'default' : 'grab',
         pointerEvents: ghost ? 'none' : undefined,
       }}
-      title={`${storeName} — ${formatMinutes(durationMin)}`}
+      title={title}
       onPointerDown={!readOnly && !ghost ? onMoveStart : undefined}
     >
       <div className="t">{storeName}</div>

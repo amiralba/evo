@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useStoreTaskPlan } from '../../api/queries'
 import { formatMinutes } from '../../format'
 import { TaskScopeModal } from './TaskScopeModal'
@@ -21,6 +22,22 @@ function sourceKey(task: ResolvedTaskDto): string {
   const trace = task.trace ?? []
   const lastLayer = trace.length > 0 ? trace[trace.length - 1].layer ?? '' : 'template default'
   return SOURCE_KEY_BY_LAYER[lastLayer] ?? 'template'
+}
+
+function resultSummary(t: TFunction, resultJson: string): string {
+  try {
+    const parsed = JSON.parse(resultJson) as { photos?: unknown[]; answers?: Record<string, string>; note?: string }
+    if (Array.isArray(parsed.photos)) {
+      return t('planner.taskResult.photoCount', '{{count}} fotoğraf', { count: parsed.photos.length })
+    }
+    if (parsed.answers && typeof parsed.answers === 'object') {
+      const count = Object.keys(parsed.answers).length
+      return t('planner.taskResult.formCount', '{{count}} form yanıtı', { count })
+    }
+    return parsed.note ? parsed.note : t('planner.taskResult.done', 'Tamamlandı')
+  } catch {
+    return t('planner.taskResult.done', 'Tamamlandı')
+  }
 }
 
 interface TasksTabProps {
@@ -70,6 +87,11 @@ export function TasksTab({ routeId, storeId, date }: TasksTabProps) {
                   {step.layer}: {step.before} → {step.after} ({step.op})
                 </div>
               ))}
+            </div>
+          )}
+          {task.status === 3 && task.resultJson && (
+            <div className="sub" style={{ padding: '0 0 8px' }}>
+              ✓ {resultSummary(t, task.resultJson)}
             </div>
           )}
         </div>

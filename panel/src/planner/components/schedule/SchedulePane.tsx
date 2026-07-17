@@ -33,6 +33,9 @@ interface ParsedVisit {
   startMin: number
   durationMin: number
   isPatch: boolean
+  status?: number
+  checkInAt?: string | null
+  actualMinutes?: number | null
 }
 
 function loadClass(minutes: number): string {
@@ -55,6 +58,9 @@ function parseDay(day: PlanDayDto): ParsedVisit[] {
       startMin: minutesOfDay(v.start!),
       durationMin: Math.round((new Date(v.end!).getTime() - new Date(v.start!).getTime()) / 60_000),
       isPatch: v.source === 2,
+      status: v.status,
+      checkInAt: v.checkInAt,
+      actualMinutes: v.actualMinutes,
     }))
     .sort((a, b) => a.startMin - b.startMin)
 }
@@ -328,6 +334,9 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
                           isPatch={visit.isPatch}
                           readOnly={isPastWeek}
                           ghost={isDraggingThis && drag?.kind === 'move' && drag.targetDayIndex !== dayIndex}
+                          status={visit.status}
+                          checkInAt={visit.checkInAt}
+                          actualMinutes={visit.actualMinutes}
                           onMoveStart={(e) => startDrag('move', dayIndex, visitIndex, e)}
                           onResizeStart={(e) => startDrag('resize', dayIndex, visitIndex, e)}
                         />

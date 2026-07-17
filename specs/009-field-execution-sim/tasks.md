@@ -255,61 +255,61 @@
 - Files: `panel/src/api/` (generated); run `cd panel && npm run generate-api-client`
 - Do: regenerate after the backend contract changes (notes, notifications, plan DTO fields).
 - Verify: `npm run generate-api-client` succeeds; new note/notification types present; `git diff` shows the generated client updated.
-- Status: [ ]
+- Status: [x]
 
 ### Task 41: Add planner API wrappers for notes + notifications
 - Files: `panel/src/api/planner.ts` (or the matching api module)
 - Do: add `getNotes(filters)`, `updateNoteStatus(id, status)`, `getNotifications(merchandiserId)` calling the generated client.
 - Verify: `npm run lint` passes; functions typed against generated client.
-- Status: [ ]
+- Status: [x]
 
 ### Task 42: Color past-week schedule blocks by outcome
 - Files: `panel/src/planner/components/**` (the schedule grid block component — find via `grep -rn "PlannedVisit\|sched" panel/src/planner`)
 - Do: when the viewed week is in the past, color each block by `Status` (Done=green, Missed=red, Skipped=grey) using existing CSS/pill classes; keep the past-week read-only guard (spec 007) intact.
 - Verify: `npm test` green; manual: browse a past week, blocks are colored.
-- Status: [ ]
+- Status: [x]
 
 ### Task 43: Planned-vs-realized tooltip on schedule blocks
 - Files: same schedule block component
 - Do: on hover of a realized block show check-in time + `actual N dk vs planned M dk` (Turkish strings from i18n).
 - Verify: manual hover shows the tooltip; `npm test` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 44: Render task results in the Görevler tab
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx` (Görevler tab, ~line 92) + task-row component
 - Do: when a task instance has `Status=Done` + `ResultJson`, parse it and show a done check, photo count (thumbnail placeholders from the seeded URLs), or form-answer summary.
 - Verify: `npm test` green; manual: a completed past visit shows results.
-- Status: [ ]
+- Status: [x]
 
 ### Task 45: Notes inbox component
 - Files: `panel/src/planner/components/inbox/NotesInbox.tsx` (new) + route/entry into the workspace
 - Do: list OPEN notes (with anchor label + body + kind), Acknowledge/Resolve buttons calling `updateNoteStatus`, TanStack Query invalidation on success. Reuse existing panel/list CSS classes.
 - Verify: `npm test` green; manual: inbox lists seeded notes, ack/resolve updates them.
-- Status: [ ]
+- Status: [x]
 
 ### Task 46: Inbox count badge
 - Files: the topbar component (find via `grep -rn "topbar" panel/src`)
 - Do: show a badge with the OPEN notes count (from `getNotes({status:Open})`).
 - Verify: badge shows the seeded OPEN count; `npm test` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 47: i18n strings
 - Files: `panel/src/i18n/locales/tr.json`
 - Do: add Turkish strings for outcome labels (Yapıldı/Yapılmadı/Atlandı), outcome reasons, "gerçekleşen/planlanan", inbox actions (Onayla/Çözüldü), task-result labels.
 - Verify: `npm run lint`; no missing-key warnings for the new UI.
-- Status: [ ]
+- Status: [x]
 
 ### Task 48: Vitest — outcome coloring + inbox actions
 - Files: `panel/src/**/__tests__/` (new tests near the components)
 - Do: test that a past Done visit renders the done color/label; that clicking Resolve calls the mutation.
 - Verify: `npm test` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 49: Playwright — realized week + inbox smoke
 - Files: `panel/e2e/field-execution.spec.ts` (new)
 - Do: with seeded data, navigate to a past week (assert colored blocks), open the inbox (assert a note, resolve it).
 - Verify: `npx playwright test field-execution` green.
-- Status: [ ]
+- Status: [x]
 
 ## Phase 7 — Docs + wrap
 

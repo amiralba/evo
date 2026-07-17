@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore, type WorkspaceLayout } from '../state/workspaceStore'
-import { useRoutes } from '../api/queries'
+import { useRoutes, useNotes } from '../api/queries'
+import { NotesInbox } from './inbox/NotesInbox'
 
 const PROVINCES = ['Adana', 'Ankara', 'İstanbul', 'İzmir', 'Bursa']
 const LAYOUTS: { key: WorkspaceLayout; label: string }[] = [
@@ -19,6 +21,8 @@ export function TopFilterBar() {
   const layout = useWorkspaceStore((s) => s.layout)
   const setLayout = useWorkspaceStore((s) => s.setLayout)
   const { data: routesPage } = useRoutes(province)
+  const { data: openNotes } = useNotes({ status: 1 })
+  const [showInbox, setShowInbox] = useState(false)
 
   return (
     <div className="topbar">
@@ -56,6 +60,13 @@ export function TopFilterBar() {
       </div>
 
       <div className="spacer" />
+
+      <button type="button" data-testid="inbox-trigger" onClick={() => setShowInbox(true)}>
+        {t('planner.notesInbox', 'Gelen Kutusu')}
+        {(openNotes?.length ?? 0) > 0 && <span className="pill">{openNotes!.length}</span>}
+      </button>
+
+      {showInbox && <NotesInbox onClose={() => setShowInbox(false)} />}
     </div>
   )
 }

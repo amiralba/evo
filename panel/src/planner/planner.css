@@ -394,6 +394,21 @@
   border-style: dashed;
   border-color: var(--blue-d);
 }
+.vblock.outcome-done {
+  background: var(--teal-l);
+  color: var(--teal-d);
+  border-color: #9fe1cb;
+}
+.vblock.outcome-missed {
+  background: var(--red-l);
+  color: var(--red-d);
+  border-color: #f0b3b3;
+}
+.vblock.outcome-skipped {
+  background: var(--gray-l);
+  color: var(--tx3);
+  border-color: var(--gray-m);
+}
 .vblock .t {
   font-weight: 600;
   white-space: nowrap;

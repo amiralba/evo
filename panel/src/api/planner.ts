@@ -23,6 +23,12 @@ type RuleScopeLevel = components['schemas']['RuleScopeLevel']
 type TaskEffectOp = components['schemas']['TaskEffectOp']
 type PatchTaskInstanceRequest = components['schemas']['PatchTaskInstanceRequest']
 type StoreDetailDto = components['schemas']['StoreDetailDto']
+type NoteDto = components['schemas']['NoteDto']
+type NoteStatus = components['schemas']['NoteStatus']
+type NoteKind = components['schemas']['NoteKind']
+type NoteAnchorType = components['schemas']['NoteAnchorType']
+type UpdateNoteStatusRequest = components['schemas']['UpdateNoteStatusRequest']
+type NotificationDto = components['schemas']['NotificationDto']
 
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -176,4 +182,33 @@ export async function updateTaskInstanceScope(taskInstanceId: string, body: Patc
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`)
   }
+}
+
+export interface NoteFilters {
+  status?: NoteStatus
+  kind?: NoteKind
+  anchorType?: NoteAnchorType
+}
+
+export async function getNotes(filters: NoteFilters = {}): Promise<NoteDto[]> {
+  const search = new URLSearchParams()
+  if (filters.status !== undefined) search.set('status', String(filters.status))
+  if (filters.kind !== undefined) search.set('kind', String(filters.kind))
+  if (filters.anchorType !== undefined) search.set('anchorType', String(filters.anchorType))
+  const response = await authorizedFetch(`/api/v1/notes?${search.toString()}`)
+  return json<NoteDto[]>(response)
+}
+
+export async function updateNoteStatus(id: string, body: UpdateNoteStatusRequest): Promise<NoteDto> {
+  const response = await authorizedFetch(`/api/v1/notes/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return json<NoteDto>(response)
+}
+
+export async function getNotifications(merchandiserId: string): Promise<NotificationDto[]> {
+  const response = await authorizedFetch(`/api/v1/merchandisers/${merchandiserId}/notifications`)
+  return json<NotificationDto[]>(response)
 }
