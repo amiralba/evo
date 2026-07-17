@@ -10,7 +10,7 @@ import { BREAK_BLOCKS } from '../../schedule/breaks'
 import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES, minutesOfDay } from '../../schedule/position'
 import { pxToMinutes, snapMinutes, clampStart, clampDuration } from '../../schedule/dragMath'
 import { reflowDay, type ReflowResult } from '../../schedule/reflow'
-import { spacing, fontSize, radius, severityColors } from '../../../theme/tokens'
+import { spacing, radius, severityColors, colors } from '../../../theme/tokens'
 import { formatMinutes } from '../../format'
 import { PatchForm, type PatchFormPrefill } from '../editing/PatchForm'
 import type { components } from '../../../api/generated/schema'
@@ -20,6 +20,10 @@ type RouteStopDto = components['schemas']['RouteStopDto']
 
 const GRID_HEIGHT = (DAY_END_MINUTES - DAY_START_MINUTES) * PX_PER_MINUTE
 const WEEKDAY_LABEL = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum']
+const HOUR_LABELS = Array.from(
+  { length: Math.floor((DAY_END_MINUTES - DAY_START_MINUTES) / 60) + 1 },
+  (_, i) => DAY_START_MINUTES + i * 60,
+)
 
 interface ParsedVisit {
   routeStopId: string
@@ -34,6 +38,10 @@ function loadClass(minutes: number): string {
   if (minutes > 450) return 'over'
   if (minutes < 400) return 'under'
   return 'ok'
+}
+
+function fmtHour(min: number): string {
+  return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 }
 
 function parseDay(day: PlanDayDto): ParsedVisit[] {
@@ -64,9 +72,11 @@ interface DragState {
 interface SchedulePaneProps {
   routeId: string
   stops: RouteStopDto[]
+  routeCode: string
+  merchandiserName: string
 }
 
-export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
+export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: SchedulePaneProps) {
   const { t } = useTranslation()
   const province = useWorkspaceStore((s) => s.province)
   const [week, setWeek] = useState(currentWeek())
@@ -98,6 +108,11 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
   )
 
   const parsedDays = useMemo(() => visibleDays.map(parseDay), [visibleDays])
+
+  const weekLoadPct = useMemo(() => {
+    const total = visibleDays.reduce((sum, d) => sum + (d.plannedMinutes ?? 0), 0)
+    return Math.round((total / (450 * 5)) * 100)
+  }, [visibleDays])
 
   function updateDrag(next: DragState) {
     dragRef.current = next
@@ -239,7 +254,39 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
 
       {!isLoading && !isError && (
         <div className="sched-scroll" style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
-          <div style={{ display: 'flex', gap: spacing.lg }}>
+          <div className="sched-grid">
+            {/* Row 1: corner spacers + day headers */}
+            <div />
+            <div />
+            {visibleDays.map((day, dayIndex) => (
+              <div key={`head-${day.date ?? dayIndex}`} className="day-head">
+                {WEEKDAY_LABEL[dayIndex] ?? day.date} <span style={{ color: 'var(--tx3)' }}>{day.date}</span>
+              </div>
+            ))}
+
+            {/* Row 2: person-cell, time-axis, day-cells */}
+            <div className="person-cell">
+              <div className="nm">{merchandiserName}</div>
+              <div className="meta">{routeCode}</div>
+              <div className="loadbar">
+                <div
+                  style={{
+                    width: `${Math.min(weekLoadPct, 100)}%`,
+                    background: weekLoadPct > 100 ? colors.red : weekLoadPct < 80 ? colors.amber : colors.green,
+                  }}
+                />
+              </div>
+              <div className="meta">%{weekLoadPct} yük</div>
+            </div>
+
+            <div className="time-axis" style={{ height: GRID_HEIGHT }}>
+              {HOUR_LABELS.map((m) => (
+                <span key={m} style={{ top: (m - DAY_START_MINUTES) * PX_PER_MINUTE }}>
+                  {fmtHour(m)}
+                </span>
+              ))}
+            </div>
+
             {visibleDays.map((day, dayIndex) => {
               const parsed = parsedDays[dayIndex] ?? []
               const isSameDayDrag = drag?.dayIndex === dayIndex && drag.targetDayIndex === dayIndex
@@ -249,11 +296,7 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
                 : (day.plannedMinutes ?? 0)
 
               return (
-                <div key={day.date ?? dayIndex} style={{ flex: 1, minWidth: 140 }}>
-                  <div style={{ textAlign: 'center', fontSize: fontSize.sm, color: 'var(--tx2)', padding: `0 0 ${spacing.xs}` }}>
-                    {WEEKDAY_LABEL[dayIndex] ?? day.date} <span style={{ color: 'var(--tx3)' }}>{day.date}</span>
-                  </div>
-
+                <div key={day.date ?? dayIndex}>
                   <div
                     ref={(el) => {
                       dayRefs.current[dayIndex] = el
@@ -261,6 +304,10 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
                     className="day-cell"
                     style={{ height: GRID_HEIGHT, outline: isDragTarget ? '2px solid var(--blue-d)' : undefined }}
                   >
+                    {HOUR_LABELS.slice(1, -1).map((m) => (
+                      <div key={m} className="hline" style={{ top: (m - DAY_START_MINUTES) * PX_PER_MINUTE }} />
+                    ))}
+
                     <div className={`day-total ${loadClass(dayMinutes)}`}>{formatMinutes(dayMinutes)} / 450</div>
                     {BREAK_BLOCKS.map((b, bi) => (
                       <div

@@ -39,7 +39,12 @@ export function PlannerPage() {
           map={<MapPane />}
           schedule={
             focusedRouteId ? (
-              <SchedulePane routeId={focusedRouteId} stops={focusedRoute?.stops ?? []} />
+              <SchedulePane
+                routeId={focusedRouteId}
+                stops={focusedRoute?.stops ?? []}
+                routeCode={focusedRoute?.routeCode ?? ''}
+                merchandiserName={focusedRoute?.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}
+              />
             ) : (
               <div className="empty">{t('planner.noRouteFocused', 'Haritadan veya listeden bir rota seçin.')}</div>
             )

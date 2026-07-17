@@ -245,6 +245,64 @@
   margin-left: 6px;
 }
 
+.sched-grid {
+  display: grid;
+  grid-template-columns: 110px 36px repeat(5, minmax(120px, 1fr));
+  column-gap: 4px;
+  row-gap: 8px;
+  align-items: start;
+}
+
+.person-cell {
+  padding: 8px 6px;
+  font-size: 12px;
+}
+.person-cell .nm {
+  font-weight: 600;
+  cursor: default;
+}
+.person-cell .meta {
+  color: var(--tx2);
+  font-size: 11px;
+  margin-top: 3px;
+}
+.person-cell .loadbar {
+  height: 5px;
+  background: var(--gray-l);
+  border-radius: 3px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.person-cell .loadbar div {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.time-axis {
+  position: relative;
+}
+.time-axis span {
+  position: absolute;
+  right: 4px;
+  font-size: 9px;
+  color: var(--tx3);
+  transform: translateY(-50%);
+}
+.hline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--gray-l);
+  pointer-events: none;
+  z-index: 0;
+}
+.day-head {
+  text-align: center;
+  font-size: 11px;
+  color: var(--tx2);
+  padding: 3px 0;
+}
+
 .day-cell {
   position: relative;
   background: var(--card);
