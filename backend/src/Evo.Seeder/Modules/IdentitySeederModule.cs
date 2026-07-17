@@ -88,5 +88,31 @@ public class IdentitySeederModule : ISeederModule
                 }
             }
         }
+        else
+        {
+            // Scale profile needs one FieldAgent per seeded route (spec 005 RouteSeederModule
+            // assigns a distinct merchandiser to each route) — generate deterministic fake agents.
+            for (var i = 1; i <= 50; i++)
+            {
+                var email = $"scale-agent-{i:D3}@evo.local";
+                if (await userManager.FindByEmailAsync(email) is not null)
+                {
+                    continue;
+                }
+
+                var agent = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    DisplayName = faker.Name.FullName(),
+                    EmailConfirmed = true,
+                };
+                var result = await userManager.CreateAsync(agent, "Demo1234!");
+                if (result.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(agent, Roles.FieldAgent);
+                }
+            }
+        }
     }
 }

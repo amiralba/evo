@@ -38,11 +38,16 @@
 | Audit | `GET /audit-log?entityType=&page=&pageSize=` (Supervisor only, paged, newest-first) | 003 |
 | Stores | `POST /stores/sync` (Supervisor only, audit-logged, on-demand — also runs nightly via a BackgroundService), `GET /stores?province=&district=&active=&format=&page=&pageSize=` (paged), `GET /stores/{id}` (with revenue + flags) | 004 |
 | Stores/map (later) | `GET /stores` bbox/polygon/unassigned filters, `GET /stores/{id}/summary`, `GET /stores/{id}/task-plan` — spatial/route-dependent, deferred | M1 |
-| Routes | `POST /routes`, `POST /routes/{id}/stops:bulk`, `POST /routes/{id}/stops/{sid}:move` (atomic), `PATCH .../stops/{sid}`, `GET /routes/{id}/plan?from&to`, `GET /routes/{id}/health` | M1 |
-| Patches/assignment | `POST /routes/{id}/patches` (expiry REQUIRED), `POST /routes/{id}/assignment` (reason REQUIRED) | M1 |
-| Simulation | `POST /simulate/route` (what-if: stores[] → revenue+minutes) | M1 |
+| Routes | `POST /routes` (Supervisor only), `GET /routes?province=&status=&page=&pageSize=` (paged), `GET /routes/{id}`, `PATCH /routes/{id}` (rename/target/activate/deactivate — Draft→Active requires an active Assignment else 409; Active→Inactive releases stops + drops future visits; Inactive→Active returns empty) | 005 |
+| Route stops | `POST /routes/{id}/stops:bulk` (V3/V4 reject with reason, accepted get regenerated), `PATCH /routes/{id}/stops/{sid}`, `POST /routes/{id}/stops/{sid}:move` (atomic, regenerates both routes) | 005 |
+| Assignment | `POST /routes/{id}/assignment` (reason REQUIRED, 422 if missing; 409 if the merchandiser already holds an active assignment elsewhere — DB constraint) | 005 |
+| Patches | `POST /routes/{id}/patches` (`endsOn` REQUIRED — V9, 422 if missing) | 005 |
+| Plan/health/validate | `GET /routes/{id}/plan?from=&to=` (materialized visits + per-day findings), `GET /routes/{id}/health` (revenue/weekday-minutes/category-mix/finding counts), `POST /routes/{id}/validate` (live findings, no persistence) | 005 |
+| Publish | `POST /routes/{id}/publish` (runs the validator; Error findings require `reason`+`objective` to override — 422 without, journaled to `decision_journal` with; materializes the horizon) | 005 |
+| Stores/map (later) | `GET /stores` bbox/polygon/unassigned filters, `GET /stores/{id}/summary`, `GET /stores/{id}/task-plan` — spatial/route-dependent, deferred | later M1 |
+| Simulation | `POST /simulate/route` (what-if: stores[] → revenue+minutes) — deferred to the planner-UI spec | later M1 |
 | Tasks/rules | `GET /task-templates`, `POST /rules`, `PATCH /task-instances/{id}` (scope param), `POST /tasks/adhoc`, `GET /tasks/overdue` | M2 |
-| Mobile | `GET /merchandisers/{id}/day?date=` (flat indexed read) | M3 |
+| Mobile | `GET /merchandisers/{id}/day?date=` — landed early in 005 (Supervisor: any merchandiser; FieldAgent: self only, else 403) since the route lifecycle needed a merchandiser-scoped read; full mobile sync remains M3 | 005 (early) / M3 |
 | Analytics | `GET /analytics/stability?region=` | M4 |
 
 ## Client generation

@@ -1,6 +1,62 @@
 # Decisions Log
 
 <!-- Newest first — insert new entries directly below this line -->
+## 2026-07-17 — decision_journal lands in 005 (not deferred further)
+- **Decision:** `decision_journal` (Kind/Description/Reason/Objective/ErrorsJson/AuthorId) ships
+  in spec 005 as its own table, distinct from `audit_log` — publish-with-errors overrides write
+  a row here, not to the generic audit table.
+- **Why:** The publish gate ("never block, always justify") is core to this spec's domain rules;
+  a Route can't publish past an Error finding without a recorded reason+objective, so the journal
+  had to exist the moment the publish endpoint did.
+- **Consequences:** `docs/DATABASE.md` documents it alongside `route`/`route_stop`/etc. No read
+  endpoint exists yet for `decision_journal` (only written, and read directly by tests) — a
+  `GET`/listing surface is deferred to the planner-UI spec if the human wants one.
+
+## 2026-07-17 — route_change_log realized as a facade over audit_log (not a new table)
+- **Decision:** `Evo.Api.Audit.IRouteChangeLog` wraps spec 003's generic `IAuditWriter`,
+  writing with `EntityType="Route"` — no new `route_change_log` table.
+- **Why:** Consistent with the 2026-07-16 decision that collapsed `route_change_log` and
+  `admin_audit_log` into one generic `audit_log` table before either owning entity existed.
+  Now that Route exists, the facade is the "typed query helper" that decision already promised.
+- **Consequences:** Route-history queries go through `audit_log` filtered by `EntityType`/
+  `EntityKey`, same as any other entity's audit trail — no schema change, no migration.
+
+## 2026-07-17 — M1-core validation subset for spec 005 (rest deferred)
+- **Decision:** Spec 005 implements V1/V2 (450-min rule), V3 (geo-scope), V5 (revenue), V6
+  (SERVICE-mix cap), V7 (time-window/ban), V9 (mandatory patch expiry), V12 (visit overlap).
+  V8 and V16 are deferred without a named successor spec; V10/V11 (task/rule-derived duration)
+  wait on the M2 task/rule engine; V13/V15 (travel-time-dependent) wait on the OSRM/geo layer;
+  V14 (leave/Onarım workbench) waits on M4.
+- **Why:** The deferred rules all depend on modules that don't exist yet (task/rule engine,
+  travel-time integration, leave management) — implementing them now would mean stubbing their
+  dependencies, not really implementing the rule.
+- **Consequences:** `RouteValidator.Evaluate` and the `/publish` endpoint only ever surface this
+  subset; `docs/DATABASE.md` and `EVO-Route-Planning-Design.md`'s validation table should be
+  read alongside this note so the gap doesn't read as an oversight.
+
+## 2026-07-17 — M1 visit duration = service_minutes fallback, not task-sum (spec 005)
+- **Decision:** `PlanGenerationService` resolves each visit's minutes as
+  `route_stop.service_minutes ?? store.default_service_minutes ?? settings.default_service_minutes`
+  — never `Σ task.duration` from the design's Rules engine, because that engine is M2.
+- **Why:** Route/Assignment/scheduling needed to ship in M1 without waiting on Task/Rule/M2; a
+  fallback chain lets the pure `DayScheduler`/450-min logic work today with a real, planner-
+  editable number.
+- **Consequences:** Once M2 lands, `PlanGenerationService`'s minutes-resolution step gets a
+  fourth option ahead of the fallbacks (task-sum takes priority when Rules exist for a store);
+  no schema change needed on `route_stop` — `service_minutes` still means "planner override".
+
+## 2026-07-17 — Planner UI split out of spec 005; 005 is the M1 backend core only
+- **Decision:** Spec 005 ("route-planning-core") delivers Route/RouteStop/Assignment/Patch/
+  PlannedVisit entities, the scheduling engine, validation, and the full REST API — but no
+  panel UI (map/schedule grid/table, lasso, live health card, simulate). `merchandiser` also
+  ships here, correcting `docs/DATABASE.md`'s prior (inaccurate) attribution to 002-auth-roles.
+- **Why:** Matches the 001–004 backend-first rhythm this project has followed for every prior
+  spec; the drag-heavy planner UI is a large, separately-reviewable unit of work that depends on
+  the API surface being stable first.
+- **Consequences:** The next M1 spec is the planner UI, built against 005's generated TS client.
+  `POST /simulate/route` is deferred to that spec (or a geo-focused one) since it needs the
+  panel's what-if interaction model to be meaningful.
+
 ## 2026-07-16 — Real EVO sales sync source remains an open customer-IT question (spec 004)
 - **Decision:** Spec 004 ships only an `IStoreSyncSource` abstraction + a deterministic
   `FakeStoreSyncSource` for dev/seed/test — no real connector to the EVO sales system (live SQL

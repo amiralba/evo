@@ -1,6 +1,7 @@
 using Bogus;
 using Evo.Infrastructure;
 using Evo.Infrastructure.Identity;
+using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores.Sync;
 using Evo.Seeder;
 using Evo.Seeder.Modules;
@@ -36,6 +37,8 @@ services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<EvoDbContext>();
 services.AddScoped<IStoreSyncService, StoreSyncService>();
 services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: profile == SeedProfile.Demo ? 15 : 400));
+services.AddScoped<ISettingsProvider, SettingsProvider>();
+services.AddScoped<IPlanGenerationService, PlanGenerationService>();
 
 await using var provider = services.BuildServiceProvider();
 await using var scope = provider.CreateAsyncScope();
@@ -55,6 +58,8 @@ var modules = new List<ISeederModule>
     new IdentitySeederModule(),
     new AuditLogSeederModule(),
     new StoreSyncSeederModule(),
+    new MerchandiserSeederModule(),
+    new RouteSeederModule(),
 };
 
 var faker = new Faker("tr");

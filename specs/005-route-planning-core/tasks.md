@@ -302,36 +302,36 @@
 - Files: `backend/src/Evo.Seeder/Modules/MerchandiserSeederModule.cs`, `backend/src/Evo.Seeder/Program.cs`
 - Do: `MerchandiserSeederModule : ISeederModule`, runs **after** the identity module. For each seeded FieldAgent `ApplicationUser` without a `merchandiser`, create a `Merchandiser` (`UserId`, a Turkish `HomeLocation` point, `HiredOn`, `Active=true`). Idempotent (skip users that already have one). Register in the seeder module list before the route module.
 - Verify: `dotnet build backend/Evo.sln`; `dotnet run --project backend/src/Evo.Seeder -- --profile demo` creates one `merchandiser` per FieldAgent; re-run keeps the count stable (`SELECT COUNT(*) FROM merchandiser`).
-- Status: [ ]
+- Status: [x]
 
 ## Task 44: RouteSeederModule — routes + stops + assignments
 - Files: `backend/src/Evo.Seeder/Modules/RouteSeederModule.cs`, `backend/src/Evo.Seeder/Program.cs`
 - Do: `RouteSeederModule : ISeederModule`, runs after stores + merchandisers. Create `profile == Demo ? 5 : 50` routes with deterministic `RouteCode`s (e.g. `SEED-<n>`), each scoped to a province drawn from existing synced stores; add a handful of in-scope, currently-unassigned stores as `route_stop`s (respect the one-active-route rule — skip already-routed stores); assign each route to a distinct merchandiser (`Reason=NewHire`); set status Active. Idempotent by `RouteCode` (skip if the route already exists). Register in the module list; do NOT insert `planned_visit` rows here (Task 45 does it via the engine).
 - Verify: `dotnet build`; `dotnet run --project backend/src/Evo.Seeder -- --profile demo` creates 5 routes with stops + assignments; re-run keeps counts stable.
-- Status: [ ]
+- Status: [x]
 
 ## Task 45: Seeder runs the real engine for visits
 - Files: `backend/src/Evo.Seeder/Modules/RouteSeederModule.cs`, `backend/src/Evo.Seeder/Program.cs`
 - Do: after creating routes/stops/assignments, resolve `IPlanGenerationService` (+ `ISettingsProvider`) from the seeder DI (register `AddScoped<IPlanGenerationService, PlanGenerationService>()` + `AddScoped<ISettingsProvider, SettingsProvider>()` in `Program.cs`) and call `RegenerateFutureAsync(routeId, today, today + 6*7)` for each seeded Active route — materializing `planned_visit`s through the **real** engine (spec Clarification #14 / the store-sync seeder pattern). Log the total visits materialized.
 - Verify: `dotnet run --project backend/src/Evo.Seeder -- --profile demo` exits 0 and populates `planned_visit`; re-run is idempotent (visit count stable for unchanged routes); `SELECT COUNT(*) FROM planned_visit` > 0.
-- Status: [ ]
+- Status: [x]
 
 ## Task 46: Regenerate contract + TS client
 - Files: `contracts/openapi.json`, `panel/src/api/generated/` (generated)
 - Do: `dotnet build backend/Evo.sln` (Swashbuckle emits the new `/api/v1/routes...`, `/api/v1/merchandisers/{id}/day` operations into `contracts/openapi.json`); then `npm run generate-api-client` from `panel/`. **No panel UI** — client regen only (spec Non-goals).
 - Verify: `contracts/openapi.json` contains `/api/v1/routes` and `/api/v1/routes/{id}/publish`; `grep -ri routes panel/src/api/generated` finds the generated operations.
-- Status: [ ]
+- Status: [x]
 
 ## Task 47: Update docs
 - Files: `docs/DATABASE.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DECISIONS.md`
 - Do: `docs/DATABASE.md` — flip schema-status rows `route, route_stop`, `assignment, patch, planned_visit`, `settings` to ☑ (spec 005); add `merchandiser` (☑ 005, **correcting** the inaccurate "002" attribution — note 002 built only `ApplicationUser`) and `decision_journal` (☑ 005) rows; note the `route_change_log` design table is realized as the `IRouteChangeLog` facade over `audit_log`. `docs/ARCHITECTURE.md` — mark **Plan Generator** and **Validation service** as landed for M1-core (engine in `Evo.Domain/Scheduling`, orchestration + `PlanHorizonBackgroundService` in Evo.Api/Infrastructure), and note the planner UI is a separate later M1 spec. `docs/API.md` — add the new route/stop/assignment/patch/plan/health/validate/publish/merchandiser-day endpoints. `docs/DECISIONS.md` (newest-first) — record: (a) 005 is the **backend core**, planner UI split to a later M1 spec; (b) `merchandiser` entity built in 005 (not 002); (c) M1 visit duration = `service_minutes` fallback, Σ-task-minutes deferred to M2; (d) M1-core validation subset (V1-V7,V9,V12), rest deferred; (e) `route_change_log` realized as facade over `audit_log`; (f) `decision_journal` landed in 005 per the earlier deferral.
 - Verify: all four docs updated; `docs/DATABASE.md` schema-status shows the route tables migrated and the merchandiser attribution corrected; `docs/DECISIONS.md` names the UI split + merchandiser-in-005 explicitly.
-- Status: [ ]
+- Status: [x]
 
 ## Task 48: Full backend suite regression
 - Files: none (verification task)
 - Do: run the whole backend suite; confirm all prior 001/002/003/004 tests still pass alongside the new 005 engine/validation/orchestration/endpoint tests after the schema + DI additions.
 - Verify: `dotnet test backend/Evo.sln` → all green; report the pass count (prior total + new 005 tests).
-- Status: [ ]
+- Status: [x]
 
 **PHASE 7 CHECKPOINT — HARD STOP: summarize + evidence (seeder run output showing routes/assignments/planned_visits with stable counts on re-run, regenerated contract diff + client grep, full-suite green count), give the human the 1-minute API test script, commit `feat(005): route planning seeder via real engine + contract + docs`, then run /end-session and END TURN. This completes the first M1 backend module — the planner UI is the next M1 spec.**
