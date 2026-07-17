@@ -671,7 +671,10 @@
   Geçmiş = real data from `GET /audit-log?entityType=Route` (spec 003's route-change-log facade),
   filtered client-side by routeId (no server-side entityKey filter exists — fine at demo-data
   volume, flagged in code if the audit log grows); Görevler shows an honest "M2'de gelecek" empty
-  state rather than fake content, since the task/rule engine has no backing data yet.
+  state rather than fake content, since the task/rule engine has no backing data yet. Late addition
+  (not originally scoped in this task, done as part of the same parity pass): `PublishModal.tsx`
+  and `SelectionBar.tsx` ported to the prototype's `.modal-bg`/`.modal`/actionbar CSS classes
+  instead of ad hoc inline styles, for the same visual-parity reason as the rest of Phase 9.
 
 ## Task 92: Global palette + typography audit
 - Files: `panel/src/theme/tokens.ts` (extend if the prototype's CSS has tokens not yet captured), all `panel/src/planner/**` components

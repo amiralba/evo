@@ -99,28 +99,30 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0 — Platform foundation is COMPLETE (4 platform specs). M1 — the first feature module,
-  005-route-planning-core (backend), is now COMPLETE: all 7 phases, 48/48 tasks checked off and committed
-  to main.
-- Active feature: none in progress — next step is the PLANNER UI spec (map/schedule grid/table workspace,
-  lasso multi-select, live health card, drag-drop stop editing) built against 005's generated TS client.
-  Not started; needs a `/plan` pass to produce its own `specs/00X-.../tasks.md`. `POST /simulate/route`
-  is deferred into that spec.
-- Last session summary: Built the full 005-route-planning-core spec (first M1 feature module) across 7
-  committed phases. Phase 1: `Merchandiser`/`Route`/`RouteStop` entities + one-active-route-per-store DB
-  constraint. Phase 2: `Assignment`/`Patch`/`PlannedVisit`/`DecisionJournalEntry`/`Setting` entities +
-  one-active-assignment (both directions) constraints + 8 seeded global settings. Phase 3: a pure,
-  EF-free scheduling engine in `Evo.Domain/Scheduling` — `FrequencyExpander`, `DayScheduler` (450-min
-  rule, break avoidance), `PatchResolver` (baseline ⊕ patches, SKIP>TIME_SHIFT>ADD>REASSIGN priority).
-  Phase 4: `RouteValidator` (V3/V5/V6/V7), `OverlapValidator` (V12), `IRouteChangeLog` facade over
-  spec 003's `audit_log`. Phase 5: `SettingsProvider`, `PlanGenerationService` (orchestrates the engine
-  into `planned_visit` upserts), nightly `PlanHorizonBackgroundService` (patch-expiry + horizon regen).
-  Phase 6: full `RoutesController` (create/list/get/patch/stops-bulk/stops-move/assignment/patches/plan/
-  health/validate/publish) + `MerchandisersController`, plus a same-session IDOR fix giving
-  `GET /merchandisers/{id}/day` proper self-or-Supervisor authorization. Phase 7: seeder extended with
-  `MerchandiserSeederModule`/`RouteSeederModule` (routes materialize through the real engine, not direct
-  inserts), contract/TS client regenerated, docs updated, full suite verified at 74/74 (28 prior + 46
-  new). Also corrected a prior doc error: `merchandiser` was wrongly attributed to 002-auth-roles in
-  docs/DATABASE.md — fixed to 005. Explicitly deferred out of 005 (not "todo" under this spec, but future
-  scope): the planner UI itself, `POST /simulate/route`, the M2 task/rule engine, OSRM/travel-time,
-  leave/Onarım (M4).
+- Milestone: M0 — Platform foundation is COMPLETE (4 platform specs). M1 — Route planning core (web
+  panel) is now COMPLETE: 005-route-planning-core (backend, 48/48), 006-planner-ui (93/93, incl. Phase 9
+  visual-parity pass), and 007-schedule-drag-resize (42/42) are all fully checked off and committed to
+  main. Backend suite 103/103, panel suite 40/40, Playwright core flow green.
+- Active feature: none in progress. M1's planner-workspace scope (map/schedule/table, live health, publish
+  gate, drag/resize/cross-day move) is done. Deferred out of M1 (confirmed 2026-07-17, not silently
+  dropped): Conflict Center/Sorun Merkezi, `POST /simulate/route`, history timeline, live-location layer,
+  Onarım workbench, full-canvas 6-tab table, Effective/Base toggle, global search, admin (Yönetim)/inbox
+  pages, multi-route/multi-person stacked schedule rows. Next step: M2 — Tasks & rules (TaskTemplate/Rule
+  resolution replacing the service_minutes fallback, Rule Inspector, one-off targeted tasks) — needs a
+  `/brainstorm` or `/plan` pass to produce its own `specs/00X-.../tasks.md`.
+- Last session summary: Completed 006-planner-ui Phase 9 (visual-parity pass against
+  evo-planner-prototype-v0.5.html) and the full new spec 007-schedule-drag-resize. 006 Phase 9: ported the
+  prototype's real CSS classes across the topbar, route rail, map pane (numbered markers + route
+  polylines), schedule pane, and detail panel (panel/panel-tabs/pill/empty classes); added the real
+  Bilgi/Görevler/Geçmiş tab switcher — Geçmiş wired to real `GET /audit-log` data via spec 003's
+  route-change-log facade, Görevler an honest "M2'de gelecek" empty state; PublishModal/SelectionBar
+  ported to the prototype's `.modal-bg`/actionbar classes (a late addition not in the original task list,
+  captured under Task 91 progress notes). 007 (6 phases): made `PatchType.TimeShift` a real same-day
+  resolution (new `ProjectedVisit.PinnedStart`, honored by `DayScheduler` as a no-earlier-than anchor) and
+  added a new `PatchType.MoveVisit = 6` for cross-day moves (skip-on-fromDate + add-on-toDate off one
+  patch row, via a new `StopMeta` lookup — no DB migration); `CreatePatch` param validation for both types,
+  `UpdateStop.serviceMinutes` 5-min snap + [10,240] clamp; `PlannedVisitDto` gained `routeStopId`; full
+  drag/resize/cross-day-move UI on the schedule grid with a live rubber-band reflow preview (client-side
+  `reflow.ts` mirrors `DayScheduler` for the preview only — server remains source of truth), past-week
+  read-only guard, and the prototype's time-axis/person-cell grid layout. Contract + TS client regenerated;
+  docs (ARCHITECTURE/API/DATABASE/DECISIONS/ROADMAP + design-doc flag) updated in-session for both specs.

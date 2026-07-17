@@ -14,13 +14,23 @@
 - Sequence optimization button (nearest-neighbor suggest, never forced)
 
 ## Next up
-- Planner UI spec (M1, web panel): map/schedule grid/table workspace, lasso multi-select, live health
-  card, drag-drop stop editing against 005-route-planning-core's generated TS client. `POST
-  /simulate/route` deferred into this spec. Not started — needs a `/plan` pass to generate its spec.
-- Conflict Center — may land inside the planner UI spec or split out; decide at `/plan` time.
+- M2 — Tasks & rules: TaskTemplate + Rule resolution (format-driven durations, per-store/route
+  exceptions) replacing `PlanGenerationService`'s current service_minutes fallback; Rule Inspector +
+  aggregate impact preview; one-off targeted tasks (target + valid_until). Not started — needs a
+  `/brainstorm` or `/plan` pass to generate its spec.
+- Conflict Center/Sorun Merkezi — explicitly deferred out of 006/007; may land inside an M2/M3 spec or
+  split out; decide at `/plan` time.
+- `POST /simulate/route` — still deferred (was pushed from 005 into 006, then out of 006/007 too).
 
 ## Recently completed features
 - M0 — Platform foundation (specs 001–004): solution scaffold, auth/roles, error/audit, store sync — all COMPLETE.
-- M1 — 005-route-planning-core (backend): Route/RouteStop/Assignment/Patch/PlannedVisit/DecisionJournal
-  schema, pure scheduling engine (450-min rule, Baseline+Patch resolution), validation engine, full REST
-  API, publish gate with override-with-reason. Panel UI not yet built (separate spec). COMPLETE.
+- M1 — Route planning core (web panel): ALL COMPLETE.
+  - 005-route-planning-core (backend): Route/RouteStop/Assignment/Patch/PlannedVisit/DecisionJournal
+    schema, pure scheduling engine (450-min rule, Baseline+Patch resolution), validation engine, full REST
+    API, publish gate with override-with-reason.
+  - 006-planner-ui: `/planner` workspace (map/schedule/table panes, MapLibre store layer + lasso, live
+    health card, selection editing, publish flow), plus a Phase 9 visual-parity pass against the HTML
+    prototype (topbar/rail/map/schedule/detail-panel CSS, Bilgi/Görevler/Geçmiş tabs).
+  - 007-schedule-drag-resize: real same-day TimeShift + new cross-day MoveVisit patch resolution in the
+    scheduling engine; schedule-grid drag/resize/cross-day-move UI with live reflow preview; prototype's
+    time-axis/person-cell layout.

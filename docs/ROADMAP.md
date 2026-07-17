@@ -27,18 +27,18 @@ Goal: a supervisor can build and publish a valid plan.
       with history, scheduling engine (plan generation, 450-min rule, live validation), Baseline + Patch
       model with auto-expiry, publish gate with override-with-reason (`decision_journal`) — BACKEND ONLY,
       full REST API, no panel UI. 48/48 tasks complete.
-- [x] 006-planner-ui, Phases 1-8 (functional) — `/planner` workspace: Map | Schedule split + Table
-      selection strip over a shared Zustand+TanStack Query state; `GET /stores/geo` + batch
+- [x] 006-planner-ui — COMPLETE, 93/93 tasks, all 9 phases. `/planner` workspace: Map | Schedule split +
+      Table selection strip over a shared Zustand+TanStack Query state; `GET /stores/geo` + batch
       `POST /routes/{id}/stops:reorder` backend additions; MapLibre store layer + lasso; time-accurate
       schedule grid w/ prev/next week nav; live health card (Recharts); selection editing (bulk-add,
       dnd-kit reorder, stop edit, move-store, patch create); publish review + override-with-reason gate.
-      Backend 82/82 + panel 24/24 tests green, Playwright core flow green.
-      Phase 9 (visual-parity pass, spec Clarification #15) — IN PROGRESS, interleaved with 007:
-      ported the topbar/seg/rail/pane-head/panel/badge classes + numbered map markers + route
-      polyline. Still deferred (later specs): Conflict Center/Sorun Merkezi, `POST /simulate/route`,
-      history timeline, live-location layer, Onarım workbench, full-canvas 6-tab table,
-      Effective/Base toggle, global search, admin (Yönetim)/inbox pages — confirmed 2026-07-17 to
-      stay out of scope for 006/007.
+      Phase 9 (visual-parity pass, spec Clarification #15) — ported the topbar/seg/rail/pane-head/panel/
+      badge classes + numbered map markers + route polyline + the real Bilgi/Görevler/Geçmiş detail-panel
+      tabs (Geçmiş wired to real audit-log data, Görevler an honest M2-pending empty state) + PublishModal/
+      SelectionBar ported to the prototype's modal/actionbar CSS. Still deferred (later specs): Conflict
+      Center/Sorun Merkezi, `POST /simulate/route`, history timeline, live-location layer, Onarım
+      workbench, full-canvas 6-tab table, Effective/Base toggle, global search, admin (Yönetim)/inbox
+      pages — confirmed 2026-07-17 to stay out of scope for 006/007.
 - [x] 007-schedule-drag-resize — real same-day `TimeShift` resolution + a new cross-day `MoveVisit`
       patch type in `PatchResolver`/`DayScheduler` (skip-source + add-target off one patch row, no
       DB migration); `CreatePatch` param validation + `UpdateStop` snap/clamp; drag-to-move
