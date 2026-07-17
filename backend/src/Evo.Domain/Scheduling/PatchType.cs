@@ -8,4 +8,5 @@ public enum PatchType : byte
     AddStore = 3,
     ReassignTemp = 4,
     TimeShift = 5,
+    MoveVisit = 6,
 }

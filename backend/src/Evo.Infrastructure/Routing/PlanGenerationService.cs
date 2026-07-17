@@ -51,6 +51,13 @@ public class PlanGenerationService : IPlanGenerationService
 
         var settings = await _settingsProvider.GetAsync(route.Province, ct);
 
+        var stopMetaByStoreId = stops.ToDictionary(
+            s => s.StoreId,
+            s => new StopMeta(
+                s.Id,
+                s.ServiceMinutes ?? stores.GetValueOrDefault(s.StoreId)?.DefaultServiceMinutes ?? settings.DefaultServiceMinutes,
+                s.Sequence));
+
         var newVisits = new Dictionary<(Guid RouteStopId, DateOnly Date), PlannedVisit>();
 
         for (var date = from; date <= to; date = date.AddDays(1))
@@ -80,7 +87,7 @@ public class PlanGenerationService : IPlanGenerationService
                     stop.Id, stop.StoreId, date, minutes, defaultMerchandiserId, PlannedVisitSource.Baseline, null));
             }
 
-            var resolved = PatchResolver.Apply(baselineForDate, patchInputs, date);
+            var resolved = PatchResolver.Apply(baselineForDate, patchInputs, date, stopMetaByStoreId);
             if (resolved.Count == 0)
             {
                 continue;

@@ -100,6 +100,12 @@ public class PatchResolverTests
     }
 
     [Fact]
+    public void MoveVisit_WireValue_IsSix()
+    {
+        Assert.Equal(6, (byte)PatchType.MoveVisit);
+    }
+
+    [Fact]
     public void TimeShift_SetsPinnedStart_OnMatchingStoresVisit()
     {
         var routeStopId = Guid.NewGuid();

@@ -84,7 +84,7 @@
 - Do: Add `MoveVisit = 6,` to the enum.
 - Verify: `dotnet build backend/Evo.sln` compiles; add a one-line xUnit assert `((byte)PatchType.MoveVisit)
   == 6` in `PatchResolverTests` (guards the wire value).
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.2: Add StopMeta + extend PatchResolver.Apply signature
 - Files: `backend/src/Evo.Domain/Scheduling/PatchResolver.cs`
@@ -92,7 +92,7 @@
   parameter `IReadOnlyDictionary<Guid, StopMeta>? stopMetaByStoreId = null` to `Apply`; inside, coalesce to
   an empty dictionary.
 - Verify: `dotnet build backend/Evo.sln` compiles (existing single-arg callers still valid).
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.3: MoveVisit remove-on-FromDate (SKIP phase)
 - Files: `backend/src/Evo.Domain/Scheduling/PatchResolver.cs`
@@ -100,7 +100,7 @@
   `PatchParams.TryParse<MoveVisitParams>(patch.ParamsJson, out var mp)` and `mp.FromDate == date`,
   `result.RemoveAll(v => v.StoreId == patch.StoreId)`.
 - Verify: `dotnet build backend/Evo.sln` compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.4: MoveVisit add-on-ToDate (ADD phase)
 - Files: `backend/src/Evo.Domain/Scheduling/PatchResolver.cs`
@@ -110,7 +110,7 @@
   patch.Id, PinnedStart: mp.StartMinutes is {} sm ? TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(sm)) : null)`.
   Skip if no stop meta (defensive).
 - Verify: `dotnet build backend/Evo.sln` compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.5: Build stopMetaByStoreId in PlanGenerationService + pass it
 - Files: `backend/src/Evo.Infrastructure/Routing/PlanGenerationService.cs`
@@ -120,21 +120,21 @@
   `stopMeta` as the new `Apply` argument. Note: a store maps to at most one active stop (one-active-route),
   so the dictionary key is safe.
 - Verify: `dotnet build backend/Evo.sln` compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.6: Update existing PatchResolverTests call sites
 - Files: `backend/tests/Evo.Tests/Scheduling/PatchResolverTests.cs`
 - Do: No signature change needed for existing calls (new arg is optional) — confirm they still compile; if
   any test now needs stop meta, pass an inline dictionary.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~PatchResolverTests` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.7 [P]: MoveVisit resolver unit tests (core)
 - Files: `backend/tests/Evo.Tests/Scheduling/MoveVisitResolverTests.cs` (new)
 - Do: Tests: (a) on `FromDate` the store's visit is removed; (b) on `ToDate` it is injected with the stop
   meta's minutes + routeStopId + pinned start; (c) on an unrelated in-window date nothing changes.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~MoveVisitResolver` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.8 [P]: MoveVisit auto-revert + priority + edge tests
 - Files: `backend/tests/Evo.Tests/Scheduling/MoveVisitResolverTests.cs`
@@ -145,14 +145,14 @@
   `ToDate`-already-visited coalesce (two same-stop entries collapse when keyed by RouteStopId — assert the
   resolved list has the injected one).
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~MoveVisitResolver` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 2.9: PlanGenerationService end-to-end MoveVisit test
 - Files: `backend/tests/Evo.Tests/Routing/PlanGenMoveVisitTests.cs` (new)
 - Do: Seed a route + stop; add an active MoveVisit patch (fromDate=an occurrence, toDate=another weekday);
   regenerate; assert the `planned_visit` row exists on `toDate` (correct minutes) and is absent on `fromDate`.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~PlanGenMoveVisit` green.
-- Status: [ ]
+- Status: [x]
 
 > **CHECKPOINT** after Phase 2: summarize, show test count, commit
 > `feat(007): cross-day MoveVisit patch type (skip-here + add-there) in PatchResolver`, END TURN.
