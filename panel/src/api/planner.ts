@@ -16,6 +16,7 @@ type CreatePatchRequest = components['schemas']['CreatePatchRequest']
 type PatchDto = components['schemas']['PatchDto']
 type PublishRequest = components['schemas']['PublishRequest']
 type PublishResultDto = components['schemas']['PublishResultDto']
+type AuditLogEntryDtoPagedResult = components['schemas']['AuditLogEntryDtoPagedResult']
 
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -113,4 +114,12 @@ export async function publishRoute(id: string, body: PublishRequest): Promise<Pu
     body: JSON.stringify(body),
   })
   return json<PublishResultDto>(response)
+}
+
+/** No server-side filter by entityKey exists (only entityType) — fetches a page of Route audit
+ * entries and the caller filters by routeId client-side. Fine for the panel's Geçmiş tab; would
+ * need a real entityKey filter param if the audit log grows large enough for this to matter. */
+export async function getRouteAuditLog(): Promise<AuditLogEntryDtoPagedResult> {
+  const response = await authorizedFetch(`/api/v1/audit-log?entityType=Route&pageSize=200`)
+  return json<AuditLogEntryDtoPagedResult>(response)
 }

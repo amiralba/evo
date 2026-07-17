@@ -43,3 +43,13 @@ export function useHealth(id: string | null) {
     enabled: Boolean(id),
   })
 }
+
+/** Fetches once per session (route-change audit entries are append-only and small in volume for
+ * a demo dataset); the caller filters the page by routeId. */
+export function useRouteAuditLog(enabled: boolean) {
+  return useQuery({
+    queryKey: ['route-audit-log'],
+    queryFn: () => planner.getRouteAuditLog(),
+    enabled,
+  })
+}

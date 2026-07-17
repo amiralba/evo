@@ -651,22 +651,27 @@
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`, `VisitBlock.tsx`, `WeekNavigator.tsx`
 - Do: match the prototype's `TAKVİM` pane-head bar and per-person day-grid layout (each merchandiser gets their own row of day columns, not one grid per route) if that's how multi-person routes render in the prototype; match visit-block styling (colored left-bar, category dot, minutes badge) and the compact weekday+error/warning-count header (`Pzt 🔴2`).
 - Verify: `npm run dev` → schedule pane's block styling and per-person layout matches the prototype.
-- Status: [~] PARTIAL (2026-07-17) — ported `.pane-head`/`.day-cell`/`.day-total`/`.vblock`/`.brk` classes
-  1:1 from the prototype's CSS (colors, borders, radii). NOT done: per-person swimlane rows (each
-  merchandiser gets their own row of day columns in the prototype; 006's schedule renders one grid
-  per ROUTE instead, since a route may have zero or one active assignment in our data model —
-  needs product input on how to handle unassigned/multi-person routes before porting this
-  structural piece). Follow-up task.
+- Status: [x] (2026-07-17, completed via spec 007) — ported `.pane-head`/`.day-cell`/`.day-total`/
+  `.vblock`/`.brk` classes AND (spec 007) the full `.sched-grid` structure: time-axis column with
+  hourly labels, `.hline` hour gridlines, and a `.person-cell` row (assignee/route/week-load bar)
+  above the calendar. Per-person MULTI-ROUTE swimlanes (prototype stacks several merchandisers'
+  rows when multiple routes are visible at once) is confirmed out of scope, not deferred by
+  omission — 006/007 only ever focus one route at a time, and a route has at most one active
+  assignment in this data model, so a second stacked row has no second person to show without
+  first building multi-route-at-once rendering (a bigger, undiscussed feature). Documented in
+  docs/DECISIONS.md (2026-07-17, 007 client entry).
 
 ## Task 91: Detail panel + health card parity
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`, `HealthCard.tsx`, `StopsList.tsx`
 - Do: match the prototype's `Detay` panel (tabs: Bilgi/Görevler/Geçmiş — Bilgi active by default; empty state copy), and the compact health-metric layout (single-line "Ciro: X / Y" + inline bar, "Haftalık dakika" mini-bar row per weekday, "Karışım" donut with legend chips below).
 - Verify: `npm run dev` → detail panel tabs + health metrics match the prototype's density and layout.
-- Status: [~] PARTIAL (2026-07-17) — ported `.panel-head`/`.panel-body`/`.pill`/`.empty` classes,
-  width now 250px matching the prototype exactly, single-line Ciro bar layout. NOT done: the
-  Bilgi/Görevler/Geçmiş tab switcher (only Bilgi's content exists — Görevler/Geçmiş have no backing
-  data yet, e.g. no task-instance or route-change-log UI). Follow-up task once those data sources
-  are wired.
+- Status: [x] (2026-07-17) — ported `.panel-head`/`.panel-body`/`.pill`/`.empty`/`.panel-tabs`/
+  `.hist-item` classes, width 250px matching the prototype exactly, single-line Ciro bar layout.
+  Added the real Bilgi/Görevler/Geçmiş tab switcher: Bilgi = existing health+stops content;
+  Geçmiş = real data from `GET /audit-log?entityType=Route` (spec 003's route-change-log facade),
+  filtered client-side by routeId (no server-side entityKey filter exists — fine at demo-data
+  volume, flagged in code if the audit log grows); Görevler shows an honest "M2'de gelecek" empty
+  state rather than fake content, since the task/rule engine has no backing data yet.
 
 ## Task 92: Global palette + typography audit
 - Files: `panel/src/theme/tokens.ts` (extend if the prototype's CSS has tokens not yet captured), all `panel/src/planner/**` components

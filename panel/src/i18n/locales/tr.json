@@ -44,7 +44,12 @@
     "detailEmptySub": "Bir mağaza, rut veya kişi seç",
     "newStart": "Yeni saat",
     "fromTo": "Gün",
-    "pastWeekReadOnly": "(geçmiş hafta — salt okunur)"
+    "pastWeekReadOnly": "(geçmiş hafta — salt okunur)",
+    "tabInfo": "Bilgi",
+    "tabTasks": "Görevler",
+    "tabHistory": "Geçmiş",
+    "tasksComingM2": "Görev/kural motoru M2 kapsamında gelecek.",
+    "noHistory": "Bu rota için henüz geçmiş kaydı yok."
   },
   "common": {
     "clear": "Temizle",

@@ -4,10 +4,13 @@ import { useWorkspaceStore } from '../../state/workspaceStore'
 import { useRoute } from '../../api/queries'
 import { StopsList } from './StopsList'
 import { HealthCard } from './HealthCard'
+import { HistoryTab } from './HistoryTab'
 import { PatchForm } from '../editing/PatchForm'
 import { PublishModal } from '../publish/PublishModal'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
+
+type PanelTab = 'info' | 'tasks' | 'history'
 
 export function RouteDetailPanel() {
   const { t } = useTranslation()
@@ -15,6 +18,7 @@ export function RouteDetailPanel() {
   const { data: route, isLoading, isError } = useRoute(focusedRouteId)
   const [showPatchForm, setShowPatchForm] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
+  const [tab, setTab] = useState<PanelTab>('info')
 
   if (!focusedRouteId) {
     return (
@@ -56,18 +60,38 @@ export function RouteDetailPanel() {
         <div className="sub">{route.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}</div>
       </div>
 
-      <div className="panel-body">
-        <HealthCard routeId={focusedRouteId} />
-        <StopsList routeId={focusedRouteId} stops={route.stops ?? []} />
-
-        <div style={{ marginTop: 10 }}>
-          <button type="button" onClick={() => setShowPatchForm((v) => !v)}>
-            {t('planner.addPatch', '+ Yama ekle')}
-          </button>
+      <div className="panel-tabs">
+        <div className={tab === 'info' ? 'on' : ''} onClick={() => setTab('info')}>
+          {t('planner.tabInfo', 'Bilgi')}
         </div>
-        {showPatchForm && (
-          <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
+        <div className={tab === 'tasks' ? 'on' : ''} onClick={() => setTab('tasks')}>
+          {t('planner.tabTasks', 'Görevler')}
+        </div>
+        <div className={tab === 'history' ? 'on' : ''} onClick={() => setTab('history')}>
+          {t('planner.tabHistory', 'Geçmiş')}
+        </div>
+      </div>
+
+      <div className="panel-body">
+        {tab === 'info' && (
+          <>
+            <HealthCard routeId={focusedRouteId} />
+            <StopsList routeId={focusedRouteId} stops={route.stops ?? []} />
+
+            <div style={{ marginTop: 10 }}>
+              <button type="button" onClick={() => setShowPatchForm((v) => !v)}>
+                {t('planner.addPatch', '+ Yama ekle')}
+              </button>
+            </div>
+            {showPatchForm && (
+              <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
+            )}
+          </>
         )}
+
+        {tab === 'tasks' && <div className="empty">{t('planner.tasksComingM2', 'Görev/kural motoru M2 kapsamında gelecek.')}</div>}
+
+        {tab === 'history' && <HistoryTab routeId={focusedRouteId} />}
       </div>
 
       {showPublishModal && (
