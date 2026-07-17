@@ -14,13 +14,15 @@
 - Sequence optimization button (nearest-neighbor suggest, never forced)
 
 ## Next up
-- M2 — Tasks & rules: TaskTemplate + Rule resolution (format-driven durations, per-store/route
-  exceptions) replacing `PlanGenerationService`'s current service_minutes fallback; Rule Inspector +
-  aggregate impact preview; one-off targeted tasks (target + valid_until). Not started — needs a
-  `/brainstorm` or `/plan` pass to generate its spec.
-- Conflict Center/Sorun Merkezi — explicitly deferred out of 006/007; may land inside an M2/M3 spec or
-  split out; decide at `/plan` time.
-- `POST /simulate/route` — still deferred (was pushed from 005 into 006, then out of 006/007 too).
+- M3 — Field execution simulation: seeder-generated realistic visit outcomes (done/missed/skipped +
+  reasons, GPS check-in times, task results); mocked agent-facing responses where the panel needs them
+  (notes inbox, notification receipts). Not started — needs a `/brainstorm` or `/plan` pass to generate
+  its spec.
+- Conflict Center/Sorun Merkezi — explicitly deferred out of 006/007/008; may land inside an M3/M4 spec
+  or split out; decide at `/plan` time.
+- `POST /simulate/route` — still deferred (pushed from 005 → 006/007 → 008 too).
+- Module-stack editor (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE` rule effect ops) and standalone
+  Yönetim admin pages (task-template/rule CRUD UI) — deferred out of 008, no target spec assigned yet.
 
 ## Recently completed features
 - M0 — Platform foundation (specs 001–004): solution scaffold, auth/roles, error/audit, store sync — all COMPLETE.
@@ -34,3 +36,8 @@
   - 007-schedule-drag-resize: real same-day TimeShift + new cross-day MoveVisit patch resolution in the
     scheduling engine; schedule-grid drag/resize/cross-day-move UI with live reflow preview; prototype's
     time-axis/person-cell layout.
+- M2 — Tasks & rules: COMPLETE.
+  - 008-tasks-rules: `TaskResolver`/`RuleMatcher` domain engine, `TaskTemplate`/`Rule`/`TaskInstance`
+    persistence, `PlanGenerationService` integration (Σ task minutes replaces flat fallback,
+    `TaskInstance` materialization), 6 new endpoints, seeder module, panel Görevler tab + scope modal +
+    Rule Inspector trace popover.

@@ -100,29 +100,26 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 
 <!-- Coordinator keeps this updated after every session -->
 - Milestone: M0 — Platform foundation is COMPLETE (4 platform specs). M1 — Route planning core (web
-  panel) is now COMPLETE: 005-route-planning-core (backend, 48/48), 006-planner-ui (93/93, incl. Phase 9
-  visual-parity pass), and 007-schedule-drag-resize (42/42) are all fully checked off and committed to
-  main. Backend suite 103/103, panel suite 40/40, Playwright core flow green.
-- Active feature: none in progress. M1's planner-workspace scope (map/schedule/table, live health, publish
-  gate, drag/resize/cross-day move) is done. Deferred out of M1 (confirmed 2026-07-17, not silently
-  dropped): Conflict Center/Sorun Merkezi, `POST /simulate/route`, history timeline, live-location layer,
-  Onarım workbench, full-canvas 6-tab table, Effective/Base toggle, global search, admin (Yönetim)/inbox
-  pages, multi-route/multi-person stacked schedule rows. Next step: M2 — Tasks & rules (TaskTemplate/Rule
-  resolution replacing the service_minutes fallback, Rule Inspector, one-off targeted tasks) — needs a
-  `/brainstorm` or `/plan` pass to produce its own `specs/00X-.../tasks.md`.
-- Last session summary: Completed 006-planner-ui Phase 9 (visual-parity pass against
-  evo-planner-prototype-v0.5.html) and the full new spec 007-schedule-drag-resize. 006 Phase 9: ported the
-  prototype's real CSS classes across the topbar, route rail, map pane (numbered markers + route
-  polylines), schedule pane, and detail panel (panel/panel-tabs/pill/empty classes); added the real
-  Bilgi/Görevler/Geçmiş tab switcher — Geçmiş wired to real `GET /audit-log` data via spec 003's
-  route-change-log facade, Görevler an honest "M2'de gelecek" empty state; PublishModal/SelectionBar
-  ported to the prototype's `.modal-bg`/actionbar classes (a late addition not in the original task list,
-  captured under Task 91 progress notes). 007 (6 phases): made `PatchType.TimeShift` a real same-day
-  resolution (new `ProjectedVisit.PinnedStart`, honored by `DayScheduler` as a no-earlier-than anchor) and
-  added a new `PatchType.MoveVisit = 6` for cross-day moves (skip-on-fromDate + add-on-toDate off one
-  patch row, via a new `StopMeta` lookup — no DB migration); `CreatePatch` param validation for both types,
-  `UpdateStop.serviceMinutes` 5-min snap + [10,240] clamp; `PlannedVisitDto` gained `routeStopId`; full
-  drag/resize/cross-day-move UI on the schedule grid with a live rubber-band reflow preview (client-side
-  `reflow.ts` mirrors `DayScheduler` for the preview only — server remains source of truth), past-week
-  read-only guard, and the prototype's time-axis/person-cell grid layout. Contract + TS client regenerated;
-  docs (ARCHITECTURE/API/DATABASE/DECISIONS/ROADMAP + design-doc flag) updated in-session for both specs.
+  panel) is COMPLETE (005/006/007). M2 — Tasks & rules is now also COMPLETE: 008-tasks-rules
+  (59/59 tasks, 7 phases) is fully checked off and committed to main. Backend suite 131/131, panel
+  suite 44/44, Playwright 4/4.
+- Active feature: none in progress. Next milestone is M3 — Field execution simulation (seeder-generated
+  visit outcomes: done/missed/skipped + reasons, GPS check-in times, task results; mocked agent-facing
+  responses where the panel needs them) per `docs/ROADMAP.md` — needs its own `/brainstorm` or `/plan`
+  pass to produce `specs/00X-.../tasks.md`, same kickoff pattern as M2.
+- Deferred so far, not silently dropped (see docs/DECISIONS.md for rationale/dates): Conflict Center/
+  Sorun Merkezi, `POST /simulate/route`, history timeline, live-location layer, Onarım workbench,
+  full-canvas 6-tab table, Effective/Base toggle, global search, admin (Yönetim)/inbox pages,
+  multi-route/multi-person stacked schedule rows, module-stack editor (`SET_FREQUENCY`/`SET_MODULES`/
+  `PATCH_MODULE`), standalone Yönetim admin pages for task-template/rule CRUD.
+- Last session summary: Completed 008-tasks-rules (M2). Domain: pure `TaskResolver`/`RuleMatcher` in
+  `Evo.Domain/Tasks/` (membership + minutes ladder + instance override, store>route>format>chain>global
+  specificity). Persistence: `TaskTemplate`/`Rule`/`TaskInstance` entities + `AddTasksRules` migration.
+  `PlanGenerationService` now sets visit duration = Σ resolved task minutes (replacing the flat
+  `service_minutes` fallback as primary path) and materializes `TaskInstance` rows per future visit;
+  format-change re-resolution confirmed. API: 6 endpoints — `GET /task-templates`, `GET
+  /stores/{id}/task-plan`, `GET|POST /rules`, `GET /rules/impact`, `PATCH /task-instances/{id}`,
+  `POST /tasks/adhoc`. Seeder: `TaskRuleSeederModule` (6 templates, 8 rules, 1 adhoc survey), ran
+  end-to-end. Panel: `TasksTab` (Görevler tab, replaces M2-pending empty state) + `TaskScopeModal`
+  (scope edit with impact preview) + Rule Inspector trace popover. Docs (DATABASE/API/ARCHITECTURE/
+  DECISIONS/ROADMAP) updated in-session.
