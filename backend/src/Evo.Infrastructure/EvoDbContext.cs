@@ -34,6 +34,8 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
     public DbSet<Rule> Rules => Set<Rule>();
     public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
+    public DbSet<VisitRealization> VisitRealizations => Set<VisitRealization>();
+    public DbSet<MerchandiserLocationPing> LocationPings => Set<MerchandiserLocationPing>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -222,6 +224,20 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
             entity.HasOne<TaskTemplate>().WithMany().HasForeignKey(e => e.TaskTemplateId).OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => e.PlannedVisitId);
             entity.HasIndex(e => new { e.PlannedVisitId, e.TaskTemplateId }).IsUnique();
+        });
+
+        builder.Entity<VisitRealization>(entity =>
+        {
+            entity.ToTable("visit_realization");
+            entity.HasOne<PlannedVisit>().WithMany().HasForeignKey(e => e.PlannedVisitId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.PlannedVisitId).IsUnique();
+        });
+
+        builder.Entity<MerchandiserLocationPing>(entity =>
+        {
+            entity.ToTable("merchandiser_location_ping");
+            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.MerchandiserId, e.RecordedAt });
         });
     }
 }

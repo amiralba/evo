@@ -523,10 +523,44 @@ public class RoutesController : ControllerBase
         var storeNames = await _db.Stores.Where(s => visits.Select(v => v.StoreId).Contains(s.Id))
             .ToDictionaryAsync(s => s.Id, s => s.Name);
 
+        var visitIds = visits.Select(v => v.Id).ToList();
+        var realizationByVisitId = await _db.VisitRealizations
+            .Where(r => visitIds.Contains(r.PlannedVisitId))
+            .ToDictionaryAsync(r => r.PlannedVisitId, r => r);
+
+        var merchandiserIds = visits.Where(v => v.MerchandiserId is not null).Select(v => v.MerchandiserId!.Value).Distinct().ToList();
+        var checkInTimes = realizationByVisitId.Values.Where(r => r.CheckInAt is not null).Select(r => r.CheckInAt!.Value).ToList();
+        var pings = new List<MerchandiserLocationPing>();
+        if (checkInTimes.Count > 0 && merchandiserIds.Count > 0)
+        {
+            var windowStart = checkInTimes.Min().AddMinutes(-30);
+            var windowEnd = checkInTimes.Max().AddMinutes(30);
+            pings = await _db.LocationPings
+                .Where(p => merchandiserIds.Contains(p.MerchandiserId) && p.RecordedAt >= windowStart && p.RecordedAt <= windowEnd)
+                .ToListAsync();
+        }
+
+        LocationPointDto? NearestPing(Guid? merchandiserId, DateTimeOffset? checkInAt)
+        {
+            if (merchandiserId is not { } mId || checkInAt is not { } at) return null;
+            var nearest = pings.Where(p => p.MerchandiserId == mId)
+                .OrderBy(p => Math.Abs((p.RecordedAt - at).Ticks))
+                .FirstOrDefault();
+            if (nearest is null || Math.Abs((nearest.RecordedAt - at).TotalMinutes) > 30) return null;
+            return new LocationPointDto(nearest.Lat, nearest.Lng);
+        }
+
         var days = new List<PlanDayDto>();
         foreach (var group in visits.GroupBy(v => v.VisitDate).OrderBy(g => g.Key))
         {
-            var visitDtos = group.Select(v => new PlannedVisitDto(v.RouteStopId, v.StoreId, storeNames.GetValueOrDefault(v.StoreId, "?"), v.PlannedStart, v.PlannedEnd, v.Source)).ToList();
+            var visitDtos = group.Select(v =>
+            {
+                var realization = realizationByVisitId.GetValueOrDefault(v.Id);
+                return new PlannedVisitDto(
+                    v.RouteStopId, v.StoreId, storeNames.GetValueOrDefault(v.StoreId, "?"), v.PlannedStart, v.PlannedEnd, v.Source,
+                    v.Status, realization?.CheckInAt, realization?.CheckOutAt, realization?.ActualMinutes,
+                    realization?.OutcomeReason, NearestPing(v.MerchandiserId, realization?.CheckInAt));
+            }).ToList();
             var plannedMinutes = group.Sum(v => v.PlannedStart.HasValue && v.PlannedEnd.HasValue ? (int)(v.PlannedEnd.Value - v.PlannedStart.Value).TotalMinutes : 0);
 
             var findings = new List<ValidationFinding>();
