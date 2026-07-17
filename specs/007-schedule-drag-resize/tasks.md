@@ -294,14 +294,14 @@
   zone (last ~6px) reporting a height delta; expose `onDragStart/onDragMove/onDrop` + `onResize*` callbacks
   (state lifted to SchedulePane). Add a `readOnly` prop that disables all handlers.
 - Verify: `cd panel && npm run build` green; block still renders.
-- Status: [ ]
+- Status: [x]
 
 ### Task 5.2: Past-week read-only guard
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: Compute `const isPast = week.from < currentWeek().from;` pass `readOnly={isPast}` to every
   `VisitBlock`; show a small `t('planner.pastWeekReadOnly', …)` hint in the pane head when `isPast`.
 - Verify: navigate to a past week in the running panel — blocks are not draggable; current/future weeks are.
-- Status: [ ]
+- Status: [x]
 
 ### Task 5.3: Per-day drop zones (cross-day target detection)
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
@@ -309,7 +309,7 @@
   determine the hovered target day; highlight it (border/background). Track `{sourceDayIndex,
   targetDayIndex}` in pane drag state.
 - Verify: dragging over another column highlights it (visual check in running panel).
-- Status: [ ]
+- Status: [x]
 
 ### Task 5.4: Live rubber-band reflow preview
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`, `VisitBlock.tsx`
@@ -318,14 +318,14 @@
   snapped via `snapMinutes`. For a cross-day hover, preview the block in the target column. Revert to query
   data when the drag ends without commit.
 - Verify: dragging a block slides the ones below it live (visual check); releasing without saving snaps back.
-- Status: [ ]
+- Status: [x]
 
 ### Task 5.5: Live day-total recolor (warning-only)
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
 - Do: During preview, recompute the affected day's minutes from the reflowed set and apply `loadClass`
   (`over` when >450). Never block/prevent the drop.
 - Verify: dragging so a day exceeds 450 turns the day-total red mid-drag; the drop still completes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 5.6: Drop routing — same-day / cross-day / resize
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`
@@ -334,7 +334,7 @@
   date, startMinutes=snapped drop start); cross-day → open `PatchForm` prefilled MoveVisit (storeId,
   fromDate, toDate, startMinutes). Wire `routeStopId`/`storeId` from `PlannedVisitDto`.
 - Verify: each drop type opens the right form / fires the right mutation (manual check + Phase 6 tests).
-- Status: [ ]
+- Status: [x]
 
 > **CHECKPOINT** after Phase 5: summarize, give a 1-minute manual UI test script (drag within a day →
 > reflow + TimeShift form; drag to another day → MoveVisit form; resize bottom edge → duration change; past

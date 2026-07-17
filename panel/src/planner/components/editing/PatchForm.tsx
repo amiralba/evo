@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { useCreatePatch } from '../../api/mutations'
+import { buildTimeShiftPatch, buildMoveVisitPatch } from '../../schedule/patchPayload'
 import { colors, spacing, radius, fontSize } from '../../../theme/tokens'
 import type { components } from '../../../api/generated/schema'
 
@@ -11,32 +12,75 @@ const PATCH_TYPE_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: 'Mağazayı Atla (SkipStore)' },
   { value: 3, label: 'Mağaza Ekle (AddStore)' },
   { value: 5, label: 'Zaman Kaydır (TimeShift)' },
+  { value: 6, label: 'Ziyareti Taşı (MoveVisit)' },
 ]
+
+export interface PatchFormPrefill {
+  type: number
+  storeId: string
+  startsOn: string
+  startMinutes?: number
+  fromDate?: string
+  toDate?: string
+}
 
 interface PatchFormProps {
   routeId: string
   stops: RouteStopDto[]
   onClose: () => void
+  prefill?: PatchFormPrefill
 }
 
-export function PatchForm({ routeId, stops, onClose }: PatchFormProps) {
+export function PatchForm({ routeId, stops, onClose, prefill }: PatchFormProps) {
   const { t } = useTranslation()
   const province = useWorkspaceStore((s) => s.province)
   const createPatch = useCreatePatch(routeId, province)
 
-  const [type, setType] = useState(1)
-  const [storeId, setStoreId] = useState(stops[0]?.storeId ?? '')
-  const [startsOn, setStartsOn] = useState(() => new Date().toISOString().slice(0, 10))
+  const [type, setType] = useState(prefill?.type ?? 1)
+  const [storeId, setStoreId] = useState(prefill?.storeId ?? stops[0]?.storeId ?? '')
+  const [startsOn, setStartsOn] = useState(prefill?.startsOn ?? (() => new Date().toISOString().slice(0, 10))())
   const [endsOn, setEndsOn] = useState('')
   const [reason, setReason] = useState('')
 
   const expiryInvalid = !endsOn || endsOn < startsOn
+  const isTimeShift = type === 5
+  const isMoveVisit = type === 6
 
   function handleSave() {
     if (expiryInvalid) return
+
+    if (isTimeShift) {
+      createPatch.mutate(
+        buildTimeShiftPatch({
+          storeId,
+          startsOn,
+          endsOn,
+          startMinutes: prefill?.startMinutes ?? 9 * 60,
+          reason: reason || null,
+        }),
+        { onSuccess: onClose },
+      )
+      return
+    }
+
+    if (isMoveVisit) {
+      createPatch.mutate(
+        buildMoveVisitPatch({
+          storeId,
+          fromDate: prefill?.fromDate ?? startsOn,
+          toDate: prefill?.toDate ?? startsOn,
+          endsOn,
+          startMinutes: prefill?.startMinutes,
+          reason: reason || null,
+        }),
+        { onSuccess: onClose },
+      )
+      return
+    }
+
     createPatch.mutate(
       {
-        type: type as 1 | 2 | 3 | 4 | 5,
+        type: type as 1 | 2 | 3 | 4,
         storeId: type === 1 || type === 3 ? storeId : null,
         startsOn,
         endsOn,
@@ -60,7 +104,7 @@ export function PatchForm({ routeId, stops, onClose }: PatchFormProps) {
     >
       <label style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
         {t('planner.patchType', 'Yama tipi')}
-        <select value={type} onChange={(e) => setType(Number(e.target.value))}>
+        <select value={type} onChange={(e) => setType(Number(e.target.value))} disabled={Boolean(prefill)}>
           {PATCH_TYPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -82,10 +126,26 @@ export function PatchForm({ routeId, stops, onClose }: PatchFormProps) {
         </label>
       )}
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
-        {t('planner.startsOn', 'Başlangıç')}
-        <input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
-      </label>
+      {isTimeShift && prefill && (
+        <div style={{ color: colors.text2 }}>
+          {t('planner.newStart', 'Yeni saat')}:{' '}
+          {String(Math.floor((prefill.startMinutes ?? 0) / 60)).padStart(2, '0')}:
+          {String((prefill.startMinutes ?? 0) % 60).padStart(2, '0')}
+        </div>
+      )}
+
+      {isMoveVisit && prefill && (
+        <div style={{ color: colors.text2 }}>
+          {t('planner.fromTo', 'Gün')}: {prefill.fromDate} → {prefill.toDate}
+        </div>
+      )}
+
+      {!isTimeShift && !isMoveVisit && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
+          {t('planner.startsOn', 'Başlangıç')}
+          <input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
+        </label>
+      )}
 
       <label style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
         {t('planner.endsOn', 'Bitiş (zorunlu)')}

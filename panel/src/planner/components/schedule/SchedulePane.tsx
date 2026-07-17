@@ -1,17 +1,34 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { usePlan } from '../../api/queries'
+import { useUpdateStop } from '../../api/mutations'
 import { currentWeek, nextWeek, prevWeek } from '../../schedule/week'
 import { WeekNavigator } from './WeekNavigator'
 import { VisitBlock } from './VisitBlock'
 import { BREAK_BLOCKS } from '../../schedule/breaks'
-import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES } from '../../schedule/position'
+import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES, minutesOfDay } from '../../schedule/position'
+import { pxToMinutes, snapMinutes, clampStart, clampDuration } from '../../schedule/dragMath'
+import { reflowDay, type ReflowResult } from '../../schedule/reflow'
 import { spacing, fontSize, radius, severityColors } from '../../../theme/tokens'
 import { formatMinutes } from '../../format'
+import { PatchForm, type PatchFormPrefill } from '../editing/PatchForm'
+import type { components } from '../../../api/generated/schema'
+
+type PlanDayDto = components['schemas']['PlanDayDto']
+type RouteStopDto = components['schemas']['RouteStopDto']
 
 const GRID_HEIGHT = (DAY_END_MINUTES - DAY_START_MINUTES) * PX_PER_MINUTE
 const WEEKDAY_LABEL = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum']
+
+interface ParsedVisit {
+  routeStopId: string
+  storeId: string
+  storeName: string
+  startMin: number
+  durationMin: number
+  isPatch: boolean
+}
 
 function loadClass(minutes: number): string {
   if (minutes > 450) return 'over'
@@ -19,92 +36,293 @@ function loadClass(minutes: number): string {
   return 'ok'
 }
 
-export function SchedulePane() {
+function parseDay(day: PlanDayDto): ParsedVisit[] {
+  return (day.visits ?? [])
+    .filter((v) => v.start && v.end && v.routeStopId && v.storeId)
+    .map((v) => ({
+      routeStopId: v.routeStopId!,
+      storeId: v.storeId!,
+      storeName: v.storeName ?? '',
+      startMin: minutesOfDay(v.start!),
+      durationMin: Math.round((new Date(v.end!).getTime() - new Date(v.start!).getTime()) / 60_000),
+      isPatch: v.source === 2,
+    }))
+    .sort((a, b) => a.startMin - b.startMin)
+}
+
+interface DragState {
+  dayIndex: number
+  visitIndex: number
+  kind: 'move' | 'resize'
+  pointerStartY: number
+  pointerStartX: number
+  currentY: number
+  currentX: number
+  targetDayIndex: number
+}
+
+interface SchedulePaneProps {
+  routeId: string
+  stops: RouteStopDto[]
+}
+
+export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
   const { t } = useTranslation()
-  const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
+  const province = useWorkspaceStore((s) => s.province)
   const [week, setWeek] = useState(currentWeek())
-  const { data: days, isLoading, isError } = usePlan(focusedRouteId, week.from, week.to)
+  const { data: days, isLoading, isError } = usePlan(routeId, week.from, week.to)
+  const updateStop = useUpdateStop(routeId, province)
+
+  const [drag, setDrag] = useState<DragState | null>(null)
+  const [patchPrefill, setPatchPrefill] = useState<PatchFormPrefill | null>(null)
+  const dayRefs = useRef<(HTMLDivElement | null)[]>([])
+  const dragRef = useRef<DragState | null>(null)
+
+  const isPastWeek = week.from < currentWeek().from
+
+  const parsedDays = useMemo(() => (days ?? []).map(parseDay), [days])
+
+  function updateDrag(next: DragState) {
+    dragRef.current = next
+    setDrag(next)
+  }
+
+  function startDrag(kind: 'move' | 'resize', dayIndex: number, visitIndex: number, e: React.PointerEvent) {
+    if (isPastWeek) return
+    const next: DragState = {
+      dayIndex,
+      visitIndex,
+      kind,
+      pointerStartY: e.clientY,
+      pointerStartX: e.clientX,
+      currentY: e.clientY,
+      currentX: e.clientX,
+      targetDayIndex: dayIndex,
+    }
+    updateDrag(next)
+
+    function hitTestDay(clientX: number, fallback: number): number {
+      for (let i = 0; i < dayRefs.current.length; i++) {
+        const el = dayRefs.current[i]
+        if (!el) continue
+        const rect = el.getBoundingClientRect()
+        if (clientX >= rect.left && clientX <= rect.right) return i
+      }
+      return fallback
+    }
+
+    function onMove(ev: PointerEvent) {
+      const current = dragRef.current
+      if (!current) return
+      const targetDayIndex = current.kind === 'move' ? hitTestDay(ev.clientX, current.dayIndex) : current.dayIndex
+      updateDrag({ ...current, currentY: ev.clientY, currentX: ev.clientX, targetDayIndex })
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      commitDrag()
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  function commitDrag() {
+    const current = dragRef.current
+    dragRef.current = null
+    setDrag(null)
+    if (!current) return
+
+    const visit = parsedDays[current.dayIndex]?.[current.visitIndex]
+    if (!visit) return
+
+    const deltaMin = pxToMinutes(current.currentY - current.pointerStartY)
+
+    if (current.kind === 'resize') {
+      const newDuration = clampDuration(visit.durationMin + deltaMin)
+      if (newDuration === visit.durationMin) return
+      updateStop.mutate({ stopId: visit.routeStopId, body: { serviceMinutes: newDuration } })
+      return
+    }
+
+    const rawStart = snapMinutes(visit.startMin + deltaMin)
+    const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
+    const sourceDate = days?.[current.dayIndex]?.date
+    const targetDate = days?.[current.targetDayIndex]?.date
+    if (!sourceDate || !targetDate) return
+
+    const sameDay = current.targetDayIndex === current.dayIndex
+    if (sameDay && newStart === visit.startMin) return
+
+    if (sameDay) {
+      setPatchPrefill({ type: 5, storeId: visit.storeId, startsOn: sourceDate, startMinutes: newStart })
+    } else {
+      setPatchPrefill({
+        type: 6,
+        storeId: visit.storeId,
+        startsOn: sourceDate < targetDate ? sourceDate : targetDate,
+        fromDate: sourceDate,
+        toDate: targetDate,
+        startMinutes: newStart,
+      })
+    }
+  }
+
+  /** Live reflow preview — only computed for same-day moves/resizes, where the reflowed array's
+   * indices line up 1:1 with the day's parsed visit list. Cross-day drags render a separate
+   * floating ghost in the target column instead (index alignment breaks once an item is removed
+   * from one day's array, so a full two-day reflow preview isn't attempted here). */
+  const sameDayPreview: ReflowResult[] | null = useMemo(() => {
+    if (!drag || drag.targetDayIndex !== drag.dayIndex) return null
+    const dayVisits = parsedDays[drag.dayIndex]
+    const visit = dayVisits?.[drag.visitIndex]
+    if (!visit) return null
+
+    const deltaMin = pxToMinutes(drag.currentY - drag.pointerStartY)
+    if (drag.kind === 'resize') {
+      const newDuration = clampDuration(visit.durationMin + deltaMin)
+      return reflowDay(dayVisits, drag.visitIndex, visit.startMin, newDuration, BREAK_BLOCKS)
+    }
+    const rawStart = snapMinutes(visit.startMin + deltaMin)
+    const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
+    return reflowDay(dayVisits, drag.visitIndex, newStart, visit.durationMin, BREAK_BLOCKS)
+  }, [drag, parsedDays])
+
+  const crossDayGhost = useMemo(() => {
+    if (!drag || drag.kind !== 'move' || drag.targetDayIndex === drag.dayIndex) return null
+    const visit = parsedDays[drag.dayIndex]?.[drag.visitIndex]
+    if (!visit) return null
+    const deltaMin = pxToMinutes(drag.currentY - drag.pointerStartY)
+    const rawStart = snapMinutes(visit.startMin + deltaMin)
+    const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
+    return { dayIndex: drag.targetDayIndex, visit, startMin: newStart }
+  }, [drag, parsedDays])
+
+  if (!routeId) return null
 
   return (
     <div className="pane" id="schedPane">
       <div className="pane-head">
         TAKVİM <span style={{ color: 'var(--tx3)' }}>— blok: sürükle / alt kenar: süre uzat</span>
+        {isPastWeek && (
+          <span style={{ color: 'var(--amber-d)', marginLeft: 8 }}>
+            {t('planner.pastWeekReadOnly', '(geçmiş hafta — salt okunur)')}
+          </span>
+        )}
       </div>
 
-      {!focusedRouteId && (
-        <div className="empty">{t('planner.noRouteFocused', 'Haritadan veya listeden bir rota seçin.')}</div>
+      <WeekNavigator
+        week={week}
+        onPrev={() => setWeek((w) => prevWeek(w.from))}
+        onNext={() => setWeek((w) => nextWeek(w.from))}
+        onReset={() => setWeek(currentWeek())}
+      />
+
+      {isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
+      {isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
+      {!isLoading && !isError && (!days || days.length === 0) && (
+        <div className="empty">{t('planner.noPlanYet', 'Bu rota için henüz bir plan yok.')}</div>
       )}
 
-      {focusedRouteId && (
-        <>
-          <WeekNavigator
-            week={week}
-            onPrev={() => setWeek((w) => prevWeek(w.from))}
-            onNext={() => setWeek((w) => nextWeek(w.from))}
-            onReset={() => setWeek(currentWeek())}
-          />
+      {!isLoading && !isError && days && days.length > 0 && (
+        <div className="sched-scroll" style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
+          <div style={{ display: 'flex', gap: spacing.lg }}>
+            {days.map((day, dayIndex) => {
+              const parsed = parsedDays[dayIndex] ?? []
+              const isSameDayDrag = drag?.dayIndex === dayIndex && drag.targetDayIndex === dayIndex
+              const isDragTarget = drag?.kind === 'move' && drag.targetDayIndex === dayIndex && drag.dayIndex !== dayIndex
+              const dayMinutes = isSameDayDrag && sameDayPreview
+                ? sameDayPreview.reduce((sum, p) => sum + (p.endMin - p.startMin), 0)
+                : (day.plannedMinutes ?? 0)
 
-          {isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
-          {isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
-          {!isLoading && !isError && (!days || days.length === 0) && (
-            <div className="empty">{t('planner.noPlanYet', 'Bu rota için henüz bir plan yok.')}</div>
-          )}
+              return (
+                <div key={day.date ?? dayIndex} style={{ flex: 1, minWidth: 140 }}>
+                  <div style={{ textAlign: 'center', fontSize: fontSize.sm, color: 'var(--tx2)', padding: `0 0 ${spacing.xs}` }}>
+                    {WEEKDAY_LABEL[dayIndex] ?? day.date} <span style={{ color: 'var(--tx3)' }}>{day.date}</span>
+                  </div>
 
-          {!isLoading && !isError && days && days.length > 0 && (
-            <div className="sched-scroll" style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
-              <div style={{ display: 'flex', gap: spacing.lg }}>
-                {days.map((day, i) => {
-                  const minutes = day.plannedMinutes ?? 0
-                  return (
-                    <div key={day.date ?? i} style={{ flex: 1, minWidth: 140 }}>
-                      <div style={{ textAlign: 'center', fontSize: fontSize.sm, color: 'var(--tx2)', padding: `0 0 ${spacing.xs}` }}>
-                        {WEEKDAY_LABEL[i] ?? day.date} <span style={{ color: 'var(--tx3)' }}>{day.date}</span>
+                  <div
+                    ref={(el) => {
+                      dayRefs.current[dayIndex] = el
+                    }}
+                    className="day-cell"
+                    style={{ height: GRID_HEIGHT, outline: isDragTarget ? '2px solid var(--blue-d)' : undefined }}
+                  >
+                    <div className={`day-total ${loadClass(dayMinutes)}`}>{formatMinutes(dayMinutes)} / 450</div>
+                    {BREAK_BLOCKS.map((b, bi) => (
+                      <div
+                        key={bi}
+                        className="brk"
+                        style={{
+                          top: (b.startMinutes - DAY_START_MINUTES) * PX_PER_MINUTE,
+                          height: (b.endMinutes - b.startMinutes) * PX_PER_MINUTE,
+                        }}
+                      >
+                        {b.label}
                       </div>
+                    ))}
 
-                      <div className="day-cell" style={{ height: GRID_HEIGHT }}>
-                        <div className={`day-total ${loadClass(minutes)}`}>{formatMinutes(minutes)} / 450</div>
-                        {BREAK_BLOCKS.map((b, bi) => (
-                          <div
-                            key={bi}
-                            className="brk"
-                            style={{
-                              top: (b.startMinutes - DAY_START_MINUTES) * PX_PER_MINUTE,
-                              height: (b.endMinutes - b.startMinutes) * PX_PER_MINUTE,
-                            }}
-                          >
-                            {b.label}
-                          </div>
-                        ))}
-                        {(day.visits ?? []).map((visit, vi) => (
-                          <VisitBlock key={vi} visit={visit} dayStartMinutes={DAY_START_MINUTES} />
-                        ))}
-                      </div>
+                    {parsed.map((visit, visitIndex) => {
+                      const isDraggingThis = Boolean(drag) && drag!.dayIndex === dayIndex && drag!.visitIndex === visitIndex
+                      const reflowed = isSameDayDrag ? sameDayPreview?.[visitIndex] : undefined
+                      const startMin = reflowed?.startMin ?? visit.startMin
+                      const durationMin = reflowed ? reflowed.endMin - reflowed.startMin : visit.durationMin
 
-                      {(day.findings ?? []).length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs, padding: `${spacing.sm} 0` }}>
-                          {day.findings!.map((f, fi) => (
-                            <span
-                              key={fi}
-                              title={f.message ?? ''}
-                              className="badge"
-                              style={{
-                                background: f.severity === 1 ? severityColors.err.bg : severityColors.warn.bg,
-                                color: f.severity === 1 ? severityColors.err.fg : severityColors.warn.fg,
-                                borderRadius: radius.pill,
-                              }}
-                            >
-                              {f.code}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      return (
+                        <VisitBlock
+                          key={visit.routeStopId}
+                          storeName={visit.storeName}
+                          startMin={startMin}
+                          durationMin={durationMin}
+                          dayStartMinutes={DAY_START_MINUTES}
+                          isPatch={visit.isPatch}
+                          readOnly={isPastWeek}
+                          ghost={isDraggingThis && drag?.kind === 'move' && drag.targetDayIndex !== dayIndex}
+                          onMoveStart={(e) => startDrag('move', dayIndex, visitIndex, e)}
+                          onResizeStart={(e) => startDrag('resize', dayIndex, visitIndex, e)}
+                        />
+                      )
+                    })}
+
+                    {crossDayGhost && crossDayGhost.dayIndex === dayIndex && (
+                      <VisitBlock
+                        storeName={crossDayGhost.visit.storeName}
+                        startMin={crossDayGhost.startMin}
+                        durationMin={crossDayGhost.visit.durationMin}
+                        dayStartMinutes={DAY_START_MINUTES}
+                        isPatch={crossDayGhost.visit.isPatch}
+                        readOnly
+                        ghost={false}
+                      />
+                    )}
+                  </div>
+
+                  {(day.findings ?? []).length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs, padding: `${spacing.sm} 0` }}>
+                      {day.findings!.map((f, fi) => (
+                        <span
+                          key={fi}
+                          title={f.message ?? ''}
+                          className="badge"
+                          style={{
+                            background: f.severity === 1 ? severityColors.err.bg : severityColors.warn.bg,
+                            color: f.severity === 1 ? severityColors.err.fg : severityColors.warn.fg,
+                            borderRadius: radius.pill,
+                          }}
+                        >
+                          {f.code}
+                        </span>
+                      ))}
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {patchPrefill && (
+        <PatchForm routeId={routeId} stops={stops} prefill={patchPrefill} onClose={() => setPatchPrefill(null)} />
       )}
     </div>
   )

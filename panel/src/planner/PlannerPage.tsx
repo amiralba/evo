@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from './state/workspaceStore'
+import { useRoute } from './api/queries'
 import { TopFilterBar } from './components/TopFilterBar'
 import { RouteRail } from './components/RouteRail'
 import { WorkspaceLayout } from './components/WorkspaceLayout'
@@ -11,8 +13,11 @@ import { SelectionBar } from './components/editing/SelectionBar'
 import './planner.css'
 
 export function PlannerPage() {
+  const { t } = useTranslation()
   const clearFocus = useWorkspaceStore((s) => s.clearFocus)
   const clearSelection = useWorkspaceStore((s) => s.clearSelection)
+  const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
+  const { data: focusedRoute } = useRoute(focusedRouteId)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -32,7 +37,13 @@ export function PlannerPage() {
         <RouteRail />
         <WorkspaceLayout
           map={<MapPane />}
-          schedule={<SchedulePane />}
+          schedule={
+            focusedRouteId ? (
+              <SchedulePane routeId={focusedRouteId} stops={focusedRoute?.stops ?? []} />
+            ) : (
+              <div className="empty">{t('planner.noRouteFocused', 'Haritadan veya listeden bir rota seçin.')}</div>
+            )
+          }
           bottom={<SelectionListPane />}
         />
         <div className="panel">

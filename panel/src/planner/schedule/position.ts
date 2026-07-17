@@ -10,7 +10,7 @@ export interface BlockGeometry {
 /** Extracts the wall-clock HH:mm from an ISO date-time string, ignoring any timezone offset —
  * the grid always shows the time-of-day as written by the backend, not converted to the
  * viewer's local timezone. */
-function minutesOfDay(iso: string): number {
+export function minutesOfDay(iso: string): number {
   const match = /T(\d{2}):(\d{2})/.exec(iso)
   if (!match) return 0
   return Number(match[1]) * 60 + Number(match[2])
