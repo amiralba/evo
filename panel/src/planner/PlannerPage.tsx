@@ -3,6 +3,7 @@ import { useWorkspaceStore } from './state/workspaceStore'
 import { TopFilterBar } from './components/TopFilterBar'
 import { RouteRail } from './components/RouteRail'
 import { WorkspaceLayout } from './components/WorkspaceLayout'
+import { MapPane } from './components/map/MapPane'
 import { colors } from '../theme/tokens'
 
 export function PlannerPage() {
@@ -26,7 +27,7 @@ export function PlannerPage() {
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <RouteRail />
         <WorkspaceLayout
-          map={<div style={{ padding: 16 }}>Harita (Phase 3)</div>}
+          map={<MapPane />}
           schedule={<div style={{ padding: 16 }}>Takvim (Phase 5)</div>}
           bottom={<div style={{ padding: 16 }}>Seçim listesi (Phase 6)</div>}
         />

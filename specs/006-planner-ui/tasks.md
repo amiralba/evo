@@ -187,61 +187,61 @@
 - Files: `panel/src/planner/components/map/useMapLibre.ts`
 - Do: hook that creates a `maplibregl.Map` once (style `https://demotiles.maplibre.org/style.json`, Turkey center `[35, 39]`, zoom 5) into a passed container ref, returns the map instance, and cleans it up (`map.remove()`) on unmount. Import `'maplibre-gl/dist/maplibre-gl.css'`.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 25: MapPane shell
 - Files: `panel/src/planner/components/map/MapPane.tsx`
 - Do: a full-size container div wired to `useMapLibre`; render into the WorkspaceLayout `map` slot in `PlannerPage`.
 - Verify: `npm run dev` → `/planner` shows a rendered map that pans/zooms; no console errors on navigate away (cleanup works).
-- Status: [ ]
+- Status: [x]
 
 ## Task 26: Store GeoJSON source + circle layer
 - Files: `panel/src/planner/components/map/storeLayer.ts`, `panel/src/planner/components/map/MapPane.tsx`
 - Do: `storeLayer.ts` — helpers to convert `StoreGeoDto[]` (from `useStoresGeo(province)`) to a GeoJSON FeatureCollection and to add/update a `stores` source + `circle` layer on the map (update the source's data on change, don't recreate the layer). Call from MapPane on data/province change.
 - Verify: `npm run dev` → seeded-province stores appear as circles; changing province refits and swaps pins.
-- Status: [ ]
+- Status: [x]
 
 ## Task 27: Color coding by chain / category / on-route
 - Files: `panel/src/planner/components/map/storeLayer.ts`
 - Do: MapLibre `circle-color` (chain fill), `circle-stroke-color`/`circle-stroke-width` (category ring), and `circle-opacity` faded when `ActiveRouteId` is set and not the focused route; highlighted (larger radius / full opacity) when on the focused route. Drive via feature properties + `focusedRouteId`. Use `theme/tokens` colors.
 - Verify: `npm run dev` → pins on other routes render faded; focusing a route highlights its pins.
-- Status: [ ]
+- Status: [x]
 
 ## Task 28: Pin click popover
 - Files: `panel/src/planner/components/map/StorePopover.tsx`, `panel/src/planner/components/map/MapPane.tsx`
 - Do: on `click` of the stores layer, open a popover (MapLibre `Popup` or an absolutely-positioned React node) showing name, chain, category badge, format, 6-month revenue (formatted TRY), and current route code or `t('planner.pool')`. Include "Add to route" / "Move here" buttons (wired in Phase 6 — stub the handlers now, disabled when no focused route).
 - Verify: `npm run dev` → clicking a pin shows the popover with correct data.
-- Status: [ ]
+- Status: [x]
 
 ## Task 29: Province-scoped fetch (no out-of-province render)
 - Files: `panel/src/planner/components/map/MapPane.tsx`
 - Do: ensure `useStoresGeo` is called with the current `province` only; on province change refetch + `map.fitBounds` to the new pins. Confirm out-of-province stores are never in the source (they are not fetched).
 - Verify: switch province → only that province's pins render, map recenters.
-- Status: [ ]
+- Status: [x]
 
 ## Task 30: Lasso hit-test util
 - Files: `panel/src/planner/components/map/lasso.ts`, `panel/src/planner/components/map/lasso.test.ts`
 - Do: `lasso.ts` — `storesInPolygon(stores: StoreGeoDto[], polygon: number[][]): string[]` using `@turf/boolean-point-in-polygon`, returning ids of pool stores (`ActiveRouteId == null`) inside. Vitest test with a fixed square polygon + points inside/outside.
 - Verify: `npm test -- lasso` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 31: Lasso draw tool (human-only path)
 - Files: `panel/src/planner/components/map/MapPane.tsx`, `panel/src/planner/components/map/LassoTool.tsx`
 - Do: a toolbar toggle enters "lasso" mode; freehand/point-click polygon capture on the map; on close, `storesInPolygon(...)` → `setSelection(ids)`; a badge shows "N selected". (Simple polygon capture — click to add vertices, double-click/Enter to close is acceptable.) This is the human-facing selection path; the e2e uses the checkbox list (Task 56) instead (clarification #10).
 - Verify: `npm run dev` → drawing a lasso around pool pins selects them (badge count matches).
-- Status: [ ]
+- Status: [x]
 
 ## Task 32: Focus-driven map highlight from rail/select
 - Files: `panel/src/planner/components/map/MapPane.tsx`
 - Do: subscribe to `focusedRouteId`; when it changes, re-evaluate the circle paint (highlight the focused route's stops) and optionally fit to them.
 - Verify: `npm run dev` → clicking a route in the rail highlights its stores on the map.
-- Status: [ ]
+- Status: [x]
 
 ## Task 33: Phase-3 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; map renders seeded pins, color coding, popover, lasso selection, focus highlight.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 3 checkpoint: summarize map pane, evidence, commit `feat(006): MapLibre store layer +
      popover + lasso`. Manual UI test script: 1) /planner shows a map with pins in the seeded province;
