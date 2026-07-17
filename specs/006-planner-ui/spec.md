@@ -271,6 +271,7 @@ green against a live seeded backend.
 | 12 | Break rendering source — client constant or new API? | **Client-side constant matching 005's seeded `break_blocks`** (as proposed). No API change. |
 | 13 | `GET /stores/geo` authorization? | **Any authenticated user** (`[Authorize]`, matching `GET /stores`). No Supervisor-only restriction. |
 | 14 | Stop-reorder persistence — N per-stop PATCHes or a batch endpoint? | **ADD a new batch `stops:reorder` backend endpoint.** dnd-kit reorder calls it once on drop (not N per-stop PATCHes). New backend scope in Phase 1; the Phase 6 reorder consumer calls it. |
+| 15 | After Phase 5, user flagged that the built panes (map/schedule/health) don't visually or logically match `evo-planner-prototype-v0.5.html` — Phases 1-5 used generic inline styles rather than rigorously porting the prototype's actual CSS (pane-head bars, compact spacing, numbered map markers + polylines, borders). Fix now (pause features), finish functional phases first then a parity pass, or add deferred items (Sorun Merkezi, Efektif/Baz toggle) back into scope? | **Finish functional Phases 6-8 first (editing, publish, table+e2e), then run a dedicated visual-parity pass against the prototype's actual CSS/layout before closing 006.** Deferred items from decision #2 (Sorun Merkezi, simulate, Effective/Base toggle, etc.) stay deferred to later specs — only visual/layout fidelity for what's already in scope gets the parity pass. |
 
 ## Non-goals
 - **No Conflict Center / overlap-resolve workbench** — later M1 spec (V12 surfaces as a chip only here).

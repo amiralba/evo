@@ -608,13 +608,70 @@
 - Verify: `grep -n "006" docs/DECISIONS.md` and `docs/ROADMAP.md` show the new entries.
 - Status: [ ]
 
-## Task 86: Final full verification pass
+## Task 86: Final Phase 8 verification pass
 - Files: (none)
 - Do: `dotnet test backend/Evo.sln`; `cd panel && npm run lint && npm test && npm run build`; with the seeded backend running, `npx playwright test`.
 - Verify: backend green, panel lint/test/build green, Playwright core flow green.
 - Status: [ ]
 
+<!-- HARD STOP — Phase 8 checkpoint (not the final one — Phase 9 visual-parity pass follows per
+     Clarification #15). Summarize tests/i18n/docs, evidence, commit `feat(006): planner UI tests + docs`,
+     manual test script = the Playwright core flow run manually once. Then "CHECKPOINT — waiting for your
+     go/feedback" and END THE TURN. -->
+
+---
+
+## Phase 9 — Visual-parity pass against the prototype (Clarification #15)
+
+<!-- Added 2026-07-17 after the user flagged that Phases 1-5 used generic inline styles instead of the
+     prototype's actual CSS. Before this phase: invoke the design-system skill and re-read
+     evo-planner-prototype-v0.5.html's actual CSS block (style tag, ~line 60-320) — pane-head bars, the
+     compact 10-13px type scale, border colors, badge/chip shapes, map marker numbering. Go pane-by-pane;
+     each task's "Do" should name the exact prototype selector(s) being ported. -->
+
+## Task 87: Global chrome parity
+- Files: `panel/src/planner/components/TopFilterBar.tsx`, `panel/src/planner/PlannerPage.tsx`
+- Do: match the prototype's top bar (`#topbar`, line ~296-317): app name + version left, province/route/week controls center-left, layout toggle group, right-aligned search + Yayınla + icon buttons. Match spacing/border/font-size exactly, not approximately.
+- Verify: `npm run dev` → side-by-side with the prototype screenshot, top bar matches (spacing, borders, button styles).
+- Status: [ ]
+
+## Task 88: Route rail parity
+- Files: `panel/src/planner/components/RouteRail.tsx`
+- Do: match the prototype's `#leftPane`/rail rows (line ~110-... `.rutItem`-style rows): route code + assignee + revenue + warning icon + stop count, "Havuz (N)" pool section, "+ Yeni rut" button. Add the pool-count badge next to "Rutlar/Havuz" tabs if present in the prototype.
+- Verify: `npm run dev` → rail matches the prototype's route-list density and iconography.
+- Status: [ ]
+
+## Task 89: Map pane parity — numbered markers + route polylines
+- Files: `panel/src/planner/components/map/storeLayer.ts`, `MapPane.tsx`
+- Do: add a `symbol` layer showing each stop's sequence number on its marker when a route is focused (matching the prototype's numbered circles), and a `line` layer drawing the focused route's stop-to-stop polyline in sequence order. Match the prototype's pane-head bar (`HARİTA — pin: tıkla · ...`) styling.
+- Verify: `npm run dev` → focusing a route shows numbered pins connected by a polyline, matching the prototype's map pane.
+- Status: [ ]
+
+## Task 90: Schedule pane parity
+- Files: `panel/src/planner/components/schedule/SchedulePane.tsx`, `VisitBlock.tsx`, `WeekNavigator.tsx`
+- Do: match the prototype's `TAKVİM` pane-head bar and per-person day-grid layout (each merchandiser gets their own row of day columns, not one grid per route) if that's how multi-person routes render in the prototype; match visit-block styling (colored left-bar, category dot, minutes badge) and the compact weekday+error/warning-count header (`Pzt 🔴2`).
+- Verify: `npm run dev` → schedule pane's block styling and per-person layout matches the prototype.
+- Status: [ ]
+
+## Task 91: Detail panel + health card parity
+- Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`, `HealthCard.tsx`, `StopsList.tsx`
+- Do: match the prototype's `Detay` panel (tabs: Bilgi/Görevler/Geçmiş — Bilgi active by default; empty state copy), and the compact health-metric layout (single-line "Ciro: X / Y" + inline bar, "Haftalık dakika" mini-bar row per weekday, "Karışım" donut with legend chips below).
+- Verify: `npm run dev` → detail panel tabs + health metrics match the prototype's density and layout.
+- Status: [ ]
+
+## Task 92: Global palette + typography audit
+- Files: `panel/src/theme/tokens.ts` (extend if the prototype's CSS has tokens not yet captured), all `panel/src/planner/**` components
+- Do: diff every color/spacing/font-size literal used in planner components against the prototype's actual `:root` CSS vars and computed styles; fix mismatches. Confirm the type scale (9-15px) and spacing scale (2-14px) are used consistently, not ad hoc pixel values.
+- Verify: `grep -rnE "font-size:\s*[0-9]" panel/src/planner` shows no raw literals outside `theme/tokens.ts` reads; visual spot-check against prototype for at least the map, schedule, and detail panes.
+- Status: [ ]
+
+## Task 93: Phase-9 verification pass
+- Files: (none)
+- Do: `cd panel && npm run lint && npm test && npm run build`.
+- Verify: all pass; a full side-by-side comparison against `evo-planner-prototype-v0.5.html` for the Bölünmüş layout shows no unintentional visual differences.
+- Status: [ ]
+
 <!-- FINAL PHASE — run /end-session instead of a plain checkpoint (CLAUDE.md rule 3d). Summarize the whole
-     006 spec (geo API + batch reorder + 8 UI phases), show the full green suite + a Playwright run, commit
-     `feat(006): planner UI tests + docs`, give the full manual UI test script (the core flow), update the
-     roadmap, and end the session. -->
+     006 spec (geo API + batch reorder + 8 UI phases + visual-parity pass), show the full green suite + a
+     Playwright run, commit `feat(006): visual-parity pass against the prototype`, give the full manual UI
+     test script (the core flow + a visual spot-check), update the roadmap, and end the session. -->
