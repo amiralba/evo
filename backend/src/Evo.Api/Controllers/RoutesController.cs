@@ -296,7 +296,7 @@ public class RoutesController : ControllerBase
         }
         if (request.ServiceMinutes is { } minutes)
         {
-            stop.ServiceMinutes = minutes;
+            stop.ServiceMinutes = Math.Clamp((int)(Math.Round(minutes / 5.0) * 5), 10, 240);
         }
         if (request.Sequence is { } sequence)
         {
@@ -457,6 +457,34 @@ public class RoutesController : ControllerBase
             throw new EvoValidationException(new Dictionary<string, string[]> { ["endsOn"] = ["A patch must have a mandatory expiry date (V9)."] });
         }
 
+        if (request.Type == PatchType.TimeShift)
+        {
+            if (request.StoreId is null || !PatchParams.TryParse<PatchParams.TimeShiftParams>(request.ParamsJson, out _))
+            {
+                throw new EvoValidationException(new Dictionary<string, string[]>
+                {
+                    ["paramsJson"] = ["TimeShift requires storeId and a paramsJson of the shape { startMinutes }."],
+                });
+            }
+        }
+        else if (request.Type == PatchType.MoveVisit)
+        {
+            if (request.StoreId is null || !PatchParams.TryParse<PatchParams.MoveVisitParams>(request.ParamsJson, out var mp) || mp is null)
+            {
+                throw new EvoValidationException(new Dictionary<string, string[]>
+                {
+                    ["paramsJson"] = ["MoveVisit requires storeId and a paramsJson of the shape { fromDate, toDate, startMinutes? }."],
+                });
+            }
+            if (mp.FromDate == mp.ToDate)
+            {
+                throw new EvoValidationException(new Dictionary<string, string[]>
+                {
+                    ["paramsJson"] = ["MoveVisit's fromDate and toDate must differ."],
+                });
+            }
+        }
+
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -498,7 +526,7 @@ public class RoutesController : ControllerBase
         var days = new List<PlanDayDto>();
         foreach (var group in visits.GroupBy(v => v.VisitDate).OrderBy(g => g.Key))
         {
-            var visitDtos = group.Select(v => new PlannedVisitDto(v.StoreId, storeNames.GetValueOrDefault(v.StoreId, "?"), v.PlannedStart, v.PlannedEnd, v.Source)).ToList();
+            var visitDtos = group.Select(v => new PlannedVisitDto(v.RouteStopId, v.StoreId, storeNames.GetValueOrDefault(v.StoreId, "?"), v.PlannedStart, v.PlannedEnd, v.Source)).ToList();
             var plannedMinutes = group.Sum(v => v.PlannedStart.HasValue && v.PlannedEnd.HasValue ? (int)(v.PlannedEnd.Value - v.PlannedStart.Value).TotalMinutes : 0);
 
             var findings = new List<ValidationFinding>();

@@ -66,6 +66,14 @@ sentinel = global, non-empty = region override; migration-seeded with 8 M1-core 
 `service_mix_cap_pct`, `plan_horizon_weeks=6`, `snap_minutes`, `break_blocks`) — no admin UI or
 draft→confirm flow yet, read via `ISettingsProvider`.
 
+**Spec 007 addendum — no schema change.** `patch.type = 6` (`MoveVisit`, cross-day drag) and
+`patch.type = 5` (`TimeShift`, same-day drag) now do something at generation time — previously
+TimeShift was a documented no-op. Both are carried entirely in the existing `patch.params_json`
+(`nvarchar(max)`, already unconstrained) as `{ startMinutes }` (TimeShift) or
+`{ fromDate, toDate, startMinutes? }` (MoveVisit) — `patch.type` has no CHECK constraint so the
+new enum value needed no migration. See `docs/API.md` for the exact shapes and `docs/DECISIONS.md`
+for why MoveVisit is a new type rather than an overloaded TimeShift.
+
 M1-core validation subset implemented: V1/V2 (450-min rule, `DayScheduler`), V3 (geo-scope),
 V5 (revenue target), V6 (SERVICE-category mix cap), V7 (time-window/ban), V9 (mandatory patch
 expiry), V12 (merchandiser visit overlap). Deferred: V8, V10/V11 (task/rule Σ-duration → M2),

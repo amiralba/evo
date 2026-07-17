@@ -43,7 +43,7 @@ public class MerchandisersController : ControllerBase
 
         return visits
             .OrderBy(v => v.PlannedStart)
-            .Select(v => new PlannedVisitDto(v.StoreId, storeNames.GetValueOrDefault(v.StoreId, "?"), v.PlannedStart, v.PlannedEnd, v.Source))
+            .Select(v => new PlannedVisitDto(v.RouteStopId, v.StoreId, storeNames.GetValueOrDefault(v.StoreId, "?"), v.PlannedStart, v.PlannedEnd, v.Source))
             .ToList();
     }
 }

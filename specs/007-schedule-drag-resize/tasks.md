@@ -168,7 +168,7 @@
   (`paramsJson`/`storeId` keys). If `Type == MoveVisit`, require `StoreId != null`,
   `PatchParams.TryParse<MoveVisitParams>(…)`, and `mp.FromDate != mp.ToDate` (400 otherwise).
 - Verify: `dotnet build backend/Evo.sln` compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 3.2: Add RouteStopId to PlannedVisitDto + populate
 - Files: `backend/src/Evo.Api/Routing/Dtos/PlanDtos.cs`,
@@ -177,14 +177,14 @@
 - Do: Add `Guid RouteStopId` to the `PlannedVisitDto` record; pass `v.RouteStopId` in both `new
   PlannedVisitDto(...)` constructions.
 - Verify: `dotnet build backend/Evo.sln` compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 3.3: Snap/clamp serviceMinutes in UpdateStop
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs` (`UpdateStop`)
 - Do: Where `request.ServiceMinutes is { } minutes`, snap to nearest 5 and clamp `[10,240]` before
   `stop.ServiceMinutes = ...` (`Math.Clamp((int)(Math.Round(minutes/5.0)*5), 10, 240)`).
 - Verify: `dotnet build backend/Evo.sln` compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 3.4 [P]: CreatePatch + UpdateStop validation tests
 - Files: `backend/tests/Evo.Api.Tests/Routes/PatchParamsValidationTests.cs` (new),
@@ -193,7 +193,7 @@
   MoveVisit with `fromDate == toDate`; UpdateStop persists `237 → 235`, `500 → 240`, `3 → 10`.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~PatchParamsValidation` and the UpdateStop
   test green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 3.5: Regenerate the contract + TS client
 - Files: `contracts/openapi.json`, `panel/src/api/generated/schema.ts` (generated)
@@ -201,7 +201,7 @@
   `cd panel && npm run generate-api-client`.
 - Verify: `git diff contracts/openapi.json` shows `MoveVisit`/`routeStopId`; `schema.ts` shows
   `routeStopId` on `PlannedVisitDto`; `cd panel && npm run build` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 3.6: Docs — API / DECISIONS / DATABASE / design flag
 - Files: `docs/API.md`, `docs/DECISIONS.md`, `docs/DATABASE.md`, `EVO-Route-Planning-Design.md`
@@ -210,13 +210,13 @@
   — note no schema change; `patch.Type = 6` semantics. Design doc — flag the §2.5 patch-type list gains
   MoveVisit (CLAUDE.md rule 5: never contradict the design log silently).
 - Verify: `git diff` shows the four doc updates; grep `MoveVisit` present in each.
-- Status: [ ]
+- Status: [x]
 
 ### Task 3.7: Full backend + panel build green
 - Files: —
 - Do: `dotnet test backend/Evo.sln`; `cd panel && npm run build`.
 - Verify: backend suite all green (report count); panel build succeeds.
-- Status: [ ]
+- Status: [x]
 
 > **CHECKPOINT** after Phase 3: summarize, show test count + contract diff, commit
 > `feat(007): CreatePatch param validation, PlannedVisitDto.routeStopId, UpdateStop clamp, contract regen`,

@@ -5,7 +5,7 @@ namespace Evo.Api.Routing.Dtos;
 
 public record PlanDayDto(DateOnly Date, IReadOnlyList<PlannedVisitDto> Visits, int PlannedMinutes, IReadOnlyList<FindingDto> Findings);
 
-public record PlannedVisitDto(Guid StoreId, string StoreName, DateTimeOffset? Start, DateTimeOffset? End, PlannedVisitSource Source);
+public record PlannedVisitDto(Guid RouteStopId, Guid StoreId, string StoreName, DateTimeOffset? Start, DateTimeOffset? End, PlannedVisitSource Source);
 
 public record FindingDto(string Code, FindingSeverity Severity, string Message, string? Scope);
 

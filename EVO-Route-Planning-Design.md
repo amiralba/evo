@@ -112,8 +112,15 @@ Every patch has a mandatory expiry. Types:
 | `ADD_STORE` | Trial placement for 1 month | Extra visits injected without joining baseline |
 | `REASSIGN_TEMP` | Cover a sick colleague's route Tue–Thu | Visits routed to covering merchandiser |
 | `TIME_SHIFT` | Store renovating, visit after 14:00 this week | Visit window moved |
+| `MOVE_VISIT` *(build note, spec 007, 2026-07-17)* | Drag a visit to a different weekday in the planner grid | Skip on the source date + add on the target date, one patch row |
 
 Lifecycle: `PENDING → ACTIVE → EXPIRED` (auto) or `CANCELLED` (manual). Patches never modify baseline rows — they are applied at plan-generation time.
+
+> **Build note (spec 007):** `MOVE_VISIT` was added during implementation — `PatchResolver.Apply` only
+> ever evaluates one date at a time, so a cross-day move (inherently two-date) doesn't fit any of the
+> five types above. See `docs/DECISIONS.md` (2026-07-17, spec 007) for the reasoning and rejected
+> alternatives. Also: `TIME_SHIFT`'s "Visit window moved" effect was a documented no-op in the
+> resolver until spec 007 made it real (pins the visit's start; `DayScheduler` reflows downstream).
 
 ### 2.6 PlannedVisit & Visit
 
