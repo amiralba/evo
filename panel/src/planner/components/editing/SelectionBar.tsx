@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { useBulkAddStops, useMoveStoreToRoute } from '../../api/mutations'
 import { BulkAddResult } from './BulkAddResult'
-import { colors, spacing, radius, fontSize } from '../../../theme/tokens'
+import { spacing, radius, fontSize } from '../../../theme/tokens'
 import type { components } from '../../../api/generated/schema'
 
 type BulkAddResultDto = components['schemas']['BulkAddResultDto']
@@ -34,8 +34,12 @@ export function SelectionBar() {
     )
   }
 
+  // The prototype's .actionbar is a floating pill anchored to the map pane (lasso-selection
+  // only). This bar serves both the map lasso AND the Tablo checkbox-list, which can't both
+  // anchor to the map, so it stays docked full-width — but reuses the actionbar's dark pill
+  // color language (var(--tx) bg, translucent white buttons) for visual consistency.
   return (
-    <div style={{ borderTop: `1px solid ${colors.border}`, background: colors.card }}>
+    <div style={{ background: 'var(--tx)', color: '#fff' }}>
       <div
         style={{
           display: 'flex',
@@ -54,14 +58,18 @@ export function SelectionBar() {
           style={{
             borderRadius: radius.md,
             padding: `${spacing.sm} ${spacing.lg}`,
-            background: colors.blue,
-            color: 'white',
+            background: 'rgba(255,255,255,.14)',
+            color: '#fff',
             border: 'none',
           }}
         >
           {t('planner.addToRoute', 'Rotaya ekle')} ({selection.size})
         </button>
-        <button type="button" onClick={clearSelection}>
+        <button
+          type="button"
+          onClick={clearSelection}
+          style={{ background: 'rgba(255,255,255,.14)', color: '#fff', border: 'none' }}
+        >
           {t('common.clear', 'Temizle')}
         </button>
       </div>
