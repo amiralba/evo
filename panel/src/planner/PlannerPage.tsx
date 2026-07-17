@@ -4,6 +4,7 @@ import { TopFilterBar } from './components/TopFilterBar'
 import { RouteRail } from './components/RouteRail'
 import { WorkspaceLayout } from './components/WorkspaceLayout'
 import { MapPane } from './components/map/MapPane'
+import { RouteDetailPanel } from './components/panel/RouteDetailPanel'
 import { colors } from '../theme/tokens'
 
 export function PlannerPage() {
@@ -31,8 +32,8 @@ export function PlannerPage() {
           schedule={<div style={{ padding: 16 }}>Takvim (Phase 5)</div>}
           bottom={<div style={{ padding: 16 }}>Seçim listesi (Phase 6)</div>}
         />
-        <div style={{ width: 320, borderLeft: `1px solid ${colors.border}`, background: colors.card }}>
-          {/* Route detail panel — Phase 4 */}
+        <div style={{ width: 320, borderLeft: `1px solid ${colors.border}`, background: colors.card, overflowY: 'auto' }}>
+          <RouteDetailPanel />
         </div>
       </div>
     </div>

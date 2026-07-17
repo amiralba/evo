@@ -257,61 +257,61 @@
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`
 - Do: docked-right panel reading `useRoute(focusedRouteId)`; header shows route code/name/status badge + current assignee (from `currentAssignment`); empty state (`t('planner.noRouteFocused')`) when none focused. Mount into PlannerPage's right slot.
 - Verify: `npm run dev` → focusing a route shows its header; clearing focus shows the empty state.
-- Status: [ ]
+- Status: [x]
 
 ## Task 35: Stops list
 - Files: `panel/src/planner/components/panel/StopsList.tsx`
 - Do: render `RouteDetailDto.stops` ordered by `sequence` — each row: sequence #, store name, service minutes, frequency badge (Daily/Weekly/Biweekly via `t()`). Static list for now (drag added in Phase 6).
 - Verify: `npm run dev` → focused route lists its stops in sequence order.
-- Status: [ ]
+- Status: [x]
 
 ## Task 36: HealthCard — revenue bar
 - Files: `panel/src/planner/components/panel/HealthCard.tsx`
 - Do: from `useHealth(id)` render a horizontal Recharts bar of `sixMonthRevenue` vs `revenueTarget`, green when `revenueMet` else red (use `theme/tokens`). Show formatted values + target label.
 - Verify: `npm run dev` → focused route shows the revenue bar with correct color.
-- Status: [ ]
+- Status: [x]
 
 ## Task 37: HealthCard — minutes-by-weekday bar
 - Files: `panel/src/planner/components/panel/HealthCard.tsx`
 - Do: add a Recharts bar chart of `minutesByWeekday` (Mon–Fri) with a `ReferenceLine y={450}`; bars over 450 red, under amber, else green.
 - Verify: `npm run dev` → weekday minutes render with the 450 reference line.
-- Status: [ ]
+- Status: [x]
 
 ## Task 38: HealthCard — category-mix donut + finding chips
 - Files: `panel/src/planner/components/panel/HealthCard.tsx`
 - Do: add a Recharts `PieChart` (donut) of `categoryMix`; below it render `errorCount` 🔴 and `warningCount` 🟡 as chips (severity colors from `theme/tokens`).
 - Verify: `npm run dev` → donut + finding-count chips render.
-- Status: [ ]
+- Status: [x]
 
 ## Task 39 [P]: HealthCard unit test
 - Files: `panel/src/planner/components/panel/HealthCard.test.tsx`
 - Do: Vitest + Testing Library — render `HealthCard` with a fixed `HealthDto` (mock the `useHealth` hook) and assert the revenue value, a 450-over weekday, and the finding counts appear.
 - Verify: `npm test -- HealthCard` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 40: Panel loading/error/empty states
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx`, `HealthCard.tsx`
 - Do: handle `isLoading`/`isError` from the queries (spinner / retry text via `t()`); guard against a draft route with no health/plan yet (no crash).
 - Verify: `npm run dev` → focusing a fresh draft route shows graceful states, not a crash.
-- Status: [ ]
+- Status: [x]
 
 ## Task 41: Wire panel into focus changes
 - Files: `panel/src/planner/PlannerPage.tsx`
 - Do: ensure the right slot always renders `RouteDetailPanel`, which internally reacts to `focusedRouteId`. Confirm switching focus swaps panel content without remount flicker.
 - Verify: `npm run dev` → switching routes updates the panel + health smoothly.
-- Status: [ ]
+- Status: [x]
 
 ## Task 42: TRY/number formatting helper
 - Files: `panel/src/planner/format.ts`
 - Do: small helpers `formatTRY(n)` (Intl.NumberFormat `tr-TR`, currency TRY) and `formatMinutes(n)`; use them in HealthCard/popover/stops.
 - Verify: `npx tsc -b` passes; revenue shows as `₺1.310.000` style.
-- Status: [ ]
+- Status: [x]
 
 ## Task 43: Phase-4 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; panel + 3 health visuals + finding chips render for a focused route.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 4 checkpoint: summarize panel + health card, evidence, commit
      `feat(006): route detail panel + live health card (Recharts)`. Manual UI test script: 1) focus a route
