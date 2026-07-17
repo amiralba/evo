@@ -6,6 +6,7 @@ import { useMapLibre } from './useMapLibre'
 import { upsertStoreLayer, applyFocusPaint } from './storeLayer'
 import { StorePopover } from './StorePopover'
 import { LassoTool } from './LassoTool'
+import { useBulkAddStops, useMoveStoreToRoute } from '../../api/mutations'
 import type { components } from '../../../api/generated/schema'
 
 type StoreGeoDto = components['schemas']['StoreGeoDto']
@@ -23,6 +24,8 @@ export function MapPane() {
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
   const { data: stores } = useStoresGeo(province)
   const [popover, setPopover] = useState<PopoverState | null>(null)
+  const bulkAdd = useBulkAddStops(focusedRouteId ?? '', province)
+  const moveHere = useMoveStoreToRoute(focusedRouteId ?? '', province)
 
   useEffect(() => {
     if (!map || !stores) return
@@ -83,6 +86,22 @@ export function MapPane() {
           y={popover.y}
           canAct={Boolean(focusedRouteId)}
           onClose={() => setPopover(null)}
+          onAddToRoute={
+            focusedRouteId && !popover.store.activeRouteId && popover.store.id
+              ? () => {
+                  bulkAdd.mutate({ storeIds: [popover.store.id!], frequency: 2, weekdayMask: 0, serviceMinutes: null })
+                  setPopover(null)
+                }
+              : undefined
+          }
+          onMoveHere={
+            focusedRouteId && popover.store.activeRouteId && popover.store.activeRouteId !== focusedRouteId && popover.store.id
+              ? () => {
+                  moveHere.mutate(popover.store.id!)
+                  setPopover(null)
+                }
+              : undefined
+          }
         />
       )}
     </div>

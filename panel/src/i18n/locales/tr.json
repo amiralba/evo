@@ -3,12 +3,45 @@
     "title": "EVO"
   },
   "planner": {
-    "title": "Rota Planlama"
+    "title": "Rota Planlama",
+    "selectRoute": "Rota seçin",
+    "pool": "Havuz",
+    "addToRoute": "Rotaya ekle",
+    "moveHere": "Buraya taşı",
+    "lasso": "Kement",
+    "selected": "seçili",
+    "noRouteFocused": "Haritadan veya listeden bir rota seçin.",
+    "unassigned": "Atanmamış",
+    "noStops": "Bu rotada durak yok.",
+    "defaultDuration": "varsayılan",
+    "revenue": "Ciro",
+    "weekdayMinutes": "Haftalık dakika",
+    "categoryMix": "Karışım",
+    "noHealthYet": "Bu rota için henüz sağlık verisi yok.",
+    "prevWeek": "Önceki",
+    "nextWeek": "Sonraki",
+    "thisWeek": "Bu hafta",
+    "noPlanYet": "Bu rota için henüz bir plan yok.",
+    "selectAllInView": "Tümünü seç",
+    "poolStores": "havuz mağazası",
+    "added": "Eklendi",
+    "frequency": "Sıklık",
+    "serviceMinutes": "Süre (dk)",
+    "sequence": "Sıra",
+    "addPatch": "+ Yama ekle",
+    "patchType": "Yama tipi",
+    "store": "Mağaza",
+    "startsOn": "Başlangıç",
+    "endsOn": "Bitiş (zorunlu)",
+    "reason": "Neden",
+    "patchExpiryRequired": "Bir bitiş tarihi zorunludur ve başlangıçtan önce olamaz."
   },
   "common": {
     "clear": "Temizle",
     "cancel": "Vazgeç",
     "save": "Kaydet",
-    "publish": "Yayınla"
+    "publish": "Yayınla",
+    "loading": "Yükleniyor…",
+    "loadError": "Yüklenemedi. Tekrar deneyin."
   }
 }

@@ -50,6 +50,33 @@ export function useMoveStop(sourceRouteId: string, province: string, targetRoute
   })
 }
 
+/** Resolves a store's current stop on its active route, then moves it — for callers (map popover,
+ * bulk-add rejection list) that only know the storeId, not the source route/stop id. */
+export function useMoveStoreToRoute(targetRouteId: string, province: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (storeId: string) => {
+      const stores = await planner.getStoresGeo(province)
+      const store = stores.find((s) => s.id === storeId)
+      const sourceRouteId = store?.activeRouteId
+      if (!sourceRouteId) {
+        throw new Error('Store has no active route to move from')
+      }
+      const route = await planner.getRoute(sourceRouteId)
+      const stop = route.stops?.find((s) => s.storeId === storeId)
+      if (!stop?.id) {
+        throw new Error('Stop not found on source route')
+      }
+      await planner.moveStop(sourceRouteId, stop.id, targetRouteId)
+      return { sourceRouteId }
+    },
+    onSuccess: ({ sourceRouteId }) => {
+      invalidateRoute(queryClient, sourceRouteId, province)
+      invalidateRoute(queryClient, targetRouteId, province)
+    },
+  })
+}
+
 export function useCreatePatch(routeId: string, province: string) {
   const queryClient = useQueryClient()
   return useMutation({

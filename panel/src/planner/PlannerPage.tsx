@@ -6,6 +6,8 @@ import { WorkspaceLayout } from './components/WorkspaceLayout'
 import { MapPane } from './components/map/MapPane'
 import { SchedulePane } from './components/schedule/SchedulePane'
 import { RouteDetailPanel } from './components/panel/RouteDetailPanel'
+import { SelectionListPane } from './components/editing/SelectionListPane'
+import { SelectionBar } from './components/editing/SelectionBar'
 import { colors } from '../theme/tokens'
 
 export function PlannerPage() {
@@ -31,12 +33,13 @@ export function PlannerPage() {
         <WorkspaceLayout
           map={<MapPane />}
           schedule={<SchedulePane />}
-          bottom={<div style={{ padding: 16 }}>Seçim listesi (Phase 6)</div>}
+          bottom={<SelectionListPane />}
         />
-        <div style={{ width: 320, borderLeft: `1px solid ${colors.border}`, background: colors.card, overflowY: 'auto' }}>
+        <div style={{ width: 320, borderLeft: `1px solid ${colors.border}`, background: colors.card, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <RouteDetailPanel />
         </div>
       </div>
+      <SelectionBar />
     </div>
   )
 }

@@ -410,67 +410,67 @@
 - Files: `panel/src/planner/components/editing/SelectionListPane.tsx`
 - Do: a scrollable list rendered in the WorkspaceLayout `bottom` strip (shown by the `table` preset) of the province's **pool** stores (`useStoresGeo(province, false)`) — each row a checkbox (`data-testid="select-store-{id}"`) wired to `toggleSelect(id)`, plus a "Tümünü seç" (select all in view) toggle. Rows reflect `selection` membership. This is the deterministic multi-select the Playwright flow drives (the lasso stays for humans). All labels via `t()`.
 - Verify: `npm run dev` → switch to the `table` preset → pool stores listed; ticking a checkbox updates the selection count.
-- Status: [ ]
+- Status: [x]
 
 ## Task 57: Selection floating action bar
 - Files: `panel/src/planner/components/editing/SelectionBar.tsx`
 - Do: appears when `selection.size > 0`; shows "N seçili" + buttons "Rotaya ekle (N)" and "Temizle" (`clearSelection`). "Add" disabled when no focused route. All labels via `t()`.
 - Verify: `npm run dev` → selecting pool stores (checkbox list or lasso) shows the bar with the right count.
-- Status: [ ]
+- Status: [x]
 
 ## Task 58: Bulk-add wiring
 - Files: `panel/src/planner/components/editing/SelectionBar.tsx`
 - Do: "Rotaya ekle" calls `useBulkAddStops(focusedRouteId, { storeIds:[...selection], frequency: Weekly, weekdayMask, serviceMinutes: null })`; on success clear selection.
 - Verify: `npm run dev` → adding selected pool stores increases the route's stop count (panel updates) and pins un-fade.
-- Status: [ ]
+- Status: [x]
 
 ## Task 59: Bulk-add result — accepted vs rejected
 - Files: `panel/src/planner/components/editing/BulkAddResult.tsx`
 - Do: render `BulkAddResultDto` after add — `added` count + a list of `rejected` (store + reason) each with a "Buraya taşı" (move here) button (wired in Task 62).
 - Verify: `npm run dev` → adding a store already on another route shows it under rejected with its reason.
-- Status: [ ]
+- Status: [x]
 
 ## Task 60: Stop edit form
 - Files: `panel/src/planner/components/editing/StopEditForm.tsx`
 - Do: opened from a stop row; fields frequency `<select>`, service-minutes number input, sequence number; Save → `useUpdateStop(id, stopId, body)`; Cancel closes. Labels via `t()`.
 - Verify: `npm run dev` → editing a stop's minutes updates the panel + health + schedule.
-- Status: [ ]
+- Status: [x]
 
 ## Task 61: dnd-kit sortable stops → batch reorder (clarification #14)
 - Files: `panel/src/planner/components/panel/StopsList.tsx`
 - Do: wrap the stops list in dnd-kit `DndContext` + `SortableContext`; on drag end, compute the new ordered `stopIds` and persist in **one call** via `useReorderStops(routeId, orderedStopIds)` (the `POST /routes/{id}/stops:reorder` batch endpoint — **not** N per-stop PATCHes). Optimistic reorder in the list, reconciled by the returned `RouteDetailDto` / query invalidation.
 - Verify: `npm run dev` → dragging a stop reorders it with a single network call to `stops:reorder`; schedule re-renders in the new order after refetch.
-- Status: [ ]
+- Status: [x]
 
 ## Task 62: Move-store wiring
 - Files: `panel/src/planner/components/map/StorePopover.tsx`, `panel/src/planner/components/editing/BulkAddResult.tsx`
 - Do: the "Move here"/"Buraya taşı" buttons call `useMoveStop(sourceRouteId, stopId, focusedRouteId)`. For a map popover on a store on another route, resolve its stopId via that route (or expose a move-by-store helper). Invalidate both routes.
 - Verify: `npm run dev` → moving a store off another route reassigns it to the focused route (pin highlights, source route stop count drops).
-- Status: [ ]
+- Status: [x]
 
 ## Task 63: Add-patch form
 - Files: `panel/src/planner/components/editing/PatchForm.tsx`
 - Do: form for MVP patch types `SkipStore | AddStore | TimeShift` (`<select>`), a store picker (for Skip/Add), a **mandatory `endsOn` date** (disable submit if empty — mirrors backend V9), optional `paramsJson`/reason; Save → `useCreatePatch(id, body)`.
 - Verify: `npm run dev` → adding a SkipStore patch makes that visit disappear (or a TimeShift render dashed) in the schedule after refetch.
-- Status: [ ]
+- Status: [x]
 
 ## Task 64: Client-side expiry validation
 - Files: `panel/src/planner/components/editing/PatchForm.tsx`
 - Do: block submit + show `t('planner.patchExpiryRequired')` when `endsOn` is empty or before `startsOn`.
 - Verify: `npm run dev` → submitting without an expiry is blocked with the message.
-- Status: [ ]
+- Status: [x]
 
 ## Task 65 [P]: Editing i18n keys
 - Files: `panel/src/i18n/locales/tr.json`
 - Do: add all editing strings (selection list, selection bar, stop edit, patch form, move, rejected reasons) as `t()` keys; confirm no hardcoded Turkish remains in Phase-6 components.
 - Verify: `grep -rnE "[çğıöşüÇĞİÖŞÜ]" panel/src/planner/components/editing` returns only comments (no JSX string literals); `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 66: Phase-6 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; checkbox-list select, bulk-add, stop edit, dnd batch-reorder, move, patch all update the panes + health live.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 6 checkpoint: summarize editing, evidence, commit
      `feat(006): selection editing — checkbox-list + bulk-add, stop edit, dnd batch-reorder, move, patch`.

@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { useRoute } from '../../api/queries'
 import { StopsList } from './StopsList'
 import { HealthCard } from './HealthCard'
+import { PatchForm } from '../editing/PatchForm'
 import { colors, spacing, radius, fontSize } from '../../../theme/tokens'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
@@ -11,6 +13,7 @@ export function RouteDetailPanel() {
   const { t } = useTranslation()
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
   const { data: route, isLoading, isError } = useRoute(focusedRouteId)
+  const [showPatchForm, setShowPatchForm] = useState(false)
 
   if (!focusedRouteId) {
     return (
@@ -57,6 +60,15 @@ export function RouteDetailPanel() {
 
       <HealthCard routeId={focusedRouteId} />
       <StopsList routeId={focusedRouteId} stops={route.stops ?? []} />
+
+      <div style={{ padding: spacing.xl }}>
+        <button type="button" onClick={() => setShowPatchForm((v) => !v)}>
+          {t('planner.addPatch', '+ Yama ekle')}
+        </button>
+      </div>
+      {showPatchForm && (
+        <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
+      )}
     </div>
   )
 }
