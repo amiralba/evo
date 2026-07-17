@@ -100,6 +100,7 @@ export function PublishModal({ routeId, onClose }: PublishModalProps) {
             <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.xl }}>
               <button
                 type="button"
+                data-testid="publish-modal-submit"
                 onClick={handlePublish}
                 disabled={publish.isPending || (needsOverride && !overrideReady)}
                 style={{ borderRadius: radius.md, background: colors.blue, color: 'white', border: 'none', padding: `${spacing.sm} ${spacing.lg}` }}

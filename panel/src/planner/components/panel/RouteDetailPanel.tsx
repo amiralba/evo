@@ -55,6 +55,7 @@ export function RouteDetailPanel() {
           </span>
           <button
             type="button"
+            data-testid="publish-trigger"
             onClick={() => setShowPublishModal(true)}
             style={{ marginLeft: 'auto', borderRadius: radius.md, background: colors.blue, color: 'white', border: 'none', padding: `${spacing.sm} ${spacing.lg}` }}
           >

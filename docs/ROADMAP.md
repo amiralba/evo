@@ -27,10 +27,18 @@ Goal: a supervisor can build and publish a valid plan.
       with history, scheduling engine (plan generation, 450-min rule, live validation), Baseline + Patch
       model with auto-expiry, publish gate with override-with-reason (`decision_journal`) — BACKEND ONLY,
       full REST API, no panel UI. 48/48 tasks complete.
-- [ ] Planner UI spec (NOT STARTED, NEXT UP) — map/schedule grid/table workspace, lasso multi-select,
-      live health card, drag-drop stop editing against 005's generated TS client. Needs a `/plan` pass.
-      `POST /simulate/route` deferred into this spec.
-- [ ] Conflict Center (may land with the planner UI spec or split out — decide at `/plan` time)
+- [x] 006-planner-ui, Phases 1-8 (functional) — `/planner` workspace: Map | Schedule split + Table
+      selection strip over a shared Zustand+TanStack Query state; `GET /stores/geo` + batch
+      `POST /routes/{id}/stops:reorder` backend additions; MapLibre store layer + lasso; time-accurate
+      schedule grid w/ prev/next week nav; live health card (Recharts); selection editing (bulk-add,
+      dnd-kit reorder, stop edit, move-store, patch create); publish review + override-with-reason gate.
+      Backend 82/82 + panel 24/24 tests green, Playwright core flow green.
+      **[ ] Phase 9 — visual-parity pass (NOT STARTED, NEXT UP)** — pane-by-pane against
+      `evo-planner-prototype-v0.5.html`'s actual CSS; Phases 1-8 used generic inline styles, not a
+      rigorous port (spec Clarification #15).
+      Still deferred (later specs): Conflict Center/Sorun Merkezi, `POST /simulate/route`, history
+      timeline, live-location layer, Onarım workbench, full-canvas 6-tab table, Effective/Base toggle,
+      numbered map markers + route polylines.
 
 ### M2 — Tasks & rules
 - [ ] TaskTemplate + Rule resolution (format-driven durations, per-store/route exceptions)

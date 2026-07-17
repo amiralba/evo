@@ -1,0 +1,55 @@
+import { expect, test } from '@playwright/test'
+
+test('planner core flow: login -> open workspace -> filter -> bulk-add -> health updates -> publish', async ({ page }) => {
+  // 1. Login + open workspace
+  await page.goto('/login')
+  await page.fill('#email', 'admin@evo.local')
+  await page.fill('#password', 'Demo1234!')
+  await page.click('button[type=submit]')
+  await expect(page).toHaveURL(/\/$/)
+
+  await page.getByRole('link', { name: 'Planlama' }).click()
+  await expect(page).toHaveURL(/\/planner$/)
+  await expect(page.getByLabel('province')).toBeVisible()
+
+  // 2. Filter to a route via the top-bar route select (seeded demo data has >=1 route per province)
+  const routeSelect = page.getByLabel('route')
+  await expect(routeSelect.locator('option').nth(1)).toBeAttached({ timeout: 15_000 })
+  const routeValue = await routeSelect.locator('option').nth(1).getAttribute('value')
+  await routeSelect.selectOption(routeValue!)
+
+  await expect(page.locator('strong').first()).not.toHaveText('', { timeout: 10_000 })
+
+  // 3. Switch to the Tablo layout to reach the checkbox/list multi-select (not the map lasso)
+  await page.getByRole('button', { name: 'Tablo' }).click()
+  const firstCheckbox = page.locator('[data-testid^="select-store-"]').first()
+  await expect(firstCheckbox).toBeVisible({ timeout: 15_000 })
+
+  // Capture stop count before the add
+  const stopsBefore = await page.locator('text=/varsayılan|dk$/').count()
+
+  await firstCheckbox.check()
+  await page.getByRole('button', { name: /Rotaya ekle/ }).click()
+
+  // 4. Health/stops update after the mutation invalidates the route query
+  await expect(async () => {
+    const stopsAfter = await page.locator('text=/varsayılan|dk$/').count()
+    expect(stopsAfter).toBeGreaterThan(stopsBefore)
+  }).toPass({ timeout: 15_000 })
+
+  // 5. Publish — tolerant of both the clean and override-with-reason paths
+  await page.getByTestId('publish-trigger').click()
+  const modal = page.getByText('Yayın öncesi inceleme')
+  await expect(modal).toBeVisible()
+
+  const reasonBox = page.getByLabel(/Neden/)
+  if (await reasonBox.isVisible().catch(() => false)) {
+    await reasonBox.fill('E2E test override reason')
+    await page.getByLabel(/Amaç/).fill('E2E test override objective')
+  }
+
+  await page.getByTestId('publish-modal-submit').click()
+  await expect(page.getByText(/Oluşturulan ziyaret sayısı/)).toBeVisible({ timeout: 15_000 })
+
+  await page.screenshot({ path: 'e2e/artifacts/planner-core.png' })
+})

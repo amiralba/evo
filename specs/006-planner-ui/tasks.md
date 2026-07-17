@@ -552,67 +552,67 @@
 - Files: `panel/src/planner/api/mutations.test.ts`
 - Do: Vitest — mock `planner.ts` + a `QueryClient`; assert `useBulkAddStops.onSuccess` and `useReorderStops.onSuccess` invalidate the route/plan/health/stores-geo keys (spy on `invalidateQueries`).
 - Verify: `npm test -- mutations` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 77: i18n completeness sweep
 - Files: `panel/src/planner/**`, `panel/src/i18n/locales/tr.json`
 - Do: grep all planner components for Turkish string literals in JSX; move any stragglers to `tr.json` keys; ensure `tr.json` has no missing keys referenced by `t()`.
 - Verify: `grep -rnE ">[^<]*[çğıöşüÇĞİÖŞÜ]" panel/src/planner` returns nothing (all via `t()`); `npm run build` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 78: Playwright config for live backend
 - Files: `panel/playwright.config.ts`, `panel/tests/e2e/README.md`
 - Do: ensure the Playwright config points `baseURL` at the dev server (`:5173`) with the Vite proxy to backend `:5076`; README documents prereqs (backend + SQL Server up, `dotnet run --project backend/src/Evo.Seeder -- --profile demo`, login `admin@evo.local`/`Demo1234!`).
 - Verify: `npx playwright test --list` shows the suite; README lists prereqs.
-- Status: [ ]
+- Status: [x]
 
 ## Task 79: E2E — login + open workspace
 - Files: `panel/tests/e2e/planner-core.spec.ts`
 - Do: step 1 — log in via the UI (or seed a session), navigate to `/planner`, assert the filter bar + route rail render with ≥1 seeded route.
 - Verify: `npx playwright test planner-core` passes step 1 (with seeded backend running).
-- Status: [ ]
+- Status: [x]
 
 ## Task 80: E2E — filter to a route
 - Files: `panel/tests/e2e/planner-core.spec.ts`
 - Do: step 2 — click the first route in the rail; assert the detail panel shows that route (code visible) and the health card renders.
 - Verify: `npx playwright test planner-core` passes through step 2.
-- Status: [ ]
+- Status: [x]
 
 ## Task 81: E2E — bulk-add a store (checkbox-list path)
 - Files: `panel/tests/e2e/planner-core.spec.ts`
 - Do: step 3 — switch to the `table` preset, tick a pool store in the checkbox list (`data-testid="select-store-*"` — the multi-select path, **not** the freehand lasso, per clarification #10), click "Rotaya ekle", assert the stop count / stops list increases.
 - Verify: `npx playwright test planner-core` passes through step 3.
-- Status: [ ]
+- Status: [x]
 
 ## Task 82: E2E — health updates
 - Files: `panel/tests/e2e/planner-core.spec.ts`
 - Do: step 4 — capture a health value (e.g. a weekday's minutes or stop count) before the add and assert it changed after (proves live invalidation).
 - Verify: `npx playwright test planner-core` passes through step 4.
-- Status: [ ]
+- Status: [x]
 
 ## Task 83: E2E — publish
 - Files: `panel/tests/e2e/planner-core.spec.ts`
 - Do: step 5 — click Yayınla; if the review modal shows errors, fill reason+objective; confirm; assert the success/materialized message. Make the flow tolerant of both clean and override paths.
 - Verify: `npx playwright test planner-core` passes end-to-end (with seeded backend).
-- Status: [ ]
+- Status: [x]
 
 ## Task 84: Update docs — ARCHITECTURE + API
 - Files: `docs/ARCHITECTURE.md`, `docs/API.md`
 - Do: ARCHITECTURE — add the panel workspace architecture (shared Zustand store + TanStack Query, MapLibre/dnd-kit/Recharts/react-i18next), mark the Planner UI as landed for M1. API — document `GET /api/v1/stores/geo` (params, `StoreGeoDto`, auth) **and `POST /api/v1/routes/{id}/stops:reorder` (`ReorderStopsRequest`, returns `RouteDetailDto`, Supervisor)**.
 - Verify: both docs mention the new pieces; `grep -n "stores/geo" docs/API.md` and `grep -n "stops:reorder" docs/API.md` match.
-- Status: [ ]
+- Status: [x]
 
 ## Task 85: Update docs — DECISIONS + ROADMAP
 - Files: `docs/DECISIONS.md`, `docs/ROADMAP.md`
 - Do: DECISIONS — record: geo-API-in-006, the batch stops:reorder endpoint, the library choices (MapLibre/dnd-kit/Zustand+TanStack/react-i18next/Recharts) with the Recharts-over-visx justification, and the reassignment/simulate/Effective-Base/full-table deferrals. ROADMAP — flip the "Planner UI spec" M1 item toward done and note remaining deferrals as later specs.
 - Verify: `grep -n "006" docs/DECISIONS.md` and `docs/ROADMAP.md` show the new entries.
-- Status: [ ]
+- Status: [x]
 
 ## Task 86: Final Phase 8 verification pass
 - Files: (none)
 - Do: `dotnet test backend/Evo.sln`; `cd panel && npm run lint && npm test && npm run build`; with the seeded backend running, `npx playwright test`.
 - Verify: backend green, panel lint/test/build green, Playwright core flow green.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 8 checkpoint (not the final one — Phase 9 visual-parity pass follows per
      Clarification #15). Summarize tests/i18n/docs, evidence, commit `feat(006): planner UI tests + docs`,
