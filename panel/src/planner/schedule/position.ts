@@ -1,4 +1,6 @@
 export const PX_PER_MINUTE = 1.2
+export const DAY_START_MINUTES = 9 * 60
+export const DAY_END_MINUTES = 18 * 60
 
 export interface BlockGeometry {
   topPx: number

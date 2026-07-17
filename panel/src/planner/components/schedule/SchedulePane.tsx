@@ -6,12 +6,10 @@ import { currentWeek, nextWeek, prevWeek } from '../../schedule/week'
 import { WeekNavigator } from './WeekNavigator'
 import { VisitBlock } from './VisitBlock'
 import { BREAK_BLOCKS } from '../../schedule/breaks'
-import { PX_PER_MINUTE } from '../../schedule/position'
+import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES } from '../../schedule/position'
 import { spacing, fontSize, radius, severityColors } from '../../../theme/tokens'
 import { formatMinutes } from '../../format'
 
-const DAY_START_MINUTES = 9 * 60
-const DAY_END_MINUTES = 18 * 60
 const GRID_HEIGHT = (DAY_END_MINUTES - DAY_START_MINUTES) * PX_PER_MINUTE
 const WEEKDAY_LABEL = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum']
 

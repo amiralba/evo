@@ -232,14 +232,14 @@
   `snapMinutes(min, step=5)`, `clampStart(startMin, durationMin, dayStart, dayEnd)`,
   `clampDuration(min)` → snap-5 then clamp `[10,240]`.
 - Verify: file compiles under `npm run build` (after Task 4.2 test also runs).
-- Status: [ ]
+- Status: [x]
 
 ### Task 4.2 [P]: dragMath.test.ts
 - Files: `panel/src/planner/schedule/dragMath.test.ts` (new)
 - Do: Assert `snapMinutes(237)===235`, `clampDuration(500)===240`, `clampDuration(3)===10`, `clampStart`
   keeps a block inside 09:00–18:00 (e.g. a late start clamps so end ≤ dayEnd).
 - Verify: `cd panel && npm test -- dragMath` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 4.3: reflow.ts (client mirror of DayScheduler)
 - Files: `panel/src/planner/schedule/reflow.ts` (new)
@@ -248,14 +248,14 @@
   every later visit sequentially, each pushed past any overlapping break (same rule as `DayScheduler`).
   Import break windows from `breaks.ts`.
 - Verify: compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 4.4 [P]: reflow.test.ts
 - Files: `panel/src/planner/schedule/reflow.test.ts` (new)
 - Do: Assert: moving visit 0 later slides visits 1..n after it; a change colliding with the lunch break
   pushes the block past 13:30; a `newStartMin` earlier than the predecessor's end clamps to that end.
 - Verify: `cd panel && npm test -- reflow` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 4.5: patchPayload.ts
 - Files: `panel/src/planner/schedule/patchPayload.ts` (new)
@@ -265,21 +265,21 @@
   `paramsJson=JSON.stringify({fromDate,toDate,startMinutes})`, `startsOn = min(fromDate,toDate)`. Resize:
   `{serviceMinutes}`.
 - Verify: compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 4.6 [P]: patchPayload.test.ts
 - Files: `panel/src/planner/schedule/patchPayload.test.ts` (new)
 - Do: Assert each builder emits the exact `type` and a `paramsJson` that `JSON.parse`s to the expected
   object; MoveVisit `startsOn === min(fromDate,toDate)`.
 - Verify: `cd panel && npm test -- patchPayload` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 4.7: Shared day-bounds constants
 - Files: `panel/src/planner/schedule/position.ts` (or a small `gridConstants.ts`)
 - Do: Export `DAY_START_MINUTES = 9*60`, `DAY_END_MINUTES = 18*60` so `SchedulePane`, `dragMath`, and
   `reflow` share one source (SchedulePane currently defines them locally — re-import).
 - Verify: `cd panel && npm run build` green; SchedulePane imports the shared constants.
-- Status: [ ]
+- Status: [x]
 
 > **CHECKPOINT** after Phase 4: summarize, show `npm test` green for the 4 new suites, commit
 > `feat(007): pure drag/reflow/payload math for the schedule grid (Vitest)`, END TURN.
