@@ -99,27 +99,31 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0 — Platform foundation is COMPLETE (4 platform specs). M1 — Route planning core (web
-  panel) is COMPLETE (005/006/007). M2 — Tasks & rules is now also COMPLETE: 008-tasks-rules
-  (59/59 tasks, 7 phases) is fully checked off and committed to main. Backend suite 131/131, panel
-  suite 44/44, Playwright 4/4.
-- Active feature: none in progress. Next milestone is M3 — Field execution simulation (seeder-generated
-  visit outcomes: done/missed/skipped + reasons, GPS check-in times, task results; mocked agent-facing
-  responses where the panel needs them) per `docs/ROADMAP.md` — needs its own `/brainstorm` or `/plan`
-  pass to produce `specs/00X-.../tasks.md`, same kickoff pattern as M2.
+- Milestone: M0 (4 platform specs), M1 (005/006/007), M2 (008-tasks-rules), and M3
+  (009-field-execution-sim) are all COMPLETE. Backend suite 142/142, panel suite 48/48, Playwright 5/5.
+- Active feature: none in progress. Next milestone is M4 — Analytics & Onarım (Planning Evidence panel /
+  plan-health metrics, Onarım absence-repair decision workbench, per `docs/ROADMAP.md`) — needs its own
+  `/brainstorm` or `/plan` pass to produce a `specs/0XX-.../tasks.md`, same kickoff pattern as M2/M3.
 - Deferred so far, not silently dropped (see docs/DECISIONS.md for rationale/dates): Conflict Center/
-  Sorun Merkezi, `POST /simulate/route`, history timeline, live-location layer, Onarım workbench,
-  full-canvas 6-tab table, Effective/Base toggle, global search, admin (Yönetim)/inbox pages,
-  multi-route/multi-person stacked schedule rows, module-stack editor (`SET_FREQUENCY`/`SET_MODULES`/
-  `PATCH_MODULE`), standalone Yönetim admin pages for task-template/rule CRUD.
-- Last session summary: Completed 008-tasks-rules (M2). Domain: pure `TaskResolver`/`RuleMatcher` in
-  `Evo.Domain/Tasks/` (membership + minutes ladder + instance override, store>route>format>chain>global
-  specificity). Persistence: `TaskTemplate`/`Rule`/`TaskInstance` entities + `AddTasksRules` migration.
-  `PlanGenerationService` now sets visit duration = Σ resolved task minutes (replacing the flat
-  `service_minutes` fallback as primary path) and materializes `TaskInstance` rows per future visit;
-  format-change re-resolution confirmed. API: 6 endpoints — `GET /task-templates`, `GET
-  /stores/{id}/task-plan`, `GET|POST /rules`, `GET /rules/impact`, `PATCH /task-instances/{id}`,
-  `POST /tasks/adhoc`. Seeder: `TaskRuleSeederModule` (6 templates, 8 rules, 1 adhoc survey), ran
-  end-to-end. Panel: `TasksTab` (Görevler tab, replaces M2-pending empty state) + `TaskScopeModal`
-  (scope edit with impact preview) + Rule Inspector trace popover. Docs (DATABASE/API/ARCHITECTURE/
-  DECISIONS/ROADMAP) updated in-session.
+  Sorun Merkezi, `POST /simulate/route`, history timeline, live-location map **visualization** (the
+  data pipeline landed in M3), Onarım workbench, full-canvas 6-tab table, Effective/Base toggle, global
+  search, admin (Yönetim)/inbox pages, multi-route/multi-person stacked schedule rows, module-stack
+  editor (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE`), standalone Yönetim admin pages for
+  task-template/rule CRUD, real mobile app / live field-agent write API, real MinIO/FCM, out-of-route
+  visits + their analytics, planned-vs-realized analytics (Planning-Evidence panel → M4).
+- Last session summary: Completed spec 009-field-execution-sim (M3, 7 phases, 57/57 tasks). New tables:
+  `visit_realization` (1:1 with `planned_visit` — check-in/out, actual minutes, outcome reason;
+  `planned_visit.status` stays the outcome source of truth), `merchandiser_location_ping` (continuous
+  lat/lng stream, pulled forward from M4's live-location groundwork per explicit user decision — panel
+  map visualization of it stays M4), `note` (seeder-only, no live field-agent write API), `notification`
+  (mocked receipts via `INotificationDispatcher`, fired on publish). `TaskInstance.ResultJson` now typed
+  via pure `Evo.Domain.Tasks.TaskResult` records (None/Photo/Form). `PlanGenerationService` gained a
+  seeder-only `MaterializeHistoryAsync` (bypasses the today-clamp) — fixed a real bug where seeded route
+  stops' `EffectiveFrom = today` blocked history simulation until stops were backdated. New endpoints:
+  `GET/PATCH /notes`, `GET /merchandisers/{id}/location-history`,
+  `GET /merchandisers/{id}/notifications`; extended `PlannedVisitDto`/`ResolvedTaskDto`.
+  `FieldExecutionSeederModule`: ~85/8/7 Done/Missed/Skipped distribution, realistic check-in jitter,
+  dense location pings, typed task results, notes, notifications — verified idempotent. Panel: schedule
+  blocks color by outcome + planned-vs-realized tooltip, task results in Görevler, new NotesInbox modal
+  (Acknowledge/Resolve) with an open-count badge. Docs (DATABASE/API/ARCHITECTURE/DECISIONS/ROADMAP +
+  design-doc flags) updated in-session.

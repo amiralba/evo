@@ -14,15 +14,19 @@
 - Sequence optimization button (nearest-neighbor suggest, never forced)
 
 ## Next up
-- M3 — Field execution simulation: seeder-generated realistic visit outcomes (done/missed/skipped +
-  reasons, GPS check-in times, task results); mocked agent-facing responses where the panel needs them
-  (notes inbox, notification receipts). Not started — needs a `/brainstorm` or `/plan` pass to generate
-  its spec.
-- Conflict Center/Sorun Merkezi — explicitly deferred out of 006/007/008; may land inside an M3/M4 spec
+- M4 — Analytics & Onarım: Planning Evidence panel / plan-health metrics (planned-vs-realized analytics,
+  now unblocked by M3's `visit_realization`/`TaskResult` data), Onarım (absence repair) decision
+  workbench. Not started — needs a `/brainstorm` or `/plan` pass to generate its spec.
+- Live-location map visualization — data pipeline (`merchandiser_location_ping`) landed in M3; rendering
+  it on the map pane is still M4 scope.
+- Conflict Center/Sorun Merkezi — explicitly deferred out of 006/007/008/009; may land inside an M4 spec
   or split out; decide at `/plan` time.
-- `POST /simulate/route` — still deferred (pushed from 005 → 006/007 → 008 too).
+- `POST /simulate/route` — still deferred (pushed from 005 → 006/007 → 008 → 009 too).
 - Module-stack editor (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE` rule effect ops) and standalone
   Yönetim admin pages (task-template/rule CRUD UI) — deferred out of 008, no target spec assigned yet.
+- Real mobile app / live field-agent write API, real MinIO photo uploads, real FCM push delivery,
+  out-of-route visits + their analytics — deferred out of 009, no target spec assigned yet (mobile app
+  itself stays post-M4 backlog, see below).
 
 ## Recently completed features
 - M0 — Platform foundation (specs 001–004): solution scaffold, auth/roles, error/audit, store sync — all COMPLETE.
@@ -41,3 +45,8 @@
     persistence, `PlanGenerationService` integration (Σ task minutes replaces flat fallback,
     `TaskInstance` materialization), 6 new endpoints, seeder module, panel Görevler tab + scope modal +
     Rule Inspector trace popover.
+- M3 — Field execution simulation: COMPLETE.
+  - 009-field-execution-sim: `visit_realization`/`merchandiser_location_ping` tables, typed `TaskResult`
+    payloads, `note`/`notification` schema + supervisor inbox + mocked `INotificationDispatcher`,
+    `FieldExecutionSeederModule` (realistic past-history outcomes/check-ins/results, verified idempotent),
+    panel outcome coloring + planned-vs-realized tooltip + task results in Görevler + Notes inbox modal.

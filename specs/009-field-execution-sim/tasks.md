@@ -359,5 +359,5 @@
 - Files: `CLAUDE.md` (Current focus), `docs/TODO.md`
 - Do: mark M3 complete, set next milestone M4 (Analytics & Onarım); tick the M3 TODO line.
 - Verify: both reflect M3 done / M4 next.
-- Status: [ ]
+- Status: [x]
 </content>
