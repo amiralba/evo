@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { usePlan } from '../../api/queries'
 import { useUpdateStop } from '../../api/mutations'
-import { currentWeek, nextWeek, prevWeek } from '../../schedule/week'
+import { currentWeek, nextWeek, prevWeek, weekdayDates } from '../../schedule/week'
 import { WeekNavigator } from './WeekNavigator'
 import { VisitBlock } from './VisitBlock'
 import { BREAK_BLOCKS } from '../../schedule/breaks'
@@ -80,7 +80,24 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
 
   const isPastWeek = week.from < currentWeek().from
 
-  const parsedDays = useMemo(() => (days ?? []).map(parseDay), [days])
+  // Always render all 5 weekdays, even ones with no materialized visits yet (GetPlan only
+  // returns dates that have at least one planned_visit row) -- otherwise a week where only
+  // today has visits (e.g. this week, since past dates are never regenerated) renders as a
+  // single mislabeled column instead of a normal 5-day grid with empty days.
+  const dates = useMemo(() => weekdayDates(week), [week])
+  const dayByDate = useMemo(() => {
+    const map = new Map<string, PlanDayDto>()
+    for (const day of days ?? []) {
+      if (day.date) map.set(day.date, day)
+    }
+    return map
+  }, [days])
+  const visibleDays = useMemo(
+    () => dates.map((date) => dayByDate.get(date) ?? { date, visits: [], plannedMinutes: 0, findings: [] }),
+    [dates, dayByDate],
+  )
+
+  const parsedDays = useMemo(() => visibleDays.map(parseDay), [visibleDays])
 
   function updateDrag(next: DragState) {
     dragRef.current = next
@@ -146,8 +163,8 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
 
     const rawStart = snapMinutes(visit.startMin + deltaMin)
     const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
-    const sourceDate = days?.[current.dayIndex]?.date
-    const targetDate = days?.[current.targetDayIndex]?.date
+    const sourceDate = dates[current.dayIndex]
+    const targetDate = dates[current.targetDayIndex]
     if (!sourceDate || !targetDate) return
 
     const sameDay = current.targetDayIndex === current.dayIndex
@@ -219,14 +236,11 @@ export function SchedulePane({ routeId, stops }: SchedulePaneProps) {
 
       {isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
       {isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
-      {!isLoading && !isError && (!days || days.length === 0) && (
-        <div className="empty">{t('planner.noPlanYet', 'Bu rota için henüz bir plan yok.')}</div>
-      )}
 
-      {!isLoading && !isError && days && days.length > 0 && (
+      {!isLoading && !isError && (
         <div className="sched-scroll" style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
           <div style={{ display: 'flex', gap: spacing.lg }}>
-            {days.map((day, dayIndex) => {
+            {visibleDays.map((day, dayIndex) => {
               const parsed = parsedDays[dayIndex] ?? []
               const isSameDayDrag = drag?.dayIndex === dayIndex && drag.targetDayIndex === dayIndex
               const isDragTarget = drag?.kind === 'move' && drag.targetDayIndex === dayIndex && drag.dayIndex !== dayIndex

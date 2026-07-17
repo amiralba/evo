@@ -38,3 +38,16 @@ export function prevWeek(from: string): WeekRange {
   monday.setUTCDate(monday.getUTCDate() - 7)
   return weekFromMonday(monday)
 }
+
+/** The 5 weekday ISO dates (Mon-Fri) in a WeekRange, in order — used to always render 5 grid
+ * columns regardless of which days have materialized visits (a day with none simply isn't in
+ * the /plan response, but the grid should still show it as an empty column, matching the
+ * prototype). */
+export function weekdayDates(week: WeekRange): string[] {
+  const monday = new Date(`${week.from}T00:00:00Z`)
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday)
+    d.setUTCDate(d.getUTCDate() + i)
+    return toIso(d)
+  })
+}
