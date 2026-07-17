@@ -11,16 +11,16 @@ public static class DayScheduler
 {
     public static DayPlan ScheduleDay(
         DateOnly date,
-        IReadOnlyList<(Guid RouteStopId, Guid StoreId, int Minutes)> orderedVisits,
+        IReadOnlyList<(Guid RouteStopId, Guid StoreId, int Minutes, TimeOnly? PinnedStart)> orderedVisits,
         SchedulingSettings settings)
     {
         var cursor = settings.DayStart;
         var visits = new List<ScheduledVisit>();
         var plannedMinutes = 0;
 
-        foreach (var (routeStopId, storeId, minutes) in orderedVisits)
+        foreach (var (routeStopId, storeId, minutes, pinnedStart) in orderedVisits)
         {
-            var start = cursor;
+            var start = pinnedStart is { } pin && pin > cursor ? pin : cursor;
             var end = start.AddMinutes(minutes);
 
             foreach (var brk in settings.Breaks)

@@ -93,7 +93,7 @@ public class PlanGenerationService : IPlanGenerationService
 
             var dayPlan = DayScheduler.ScheduleDay(
                 date,
-                ordered.Select(v => (v.RouteStopId, v.StoreId, v.Minutes)).ToList(),
+                ordered.Select(v => (v.RouteStopId, v.StoreId, v.Minutes, v.PinnedStart)).ToList(),
                 settings);
 
             for (var i = 0; i < ordered.Count; i++)

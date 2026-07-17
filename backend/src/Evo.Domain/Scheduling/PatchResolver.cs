@@ -7,7 +7,8 @@ public record ProjectedVisit(
     int Minutes,
     Guid? MerchandiserId,
     PlannedVisitSource Source,
-    Guid? PatchId);
+    Guid? PatchId,
+    TimeOnly? PinnedStart = null);
 
 public record PatchInput(
     Guid Id,
@@ -42,8 +43,22 @@ public static class PatchResolver
             result.Clear();
         }
 
-        // TimeShift carries as a marker on matching visits; DayScheduler applies the window later.
-        // No structural change to the projected list here.
+        foreach (var patch in applicable.Where(p => p.Type == PatchType.TimeShift))
+        {
+            if (!PatchParams.TryParse<PatchParams.TimeShiftParams>(patch.ParamsJson, out var p) || p is null)
+            {
+                continue;
+            }
+
+            var pinned = TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(p.StartMinutes));
+            for (var i = 0; i < result.Count; i++)
+            {
+                if (result[i].StoreId == patch.StoreId)
+                {
+                    result[i] = result[i] with { PinnedStart = pinned };
+                }
+            }
+        }
 
         foreach (var patch in applicable.Where(p => p.Type == PatchType.AddStore))
         {

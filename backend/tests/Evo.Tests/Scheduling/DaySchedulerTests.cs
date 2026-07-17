@@ -21,8 +21,8 @@ public class DaySchedulerTests
         SnapMinutes: 5,
         Breaks: Breaks);
 
-    private static List<(Guid, Guid, int)> VisitsOfMinutes(params int[] minutes) =>
-        minutes.Select(m => (Guid.NewGuid(), Guid.NewGuid(), m)).ToList();
+    private static List<(Guid, Guid, int, TimeOnly?)> VisitsOfMinutes(params int[] minutes) =>
+        minutes.Select(m => (Guid.NewGuid(), Guid.NewGuid(), m, (TimeOnly?)null)).ToList();
 
     [Fact]
     public void SixSixtyMinuteVisits_PushAroundBreaks_NoOverlap()
@@ -75,5 +75,59 @@ public class DaySchedulerTests
 
         Assert.Equal(450, plan.PlannedMinutes);
         Assert.Empty(plan.Findings);
+    }
+
+    [Fact]
+    public void PinnedStart_LaterThanCursor_DelaysThatVisit_AndReflowsFollowing()
+    {
+        var stopA = Guid.NewGuid();
+        var storeA = Guid.NewGuid();
+        var stopB = Guid.NewGuid();
+        var storeB = Guid.NewGuid();
+        var visits = new List<(Guid, Guid, int, TimeOnly?)>
+        {
+            (stopA, storeA, 30, new TimeOnly(10, 0)),
+            (stopB, storeB, 30, null),
+        };
+
+        var plan = DayScheduler.ScheduleDay(new DateOnly(2026, 7, 20), visits, Settings());
+
+        Assert.Equal(new TimeOnly(10, 0), plan.Visits[0].Start);
+        Assert.Equal(new TimeOnly(10, 30), plan.Visits[0].End);
+        // visit 1 would start at 10:30, right on the 10:30-10:45 break -> pushed past it
+        Assert.Equal(new TimeOnly(10, 45), plan.Visits[1].Start);
+    }
+
+    [Fact]
+    public void PinnedStart_EarlierThanCursor_ClampsToCursor()
+    {
+        var stopA = Guid.NewGuid();
+        var storeA = Guid.NewGuid();
+        var stopB = Guid.NewGuid();
+        var storeB = Guid.NewGuid();
+        var visits = new List<(Guid, Guid, int, TimeOnly?)>
+        {
+            (stopA, storeA, 60, null), // 09:00-10:00
+            (stopB, storeB, 30, new TimeOnly(9, 30)), // pin is before the cursor (10:00) -> clamps
+        };
+
+        var plan = DayScheduler.ScheduleDay(new DateOnly(2026, 7, 20), visits, Settings());
+
+        Assert.Equal(new TimeOnly(10, 0), plan.Visits[1].Start);
+    }
+
+    [Fact]
+    public void PinnedStart_OverlappingBreak_PushesPastBreak()
+    {
+        var stopA = Guid.NewGuid();
+        var storeA = Guid.NewGuid();
+        var visits = new List<(Guid, Guid, int, TimeOnly?)>
+        {
+            (stopA, storeA, 30, new TimeOnly(10, 35)), // overlaps the 10:30-10:45 break
+        };
+
+        var plan = DayScheduler.ScheduleDay(new DateOnly(2026, 7, 20), visits, Settings());
+
+        Assert.Equal(new TimeOnly(10, 45), plan.Visits[0].Start);
     }
 }

@@ -98,4 +98,46 @@ public class PatchResolverTests
         Assert.Single(result);
         Assert.Equal(PlannedVisitSource.Patch, result[0].Source);
     }
+
+    [Fact]
+    public void TimeShift_SetsPinnedStart_OnMatchingStoresVisit()
+    {
+        var routeStopId = Guid.NewGuid();
+        var storeId = Guid.NewGuid();
+        var date = new DateOnly(2026, 7, 20);
+
+        var baseline = new List<ProjectedVisit>
+        {
+            new(routeStopId, storeId, date, 30, null, PlannedVisitSource.Baseline, null),
+        };
+
+        var patch = new PatchInput(Guid.NewGuid(), PatchType.TimeShift, storeId, null,
+            StartsOn: date, EndsOn: date, ParamsJson: """{"startMinutes":600}""");
+
+        var result = PatchResolver.Apply(baseline, [patch], date);
+
+        Assert.Single(result);
+        Assert.Equal(new TimeOnly(10, 0), result[0].PinnedStart);
+    }
+
+    [Fact]
+    public void TimeShift_MalformedParamsJson_LeavesPinnedStartNull_NoThrow()
+    {
+        var routeStopId = Guid.NewGuid();
+        var storeId = Guid.NewGuid();
+        var date = new DateOnly(2026, 7, 20);
+
+        var baseline = new List<ProjectedVisit>
+        {
+            new(routeStopId, storeId, date, 30, null, PlannedVisitSource.Baseline, null),
+        };
+
+        var patch = new PatchInput(Guid.NewGuid(), PatchType.TimeShift, storeId, null,
+            StartsOn: date, EndsOn: date, ParamsJson: "not json");
+
+        var result = PatchResolver.Apply(baseline, [patch], date);
+
+        Assert.Single(result);
+        Assert.Null(result[0].PinnedStart);
+    }
 }
