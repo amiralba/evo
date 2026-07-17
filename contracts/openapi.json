@@ -370,6 +370,126 @@
         }
       }
     },
+    "/api/v1/notes": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/NoteStatus"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/NoteKind"
+            }
+          },
+          {
+            "name": "anchorType",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/NoteAnchorType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{id}": {
+      "patch": {
+        "tags": [
+          "Notes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNoteStatusRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNoteStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNoteStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/routes": {
       "post": {
         "tags": [
@@ -2501,6 +2621,78 @@
         },
         "additionalProperties": false
       },
+      "NoteAnchorType": {
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "NoteDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "authorId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "authorName": {
+            "type": "string",
+            "nullable": true
+          },
+          "anchorType": {
+            "$ref": "#/components/schemas/NoteAnchorType"
+          },
+          "anchorId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "anchorLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "$ref": "#/components/schemas/NoteKind"
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/NoteStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NoteKind": {
+        "enum": [
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "NoteStatus": {
+        "enum": [
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
       "PatchDto": {
         "type": "object",
         "properties": {
@@ -3502,6 +3694,15 @@
         },
         "additionalProperties": false
       },
+      "UpdateNoteStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/NoteStatus"
+          }
+        },
+        "additionalProperties": false
+      },
       "UpdateRouteRequest": {
         "type": "object",
         "properties": {
@@ -3603,6 +3804,9 @@
     },
     {
       "name": "Merchandisers"
+    },
+    {
+      "name": "Notes"
     },
     {
       "name": "Routes"

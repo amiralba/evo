@@ -99,49 +99,49 @@
 - Files: `backend/src/Evo.Infrastructure/Notes/NoteEnums.cs` (new)
 - Do: `enum NoteAnchorType : byte { Store=1, Visit=2, Day=3, General=4 }`, `enum NoteKind : byte { Note=1, ChangeRequest=2 }`, `enum NoteStatus : byte { Open=1, Acknowledged=2, Resolved=3 }`.
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 16: Add Note entity
 - Files: `backend/src/Evo.Infrastructure/Notes/Note.cs` (new)
 - Do: `Guid Id`, `Guid? AuthorId`, `NoteAnchorType AnchorType`, `Guid? AnchorId`, `NoteKind Kind`, `string Body`, `NoteStatus Status`, `DateTimeOffset CreatedAt`, `DateOnly? AnchorDay` (for Day anchor).
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 17: Register Note DbSet + config
 - Files: `backend/src/Evo.Infrastructure/EvoDbContext.cs`
 - Do: add `public DbSet<Note> Notes => Set<Note>();` (with `using Evo.Infrastructure.Notes;`); in `OnModelCreating` add `builder.Entity<Note>` → `ToTable("note")`, `Body` `nvarchar(max)`, indexes `(AnchorType, AnchorId)` and `(Status, Kind)`, FK `AuthorId`→`ApplicationUser` `OnDelete(NoAction)` nullable.
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 18: Create the Note migration
 - Files: generated migration
 - Do: `dotnet ef migrations add AddNote --project backend/src/Evo.Infrastructure --startup-project backend/src/Evo.Api`
 - Verify: migration creates table `note` with the two indexes; build passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 19: Add Note DTOs
 - Files: `backend/src/Evo.Api/Notes/NoteDtos.cs` (new)
 - Do: `record NoteDto(Guid Id, Guid? AuthorId, string? AuthorName, NoteAnchorType AnchorType, Guid? AnchorId, string? AnchorLabel, NoteKind Kind, string Body, NoteStatus Status, DateTimeOffset CreatedAt)`; `record UpdateNoteStatusRequest(NoteStatus Status)`.
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 20: Add NotesController — GET inbox
 - Files: `backend/src/Evo.Api/Controllers/NotesController.cs` (new)
 - Do: `[Authorize(Roles = "Supervisor")]`; `GET /notes?status=&kind=&anchorType=` returns `NoteDto[]` newest-first, filters applied when provided. Resolve `AuthorName` from the user, `AnchorLabel` from the store/visit when resolvable (best-effort).
 - Verify: build compiles; endpoint appears in `contracts/openapi.json` after build.
-- Status: [ ]
+- Status: [x]
 
 ### Task 21: Add NotesController — PATCH status
 - Files: `backend/src/Evo.Api/Controllers/NotesController.cs`
 - Do: `PATCH /notes/{id}` with `UpdateNoteStatusRequest`; allowed transitions Open→Acknowledged→Resolved (and Open→Resolved); illegal transition throws `EvoValidationException` (422); write an `audit_log` entry via `IAuditWriter` (`EntityType="Note"`). Return updated `NoteDto`.
 - Verify: build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 22: Endpoint tests — notes inbox + transition
 - Files: `backend/tests/Evo.Tests/Notes/NoteEndpointTests.cs` (new)
 - Do: assert GET returns seeded notes filtered by status; FieldAgent gets 403 on GET; PATCH Open→Acknowledged succeeds; Resolved→Open → 422. Use isolated test DB factory.
 - Verify: `dotnet test backend/Evo.sln --filter NoteEndpointTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Phase 4 — Notification entity + mock dispatcher
 
