@@ -238,61 +238,61 @@
 - Files: `backend/src/Evo.Api/Routing/Dtos/RouteDtos.cs`
 - Do: request/response records: `CreateRouteRequest(string Name, string Province, IReadOnlyList<string>? Districts, string? RouteCode, decimal? RevenueTarget)`; `RouteSummaryDto(Guid Id, string RouteCode, string Name, string Province, RouteStatus Status, int Version, int StopCount, decimal RevenueTarget)`; `RouteStopDto(Guid Id, Guid StoreId, string StoreName, Frequency Frequency, short WeekdayMask, int? ServiceMinutes, int Sequence, DateOnly EffectiveFrom, DateOnly? EffectiveTo)`; `AssignmentDto(Guid MerchandiserId, string MerchandiserName, DateOnly StartDate, AssignmentReason Reason)`; `PatchDto(Guid Id, PatchType Type, Guid? StoreId, DateOnly StartsOn, DateOnly EndsOn, PatchStatus Status)`; `RouteDetailDto(Guid Id, string RouteCode, string Name, string Province, IReadOnlyList<string> Districts, RouteStatus Status, int Version, decimal RevenueTarget, int DailyWorkMinutes, IReadOnlyList<RouteStopDto> Stops, AssignmentDto? CurrentAssignment, IReadOnlyList<PatchDto> ActivePatches)`; `UpdateRouteRequest(string? Name, decimal? RevenueTarget, RouteStatus? Status)`.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 34: RoutesController — create/list/get
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`
 - Do: `[ApiController] [Route("api/v1/routes")] [Authorize(Roles = Roles.Supervisor)]`. `POST` — create a DRAFT route; if `RouteCode` omitted, generate one from province prefix + a sequence (e.g. `ANK-<n>`); `CreatedBy` from the user id claim; return `201 CreatedAtAction` with `RouteSummaryDto`. `GET` — `List(string? province, RouteStatus? status, int page=1, int pageSize=50)` → `PagedResult<RouteSummaryDto>` (reuse `Evo.Api.Audit.Dtos.PagedResult`), cap pageSize 200. `GET {id:guid}` — load route + stops (join store name) + current assignment (join merchandiser→user display name) + active patches; null → `throw new NotFoundException(...)`; else `RouteDetailDto`.
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 35: RoutesController — PATCH (rename/target/activate/deactivate)
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`
 - Do: `PATCH {id:guid}` taking `UpdateRouteRequest`. Rename / `RevenueTarget` edit update in place. `Status` transitions: `Draft→Active` — require an active Assignment exists, else `throw new ConflictException(...)` (→409); on success set Active and call `RegenerateFutureAsync`. `Active→Inactive` — set Inactive and **release stops to pool**: set `EffectiveTo = today` on the route's active `route_stop`s, delete future `planned_visit`s, write a change-log event. `Inactive→Active` — comes back **empty** (design §4 — stops reassigned manually). No delete endpoint. Bump `Version` on structural transitions. Write appropriate `IRouteChangeLog` events.
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 36: Stops — bulk add + edit
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`, `backend/src/Evo.Api/Routing/Dtos/StopDtos.cs`
 - Do: `record BulkAddStopsRequest(IReadOnlyList<Guid> StoreIds, Frequency Frequency, short WeekdayMask, int? ServiceMinutes)`; `record BulkAddResultDto(IReadOnlyList<Guid> Added, IReadOnlyList<RejectedStoreDto> Rejected)`; `record RejectedStoreDto(Guid StoreId, string Reason)`. `POST {id}/stops:bulk` — for each store: **V3** (store province/district must be in route scope, else reject) and **V4** (store already on an active route_stop, else reject with `Reason="on_another_route"`); accepted stores get a new `route_stop` (`EffectiveFrom=today`, sequence appended), write `STOP_ADDED`; regenerate future visits; return `BulkAddResultDto`. `PATCH {id}/stops/{stopId:guid}` — edit `Frequency`/`ServiceMinutes`/`Sequence`; write `FREQ_CHANGED` when frequency changes; regenerate future visits. (Use route attribute `:bulk`/`:move` suffixes via `[HttpPost("{id:guid}/stops:bulk")]`.)
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 37: Stops — atomic move between routes
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`
 - Do: `record MoveStopRequest(Guid TargetRouteId)`; `POST {id:guid}/stops/{stopId:guid}:move` — in one transaction: validate the store is in the **target** route's geo-scope (V3, else 409/reject); close the source `route_stop` (`EffectiveTo=today`); open a new `route_stop` on the target route (`EffectiveFrom=today`, copying frequency/minutes/appended sequence); `RegenerateFutureAsync` for **both** routes; write `STOP_MOVED` (or `STOP_REMOVED`+`STOP_ADDED`) change-log events for both. Return the new stop's `RouteStopDto`. The one-active-route filtered unique index guarantees no overlap window.
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 38: Assignment endpoint
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`, `backend/src/Evo.Api/Routing/Dtos/AssignmentDtos.cs`
 - Do: `record ReassignRequest(Guid MerchandiserId, DateOnly StartDate, AssignmentReason Reason)`. `POST {id:guid}/assignment` — `Reason` required (model validation → 422 if missing); in a transaction: close the route's current assignment (`EndDate = StartDate`), open a new one, repoint future `planned_visit.MerchandiserId`, write `UNASSIGNED`+`ASSIGNED` change-log events. The two assignment filtered-unique indexes enforce single-active on both sides (a `DbUpdateException` from a merchandiser already assigned elsewhere → map to `ConflictException`/409). Return the new `AssignmentDto`.
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 39: Patch endpoint (expiry mandatory)
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`, `backend/src/Evo.Api/Routing/Dtos/PatchDtos.cs`
 - Do: `record CreatePatchRequest(PatchType Type, Guid? StoreId, Guid? CoverMerchandiserId, DateOnly StartsOn, DateOnly? EndsOn, string? ParamsJson, string? Reason)`. `POST {id:guid}/patches` — if `EndsOn` is null → `throw new EvoValidationException(...)` with code for **V9** (patch without expiry) → 422 unified shape; else create the patch (`Status=Pending` or `Active` if `StartsOn<=today`), write `PATCHED`, `RegenerateFutureAsync`, return the `PatchDto`.
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 40: Plan + health + validate endpoints
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`, `backend/src/Evo.Api/Routing/Dtos/PlanDtos.cs`
 - Do: `record PlanDayDto(DateOnly Date, IReadOnlyList<PlannedVisitDto> Visits, int PlannedMinutes, IReadOnlyList<FindingDto> Findings)`; `record PlannedVisitDto(Guid StoreId, string StoreName, DateTimeOffset? Start, DateTimeOffset? End, PlannedVisitSource Source)`; `record FindingDto(string Code, FindingSeverity Severity, string Message, string? Scope)`; `record HealthDto(decimal SixMonthRevenue, decimal RevenueTarget, bool RevenueMet, IReadOnlyDictionary<string,int> MinutesByWeekday, IReadOnlyDictionary<string,int> CategoryMix, int ErrorCount, int WarningCount)`. `GET {id:guid}/plan?from=&to=` — read materialized `planned_visit`s in range grouped by date, attach DayScheduler/validator findings, return `PlanDayDto[]`. `GET {id:guid}/health` — compute revenue sum (from `store_revenue`, latest 6 months), per-weekday minutes, category mix %, and finding counts. `POST {id:guid}/validate` — run the full validator over the current draft and return `FindingDto[]` (for live UI).
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 41: Publish endpoint + merchandiser day
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`, `backend/src/Evo.Api/Controllers/MerchandisersController.cs`, `backend/src/Evo.Api/Routing/Dtos/PublishDtos.cs`
 - Do: `record PublishRequest(string? Reason, string? Objective)`; `record PublishResultDto(int VisitsMaterialized, bool OverrodeErrors, Guid? DecisionJournalId)`. `POST {id:guid}/publish` — run the validator; if any `FindingSeverity.Error` present, require `Reason`+`Objective` (else `throw new EvoValidationException(...)` → 422) and write a `decision_journal` row (`Kind=PublishOverride`, `ErrorsJson`=the error codes, `AuthorId`=user); then `RegenerateFutureAsync` over the horizon (materialize atomically), write `PUBLISHED`, return `PublishResultDto`. (No notifications — M3.) New `MerchandisersController` `[Authorize] GET api/v1/merchandisers/{id:guid}/day?date=` → that merchandiser's `planned_visit`s for the date as `PlannedVisitDto[]` (Supervisor allowed; agent-self allowed once mobile lands).
 - Verify: `dotnet build`; (behavior in Task 42).
-- Status: [ ]
+- Status: [x]
 
 ## Task 42: Endpoint integration tests
 - Files: `backend/tests/Evo.Tests/Routing/RouteEndpointTests.cs`
 - Do: with `WebApplicationFactory` (seeded Supervisor + Field agent + at least one synced store): Supervisor `POST /routes` → 201; `POST /routes/{id}/stops:bulk` with an in-scope store → accepted, an out-of-scope store → rejected (V3), a store already on another route → rejected (V4); `POST /routes/{id}/assignment` without reason → 422; with reason → 200; `PATCH /routes/{id}` Draft→Active with an assignment → 200, without an assignment (fresh route) → 409; `POST /routes/{id}/patches` without `EndsOn` → 422 (V9), with it → 200; `POST /routes/{id}/publish` on a route with an Error finding and no reason → 422, with reason+objective → 200 and a `decision_journal` row exists; `GET /routes/{id}/plan?from=&to=` returns days with findings; Field agent `POST /routes` → 403; unauthenticated → 401.
 - Verify: `dotnet test backend/Evo.sln --filter RouteEndpointTests` passes.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 6 CHECKPOINT — HARD STOP: summarize + evidence (endpoint tests green covering create/bulk V3-V4/assign-422/activate-409/patch-V9-422/publish-override-journal/plan/authz-403-401), give the human a 1-minute API test script (login as Supervisor → POST /routes → stops:bulk → assignment → PATCH activate → patches → publish → GET plan), commit `feat(005): route/stop/assignment/patch/plan/publish API endpoints`, numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 
