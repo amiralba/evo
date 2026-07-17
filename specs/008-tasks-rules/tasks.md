@@ -352,28 +352,28 @@
 - Files: `docs/DATABASE.md`
 - Do: document `task_template`, `rule`, `task_instance` (columns, nullable FKs, indexes) matching the migration.
 - Verify: table names/columns match `EvoDbContextModelSnapshot.cs`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 56 [P]: docs/API.md — new endpoints
 - Files: `docs/API.md`
 - Do: document the 6 new endpoints with request/response shapes + the INSTANCE/STORE_RULE/FORMAT_RULE scope semantics and the never-block V10 behavior.
 - Verify: endpoints match the controllers.
-- Status: [ ]
+- Status: [x]
 
 ## Task 57 [P]: docs/DECISIONS.md — M2 decisions
 - Files: `docs/DECISIONS.md`
 - Do: log — M2 effect-op scope (Q1), scale/set arithmetic order (Q8), priority tie-break, materialize TaskInstances (Q7), simulate/route + Conflict Center deferral rationale. Note the `service_minutes` fallback is now superseded (flag in `EVO-Route-Planning-Design.md` if it documents old behavior).
 - Verify: entries reference spec 008.
-- Status: [ ]
+- Status: [x]
 
 ## Task 58 [P]: docs/ARCHITECTURE.md + ROADMAP.md
 - Files: `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`
 - Do: note the resolver in the scheduling section (minutes now = Σ tasks); tick M2 items in ROADMAP.
 - Verify: ROADMAP M2 boxes checked; ARCHITECTURE mentions `TaskResolver`.
-- Status: [ ]
+- Status: [x]
 
 ## Task 59: Full-suite regression + final checkpoint
 - Files: (none)
 - Do: `dotnet test backend/Evo.sln`; `cd panel && npm test && npm run lint && npm run build`; `npx playwright test`.
 - Verify: backend all green (103 prior + new), panel all green. Then run /end-session.
-- Status: [ ]
+- Status: [x]

@@ -46,10 +46,19 @@ Goal: a supervisor can build and publish a valid plan.
       with a live rubber-band reflow preview for same-day drags; ported the prototype's time-axis +
       person-cell schedule layout. Backend 103/103, panel 40/40 tests green.
 
-### M2 — Tasks & rules
-- [ ] TaskTemplate + Rule resolution (format-driven durations, per-store/route exceptions)
-- [ ] Rule Inspector + aggregate impact preview
-- [ ] One-off targeted tasks (target + valid_until)
+### M2 — Tasks & rules (status: COMPLETE)
+- [x] 008-tasks-rules — TaskTemplate + Rule resolution engine (`Evo.Domain/Tasks/TaskResolver`,
+      format-driven durations via SCALE/SET rules, per-store/route exceptions, dated rules
+      auto-expiring like patches); `PlanGenerationService` integration (visit duration = Σ resolved
+      task minutes replacing the flat fallback, `TaskInstance` materialization, format-change
+      re-resolution); 6 endpoints (`task-templates`, `stores/{id}/task-plan`, `rules` CRUD +
+      `rules/impact` aggregate preview, `task-instances/{id}` scope edit, `tasks/adhoc` one-off
+      targeted tasks); seeder extended with a realistic template/rule set + adhoc survey; panel
+      Görevler tab (replaces the M2-pending empty state) + scope modal (this-visit/this-store/
+      all-format edits with a live impact preview) + Rule Inspector trace popover. Backend 131/131,
+      panel 44/44 tests, 4/4 Playwright specs green. Deferred (confirmed 2026-07-17, not silently
+      dropped): `POST /simulate/route`, Conflict Center/Sorun Merkezi, module-stack editor
+      (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE`), standalone Yönetim admin pages.
 
 ### M3 — Field execution simulation
 Goal: everything downstream of the field (planned-vs-realized, task results, notes) works against seeded/mocked data.

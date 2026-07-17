@@ -28,7 +28,7 @@
 | assignment, patch, planned_visit | ☑ | 005-route-planning-core |
 | decision_journal | ☑ | 005-route-planning-core |
 | route_change_log, admin_audit_log | ☑ (as generic `audit_log`, see below) | 003-error-audit |
-| task_template, rule, task_instance | ☐ | M2 |
+| task_template, rule, task_instance | ☑ | 008-tasks-rules |
 | note, notification | ☐ | M3 |
 | settings | ☑ (minimal — no admin/draft-confirm UI yet, see below) | 005-route-planning-core |
 | agent_location (read-only reuse) | ☐ | M4 |
@@ -76,10 +76,36 @@ for why MoveVisit is a new type rather than an overloaded TimeShift.
 
 M1-core validation subset implemented: V1/V2 (450-min rule, `DayScheduler`), V3 (geo-scope),
 V5 (revenue target), V6 (SERVICE-category mix cap), V7 (time-window/ban), V9 (mandatory patch
-expiry), V12 (merchandiser visit overlap). Deferred: V8, V10/V11 (task/rule Σ-duration → M2),
-V13/V15 (travel/OSRM), V14 (leave/Onarım → M4), V16. Visit duration in M1 =
+expiry), V12 (merchandiser visit overlap). Deferred: V8, V13/V15 (travel/OSRM), V14
+(leave/Onarım → M4), V16. **Superseded in M2 (spec 008):** visit duration is no longer
 `route_stop.service_minutes ?? store.default_service_minutes ?? settings.default_service_minutes`
-(task/rule-based duration is an M2 hand-off).
+as the primary path — it is now Σ resolved task minutes via `TaskResolver`, with
+`route_stop.service_minutes` retained only as an explicit manual override. See the
+`task_template`/`rule`/`task_instance` section below and `docs/ARCHITECTURE.md`.
+
+## task_template, rule, task_instance (spec 008-tasks-rules)
+Replaces the flat `service_minutes` fallback with the Rule-resolution engine (design §2.9/§2.10).
+`task_template` (`id`, `code` unique, `name`, `default_minutes`, `recurrence` EveryVisit/Weekly/Once,
+`proof_required` None/Photo/Form, `instructions_text`, `modules_json` nullable/reserved-unused,
+`default_deadline_policy` nullable, `target_chain` nullable FK→`chain`, `target_format` nullable
+FK→`store_type`, `valid_until` nullable date, `active`) — the task catalog, attached to visits by
+attribute matching (target_chain/target_format, empty = all stores), never manual linking. A
+one-off targeted task (adhoc survey/campaign) is just a `recurrence=Once` template with
+`target_chain`/`target_format` + `valid_until` as its deadline (design §2.8 v0.5 decision — no
+separate Campaign entity). `rule` (`id`, `task_template_id` nullable FK, `scope` Global/Chain/
+Format/Route/Store (int, higher = more specific), `condition_json`/`effect_json` (`nvarchar(max)`,
+wire shape in `docs/API.md`), `priority`, `effective_from`/`effective_to` nullable — date-limited
+rules auto-expire like patches), `created_by` nullable FK→`AspNetUsers`, `created_at`. Indexed on
+`scope` and `(task_template_id, effective_from, effective_to)`. `task_instance` (`id`,
+`planned_visit_id` nullable FK→`planned_visit` **ON DELETE SET NULL**, `store_id`,
+`merchandiser_id` nullable, `task_template_id` FK→`task_template` (no action), `resolved_minutes`,
+`override_minutes` nullable, `override_scope` nullable (Instance/StoreRule), `deadline` nullable
+date, `status` Pending/InProgress/Done/Overdue/Cancelled, `cancel_reason`, `result_json` nullable
+— reserved for M3 field execution) — the materialized per-visit task attachment, unique on
+`(planned_visit_id, task_template_id)`, upserted by `PlanGenerationService` alongside
+`planned_visit` rows (future only — history frozen, same as `planned_visit`). No new validation
+codes added; the existing V2 (>450 min) finding now reflects Σ task minutes and stays a Warning
+(never-block, per design).
 
 ## store, chain, store_type, store_revenue, store_flag (spec 004)
 Store master data is ingested, not hand-entered — see `docs/API.md` and `docs/DECISIONS.md` for
