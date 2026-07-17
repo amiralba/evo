@@ -63,6 +63,7 @@ var modules = new List<ISeederModule>
     new MerchandiserSeederModule(),
     new RouteSeederModule(),
     new TaskRuleSeederModule(),
+    new FieldExecutionSeederModule(),
 };
 
 var faker = new Faker("tr");

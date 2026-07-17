@@ -193,61 +193,61 @@
 - Files: `backend/src/Evo.Infrastructure/Routing/PlanGenerationService.cs` (read only)
 - Do: inspect the range method (`RegenerateFutureAsync(routeId, from, to)`) — confirm it iterates `from→to` without skipping past dates. Record the finding in a top-of-file comment in the new seeder module (Task 31). If it guards against past dates, add a seeder-only `MaterializeHistoryAsync(routeId, from, to)` that reuses the same projection without the future-only filter.
 - Verify: note the decision in the module; build compiles.
-- Status: [ ]
+- Status: [x]
 
 ### Task 31: Scaffold FieldExecutionSeederModule + register
 - Files: `backend/src/Evo.Seeder/Modules/FieldExecutionSeederModule.cs` (new); `backend/src/Evo.Seeder/Program.cs`
 - Do: implement `ISeederModule` (`Name="FieldExecution"`); register it LAST in the `modules` list in `Program.cs` (after `TaskRuleSeederModule`). Empty `SeedAsync` body for now.
 - Verify: `dotnet run --project backend/src/Evo.Seeder -- --profile demo` prints `Seeding module: FieldExecution`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 32: Materialize past history per active route
 - Files: `FieldExecutionSeederModule.cs`
 - Do: for each active route, materialize `planned_visit` rows for `[today − (demo:21 / scale:28) days, today − 1]` using the Task-30 path; idempotent via the unique `(route_stop_id, visit_date)`.
 - Verify: after run, `SELECT COUNT(*) FROM planned_visit WHERE visit_date < CAST(GETDATE() AS date)` > 0.
-- Status: [ ]
+- Status: [x]
 
 ### Task 33: Assign outcome distribution to past visits
 - Files: `FieldExecutionSeederModule.cs`
 - Do: for each past visit, set `PlannedVisit.Status` ~85% Done / ~8% Missed / ~7% Skipped (deterministic via `faker.Random`). Skip rows already realized (idempotency: only update `Status == Planned`).
 - Verify: `SELECT status, COUNT(*) FROM planned_visit WHERE visit_date < CAST(GETDATE() AS date) GROUP BY status` shows all three outcomes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 34: Seed VisitRealization rows (check-in/out time, actual duration, outcome reason)
 - Files: `FieldExecutionSeederModule.cs`
 - Do: for each past **Done** visit, insert a `VisitRealization` row: `CheckInAt` = planned start ± jitter (0–20 min), `CheckOutAt` = CheckIn + (planned duration ± jitter), `ActualMinutes` = (CheckOut − CheckIn) in minutes, `OutcomeReason = null`. For **Missed/Skipped** visits, insert a `VisitRealization` row with `CheckInAt/CheckOutAt/ActualMinutes = null` and `OutcomeReason` set from `VisitOutcomeReason` (weighted toward `StoreClosed`/`AgentAbsent`/`Rescheduled`). No lat/lng written here — that lives in the location-ping stream (Task 35).
 - Verify: `SELECT COUNT(*) FROM visit_realization` > 0; `SELECT COUNT(*) FROM visit_realization WHERE check_in_at IS NOT NULL AND actual_minutes IS NULL` = 0 (every check-in has a duration).
-- Status: [ ]
+- Status: [x]
 
 ### Task 35: Seed continuous location-ping stream per merchandiser
 - Files: `FieldExecutionSeederModule.cs`
 - Do: for every merchandiser with an active assignment over the seeded past window, generate `MerchandiserLocationPing` rows roughly every 10–15 minutes during working hours (~09:00–18:00) each seeded workday — a realistic route: start near the merchandiser's `HomeLocation`, walk through each day's Done-visit stores in sequence (jittered ~50–150m around each `Store.Location`, reading `.Y`=lat/`.X`=lng), with a few pings between stops to simulate travel. Dense enough that every Done visit's `CheckInAt` (Task 34) has a ping within ±15 min for the nearest-ping lookup (Task 7) to resolve. Idempotent (skip if pings already exist for that merchandiser/date range).
 - Verify: `SELECT COUNT(*) FROM merchandiser_location_ping` is large (thousands, not dozens) for the `demo` profile; spot-check a Done visit's check-in time has a ping within 15 minutes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 36: Flip past task instances to Done with results
 - Files: `FieldExecutionSeederModule.cs`
 - Do: for `TaskInstance` rows on past **Done** visits, set `Status=Done` and `ResultJson` via `TaskResultJson.Serialize` matching the template's `ProofRequired`: None→note, Photo→1–3 seeded `PhotoRef` (`visits/{visitId}/{taskId}/{n}.jpg` + fake URL), Form→2–3 Turkish answer pairs. Missed/Skipped visit tasks stay Pending/Overdue.
 - Verify: `SELECT COUNT(*) FROM task_instance WHERE result_json IS NOT NULL` > 0; JSON parses.
-- Status: [ ]
+- Status: [x]
 
 ### Task 37: Seed notes across all anchor types
 - Files: `FieldExecutionSeederModule.cs`
 - Do: insert ≥ 8 `Note` rows — a mix of STORE (anchor a real store id), VISIT (a real past visit id), DAY (`AnchorDay`), GENERAL; mix NOTE/CHANGE_REQUEST and OPEN/ACKNOWLEDGED/RESOLVED; Turkish bodies (e.g. "Mağaza müdürü perşembe servis istemiyor"); `AuthorId` = a field-agent user. Idempotent (skip if a seed-marker count already present).
 - Verify: `SELECT COUNT(*) FROM note` ≥ 8; `GET /notes` returns them.
-- Status: [ ]
+- Status: [x]
 
 ### Task 38: Seed notifications per assigned merchandiser
 - Files: `FieldExecutionSeederModule.cs`
 - Do: for each merchandiser with an active assignment, insert ≥ 1 `Notification` (`PayloadJson` = a Turkish diff summary, e.g. `{"summary":"Çar: BİM Sincan eklendi, Kantin A çıkarıldı"}`), `ReadAt` = a mix of null/past. Idempotent.
 - Verify: `SELECT COUNT(*) FROM notification` ≥ merchandiser count.
-- Status: [ ]
+- Status: [x]
 
 ### Task 39: Verify full seeder run on both profiles
 - Files: —
 - Do: run demo then `--profile scale --wipe`.
 - Verify: both exit 0; re-running demo does not increase past-visit/note/notification counts (idempotency).
-- Status: [ ]
+- Status: [x]
 
 ## Phase 6 — Panel
 
