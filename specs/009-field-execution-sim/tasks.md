@@ -317,43 +317,43 @@
 - Files: `docs/DATABASE.md`
 - Do: flip the `note, notification` schema-status row to ☑ (spec 009); add a `visit_realization`/`merchandiser_location_ping` row (new tables, not in the original design §5 schema-status list — flag as an M3 addition); add a section documenting `visit_realization` (1:1 with `planned_visit`), the continuous `merchandiser_location_ping` stream (pulled forward from M4 per user decision), `note`/`notification` tables, and `task_instance.result_json` now being typed/populated.
 - Verify: the schema-status table and a new section reflect M3.
-- Status: [ ]
+- Status: [x]
 
 ### Task 51: Update docs/API.md
 - Files: `docs/API.md`
 - Do: document `GET /notes`, `PATCH /notes/{id}`, `GET /merchandisers/{id}/notifications`, the publish→notification behavior, and the extended `PlannedVisitDto`. Update the Mobile row (day/notifications now partly realized as seeded/mocked).
 - Verify: endpoints listed with roles + shapes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 52: Update docs/ARCHITECTURE.md
 - Files: `docs/ARCHITECTURE.md`
 - Do: note the field-execution simulation layer (seeded realized visits, `TaskResult` domain records, mock `INotificationDispatcher`) and where it sits.
 - Verify: architecture doc mentions M3 components.
-- Status: [ ]
+- Status: [x]
 
 ### Task 53: Add a DECISIONS.md entry
 - Files: `docs/DECISIONS.md`
 - Do: newest-first entry recording: separate `visit_realization` table (not columns on `planned_visit` — user override of the planner's recommendation, 2026-07-17) with `planned_visit.status` staying the outcome source of truth; continuous `merchandiser_location_ping` stream (plain lat/lng, no NetTopologySuite) pulling M4's live-location groundwork into M3 per user decision, panel visualization still deferred to M4; seeded photo object keys (no real MinIO); mocked `INotificationDispatcher` on publish; notes seeder-only (no field create API); no new validation codes. Reference the confirmed Q1/Q2/Q5/Q6 and the recommended-default Q3/Q4/Q7/Q8/Q9.
 - Verify: entry present, dated, newest-first.
-- Status: [ ]
+- Status: [x]
 
 ### Task 54: Flag the design doc build notes
 - Files: `EVO-Route-Planning-Design.md` (§2.6, §2.11, §2.12, §6.2 if it describes agent_location)
 - Do: add short build-note flags where M3 diverges (separate `visit_realization` table + continuous `merchandiser_location_ping` stream vs design's single realized-visit shape; mocked dispatcher vs FCM; notes seeded not field-authored). Never contradict §10 silently (CLAUDE.md rule 5).
 - Verify: build-note flags present at each diverging section.
-- Status: [ ]
+- Status: [x]
 
 ### Task 55: Update ROADMAP.md M3
 - Files: `docs/ROADMAP.md`
 - Do: check the two M3 bullets `[x]` and add the spec reference `009-field-execution-sim` with a one-line summary; note that the location-ping data pipeline (`merchandiser_location_ping`) was pulled forward from M4 into M3 (user decision) but the map's live-location **visualization** stays M4; list what else stayed deferred (out-of-route visits, real FCM, planned-vs-realized analytics → M4).
 - Verify: M3 section reflects completion + deferrals.
-- Status: [ ]
+- Status: [x]
 
 ### Task 56: Full test-suite + contract-drift check
 - Files: —
 - Do: `dotnet test backend/Evo.sln`; `cd panel && npm test && npx playwright test`; `dotnet build backend/Evo.sln` then confirm `git diff --exit-code contracts/openapi.json` is clean (regenerated in-session).
 - Verify: backend + panel suites green; no uncommitted contract drift.
-- Status: [ ]
+- Status: [x]
 
 ### Task 57: Update CLAUDE.md current focus + docs/TODO.md
 - Files: `CLAUDE.md` (Current focus), `docs/TODO.md`

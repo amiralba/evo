@@ -29,9 +29,10 @@
 | decision_journal | ☑ | 005-route-planning-core |
 | route_change_log, admin_audit_log | ☑ (as generic `audit_log`, see below) | 003-error-audit |
 | task_template, rule, task_instance | ☑ | 008-tasks-rules |
-| note, notification | ☐ | M3 |
+| note, notification | ☑ | 009-field-execution-sim |
+| visit_realization, merchandiser_location_ping (not in design §5 — M3 additions, see below) | ☑ | 009-field-execution-sim |
 | settings | ☑ (minimal — no admin/draft-confirm UI yet, see below) | 005-route-planning-core |
-| agent_location (read-only reuse) | ☐ | M4 |
+| agent_location (read-only reuse) | ☐ (superseded by `merchandiser_location_ping`, pulled forward from M4 — see below) | M4 |
 
 ## audit_log (spec 003 — generic table, replaces route_change_log/admin_audit_log for now)
 Design §5 specifies two append-only audit tables, both needing owning entities (Route, Setting)
@@ -106,6 +107,37 @@ date, `status` Pending/InProgress/Done/Overdue/Cancelled, `cancel_reason`, `resu
 `planned_visit` rows (future only — history frozen, same as `planned_visit`). No new validation
 codes added; the existing V2 (>450 min) finding now reflects Σ task minutes and stays a Warning
 (never-block, per design).
+
+## visit_realization, merchandiser_location_ping, note, notification (spec 009-field-execution-sim)
+M3 makes everything downstream of the field (deferred mobile app — see 2026-07-15 DECISIONS.md entry)
+real against **seeded/mocked** data. `visit_realization` (`id`, `planned_visit_id` **unique** FK→
+`planned_visit` **ON DELETE CASCADE**, `check_in_at`/`check_out_at` nullable, `actual_minutes`
+nullable, `outcome_reason` nullable `VisitOutcomeReason`) is 1:1 with `planned_visit` and holds only
+"reality" — `planned_visit.status` (`Done`/`Missed`/`Skipped`, spec 005 enum, previously unused)
+stays the single source of truth for outcome. **Deviates from the planner's own recommendation** of
+realized columns directly on `planned_visit` — the user asked for a separate table (2026-07-17,
+`docs/DECISIONS.md`) to keep "the promise" and "reality" cleanly separated as realized data grows.
+`merchandiser_location_ping` (`id`, `merchandiser_id` FK→`merchandiser` **ON DELETE CASCADE**, `lat`/
+`lng` plain `float8` — no NetTopologySuite `geography`, no spatial query needs it yet — `recorded_at`)
+is a **continuous** stream (many rows per agent per workday), not a single check-in point per visit;
+a visit's check-in location is derived at read time as the nearest ping to its `check_in_at` (`GET
+/routes/{id}/plan`'s `PlannedVisitDto.checkInLocation`). This **pulls M4's `agent_location`/
+live-location-layer data groundwork forward into M3** per user decision (2026-07-17) — the table and
+a read API (`GET /merchandisers/{id}/location-history`) exist now, but rendering it as a map layer
+stays M4. `note` (`id`, `author_id` nullable FK→`AspNetUsers`, `anchor_type` Store/Visit/Day/General,
+`anchor_id` nullable, `anchor_day` nullable date, `kind` Note/ChangeRequest, `body` `nvarchar(max)`,
+`status` Open/Acknowledged/Resolved, `created_at`) is the field agent's only write channel (design
+§2.11) — **seeder-produced only** in M3, no live field-agent create-note API (mobile deferred).
+Indexed on `(anchor_type, anchor_id)` and `(status, kind)`. `notification` (`id`, `merchandiser_id`
+FK→`merchandiser` (no action), `payload_json` `nvarchar(max)`, `created_at`, `read_at` nullable) is a
+mocked "would-have-sent" push receipt — a thin `INotificationDispatcher` writes one row per assigned
+merchandiser when `POST /routes/{id}/publish` succeeds (log-and-continue on dispatcher failure, never
+blocks the publish result); no real FCM delivery/ack loop. `task_instance.result_json` (reserved since
+spec 008) is now typed and populated: `Evo.Domain.Tasks.TaskResult` records (None/Photo/Form) matching
+each template's `ProofRequired` — Photo results are **seeded object keys + fake URLs**, no real MinIO
+upload (mobile capture deferred). No new validation codes; `PlanGenerationService` gained a
+seeder-only `MaterializeHistoryAsync` (bypasses `RegenerateFutureAsync`'s today-clamp) so past history
+routes through the same real engine rather than being hand-inserted.
 
 ## store, chain, store_type, store_revenue, store_flag (spec 004)
 Store master data is ingested, not hand-entered — see `docs/API.md` and `docs/DECISIONS.md` for

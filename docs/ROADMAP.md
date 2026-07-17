@@ -60,10 +60,22 @@ Goal: a supervisor can build and publish a valid plan.
       dropped): `POST /simulate/route`, Conflict Center/Sorun Merkezi, module-stack editor
       (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE`), standalone Yönetim admin pages.
 
-### M3 — Field execution simulation
+### M3 — Field execution simulation (status: COMPLETE)
 Goal: everything downstream of the field (planned-vs-realized, task results, notes) works against seeded/mocked data.
-- [ ] Seeder generates realistic visit outcomes (done/missed/skipped + reasons, GPS check-in times, task results)
-- [ ] Mocked agent-facing responses where the panel needs them (notes inbox, notification receipts)
+- [x] 009-field-execution-sim — new `visit_realization` table (1:1 with `planned_visit` — check-in/out,
+      actual minutes, outcome reason; `planned_visit.status` stays the outcome source of truth) +
+      a continuous `merchandiser_location_ping` stream (plain lat/lng, pulled forward from M4's
+      live-location-layer data groundwork per user decision — the map **visualization** of this stream
+      stays M4, only the pipeline/read-API landed here); typed `TaskResult` payloads (None/Photo/Form,
+      seeded object keys not real MinIO); `note`/`notification` schema + supervisor inbox + mocked
+      `INotificationDispatcher` firing on publish; `FieldExecutionSeederModule` (past history via a
+      new seeder-only `MaterializeHistoryAsync`, ~85/8/7 Done/Missed/Skipped distribution, dense
+      location pings, task results, notes, notifications — verified idempotent); panel schedule-block
+      outcome coloring + planned-vs-realized tooltip, task results in Görevler, Notes inbox modal with
+      an open-count badge. Backend 142/142, panel 48/48 tests, 5/5 Playwright specs green. Deferred
+      (confirmed 2026-07-17, not silently dropped): real mobile app/live agent write API, real
+      MinIO/FCM, out-of-route visits + their analytics, planned-vs-realized analytics (Planning-Evidence
+      panel → M4), the live-location map layer (data exists, rendering is M4).
 
 ### M4 — Analytics & Onarım
 - [ ] Planning Evidence panel, plan-health metrics
