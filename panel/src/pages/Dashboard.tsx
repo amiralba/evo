@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getHealth } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
@@ -18,6 +19,9 @@ export function Dashboard() {
       {user && <p>Merhaba, {user.displayName}</p>}
       <p data-testid="status-badge" className={`status-badge status-${status}`}>
         Backend: {status}
+      </p>
+      <p>
+        <Link to="/planner">Planlama</Link>
       </p>
       <button type="button" onClick={() => logout()}>
         Çıkış

@@ -117,61 +117,61 @@
 - Files: `panel/src/planner/state/workspaceStore.ts`
 - Do: `create` a store `{ province: string; focusedRouteId: string | null; selection: Set<string>; layout: 'split'|'map'|'schedule'|'table' }` + actions `setProvince`, `focusRoute(id)`, `clearFocus()`, `toggleSelect(id)`, `setSelection(ids)`, `clearSelection()`, `setLayout(l)`. Default province from a constant (e.g. `'Adana'` — matches seeded data), layout `'split'`.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 15 [P]: Workspace store unit tests
 - Files: `panel/src/planner/state/workspaceStore.test.ts`
 - Do: Vitest tests — `focusRoute` sets `focusedRouteId`; `clearFocus` nulls it; `toggleSelect` adds then removes; `setSelection`/`clearSelection` behave; `setLayout` switches.
 - Verify: `npm test -- workspaceStore` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 16: TanStack Query read hooks
 - Files: `panel/src/planner/api/queries.ts`
 - Do: export `useRoutes(province, status?)`, `useRoute(id)`, `useStoresGeo(province, onRoute?)`, `usePlan(id, from, to)`, `useHealth(id)` — each a `useQuery` with a stable `queryKey` (e.g. `['route', id]`) calling the matching `planner.ts` function, `enabled` guarded on required args.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 17: TanStack Query mutation hooks (live-health wiring)
 - Files: `panel/src/planner/api/mutations.ts`
 - Do: export `useBulkAddStops`, `useUpdateStop`, `useReorderStops`, `useMoveStop`, `useCreatePatch`, `usePublish` — each a `useMutation` calling the matching `planner.ts` function and in `onSuccess` invalidating `['route', id]`, `['plan', id]`, `['health', id]`, and `['stores-geo', province]` (move/bulk-add also invalidate any target route). `useReorderStops` calls `planner.reorderStops(id, stopIds)`. Take `queryClient` from `useQueryClient()`.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 18: TopFilterBar component
 - Files: `panel/src/planner/components/TopFilterBar.tsx`
 - Do: render a province `<select>` (bound to `setProvince`), a route `<select>` populated from `useRoutes(province)` (bound to `focusRoute`), and four layout preset buttons `Map · Split · Schedule · Table` (bound to `setLayout`, active state highlighted). All labels via `t()`. Use `theme/tokens` for styling.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 19: RouteRail component
 - Files: `panel/src/planner/components/RouteRail.tsx`
 - Do: left rail listing `useRoutes(province)` items (code, name, status badge, stop count). Clicking a row calls `focusRoute(id)`; the focused row is highlighted; clicking the focused row again calls `clearFocus`.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 20: WorkspaceLayout with draggable divider
 - Files: `panel/src/planner/components/WorkspaceLayout.tsx`
 - Do: render a Map | Schedule split with a draggable vertical divider (mouse-drag adjusts the split %; clamp 20–80%). Respect `layout`: `map`/`schedule` maximize one pane, `split` shows both, `table` shows a bottom selection-list strip. Accept `map`, `schedule`, `bottom` as slots/children.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 21: PlannerPage shell
 - Files: `panel/src/planner/PlannerPage.tsx`
 - Do: compose `TopFilterBar` (top), `RouteRail` (left), `WorkspaceLayout` (center) with placeholder pane children, and a docked right slot for the detail panel (placeholder for now). Add a keydown handler: Esc → `clearFocus()` + `clearSelection()`.
 - Verify: `npx tsc -b` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 22: Route /planner + Dashboard link
 - Files: `panel/src/App.tsx`, `panel/src/pages/Dashboard.tsx`
 - Do: add `<Route path="/planner" element={<ProtectedRoute><PlannerPage/></ProtectedRoute>} />`; add a link/button on the Dashboard to `/planner` (label via `t()`).
 - Verify: `npm run dev`; log in; click through to `/planner` and the shell (filter bar + rail + split) renders without console errors.
-- Status: [ ]
+- Status: [x]
 
 ## Task 23: Phase-2 verification pass
 - Files: (none)
 - Do: `cd panel && npm run lint && npm test && npm run build`.
 - Verify: all pass; `/planner` shell renders with province select, route rail (populated from seeded routes), layout buttons, and Esc clears focus.
-- Status: [ ]
+- Status: [x]
 
 <!-- HARD STOP — Phase 2 checkpoint: summarize shell + shared state, evidence, commit
      `feat(006): planner workspace shell + shared Zustand/Query state`. Manual UI test script:
