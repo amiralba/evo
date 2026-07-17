@@ -184,7 +184,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
                 {
                     Key = "break_blocks",
                     RegionId = "",
-                    ValueJson = "[{\"label\":\"Kahvalti\",\"start\":\"10:30\",\"end\":\"10:45\"},{\"label\":\"Ogle Yemegi\",\"start\":\"12:30\",\"end\":\"13:15\"},{\"label\":\"Ikindi Cayi\",\"start\":\"15:30\",\"end\":\"15:45\"}]",
+                    ValueJson = "[{\"label\":\"Ogle Yemegi\",\"start\":\"12:30\",\"end\":\"13:15\"}]",
                 });
         });
     }
