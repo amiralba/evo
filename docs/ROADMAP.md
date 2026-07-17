@@ -33,12 +33,18 @@ Goal: a supervisor can build and publish a valid plan.
       schedule grid w/ prev/next week nav; live health card (Recharts); selection editing (bulk-add,
       dnd-kit reorder, stop edit, move-store, patch create); publish review + override-with-reason gate.
       Backend 82/82 + panel 24/24 tests green, Playwright core flow green.
-      **[ ] Phase 9 — visual-parity pass (NOT STARTED, NEXT UP)** — pane-by-pane against
-      `evo-planner-prototype-v0.5.html`'s actual CSS; Phases 1-8 used generic inline styles, not a
-      rigorous port (spec Clarification #15).
-      Still deferred (later specs): Conflict Center/Sorun Merkezi, `POST /simulate/route`, history
-      timeline, live-location layer, Onarım workbench, full-canvas 6-tab table, Effective/Base toggle,
-      numbered map markers + route polylines.
+      Phase 9 (visual-parity pass, spec Clarification #15) — IN PROGRESS, interleaved with 007:
+      ported the topbar/seg/rail/pane-head/panel/badge classes + numbered map markers + route
+      polyline. Still deferred (later specs): Conflict Center/Sorun Merkezi, `POST /simulate/route`,
+      history timeline, live-location layer, Onarım workbench, full-canvas 6-tab table,
+      Effective/Base toggle, global search, admin (Yönetim)/inbox pages — confirmed 2026-07-17 to
+      stay out of scope for 006/007.
+- [x] 007-schedule-drag-resize — real same-day `TimeShift` resolution + a new cross-day `MoveVisit`
+      patch type in `PatchResolver`/`DayScheduler` (skip-source + add-target off one patch row, no
+      DB migration); `CreatePatch` param validation + `UpdateStop` snap/clamp; drag-to-move
+      (same-day time-shift, cross-day move) and drag-edge-to-extend-duration on the schedule grid,
+      with a live rubber-band reflow preview for same-day drags; ported the prototype's time-axis +
+      person-cell schedule layout. Backend 103/103, panel 40/40 tests green.
 
 ### M2 — Tasks & rules
 - [ ] TaskTemplate + Rule resolution (format-driven durations, per-store/route exceptions)

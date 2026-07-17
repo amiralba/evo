@@ -10,6 +10,7 @@ import { BREAK_BLOCKS } from '../../schedule/breaks'
 import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES, minutesOfDay } from '../../schedule/position'
 import { pxToMinutes, snapMinutes, clampStart, clampDuration } from '../../schedule/dragMath'
 import { reflowDay, type ReflowResult } from '../../schedule/reflow'
+import { decideDrop } from '../../schedule/dropDecision'
 import { spacing, radius, severityColors, colors } from '../../../theme/tokens'
 import { formatMinutes } from '../../format'
 import { PatchForm, type PatchFormPrefill } from '../editing/PatchForm'
@@ -167,35 +168,24 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
     const visit = parsedDays[current.dayIndex]?.[current.visitIndex]
     if (!visit) return
 
-    const deltaMin = pxToMinutes(current.currentY - current.pointerStartY)
-
-    if (current.kind === 'resize') {
-      const newDuration = clampDuration(visit.durationMin + deltaMin)
-      if (newDuration === visit.durationMin) return
-      updateStop.mutate({ stopId: visit.routeStopId, body: { serviceMinutes: newDuration } })
-      return
-    }
-
-    const rawStart = snapMinutes(visit.startMin + deltaMin)
-    const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
     const sourceDate = dates[current.dayIndex]
     const targetDate = dates[current.targetDayIndex]
     if (!sourceDate || !targetDate) return
 
-    const sameDay = current.targetDayIndex === current.dayIndex
-    if (sameDay && newStart === visit.startMin) return
+    const decision = decideDrop({
+      kind: current.kind,
+      storeId: visit.storeId,
+      originalStartMin: visit.startMin,
+      durationMin: visit.durationMin,
+      deltaPx: current.currentY - current.pointerStartY,
+      sourceDate,
+      targetDate,
+    })
 
-    if (sameDay) {
-      setPatchPrefill({ type: 5, storeId: visit.storeId, startsOn: sourceDate, startMinutes: newStart })
-    } else {
-      setPatchPrefill({
-        type: 6,
-        storeId: visit.storeId,
-        startsOn: sourceDate < targetDate ? sourceDate : targetDate,
-        fromDate: sourceDate,
-        toDate: targetDate,
-        startMinutes: newStart,
-      })
+    if (decision.action === 'resize') {
+      updateStop.mutate({ stopId: visit.routeStopId, body: decision.update })
+    } else if (decision.action === 'patch') {
+      setPatchPrefill(decision.prefill)
     }
   }
 

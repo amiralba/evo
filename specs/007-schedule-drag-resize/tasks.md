@@ -353,7 +353,7 @@
   and build `paramsJson` via `patchPayload.ts` on save. Keep the mandatory-expiry `endsOn`/`expiryInvalid`
   guard untouched.
 - Verify: `cd panel && npm run build` green; opening the form from a drop shows prefilled values.
-- Status: [ ]
+- Status: [x]
 
 ### Task 6.2: Wire drop → mutation through existing hooks
 - Files: `panel/src/planner/components/schedule/SchedulePane.tsx`, `panel/src/planner/api/mutations.ts`
@@ -361,7 +361,7 @@
   (incl. `paramsJson`) and the resize calls `useUpdateStop`; both already invalidate
   `route`/`plan`/`health`/`stores-geo`. Confirm `paramsJson` flows through `planner.createPatch` unchanged.
 - Verify: after saving a TimeShift/MoveVisit, the grid re-materializes and the block appears re-timed/moved.
-- Status: [ ]
+- Status: [x]
 
 ### Task 6.3 [P]: Drop→payload / wiring Vitest
 - Files: `panel/src/planner/components/schedule/dropWiring.test.ts` (new, or colocate)
@@ -369,7 +369,7 @@
   5, parseable params); a cross-day drop passes a MoveVisit request (type 6, correct from/to/startsOn); a
   resize drop calls `useUpdateStop` with clamped minutes.
 - Verify: `cd panel && npm test -- dropWiring` green.
-- Status: [ ]
+- Status: [x]
 
 ### Task 6.4 [P]: i18n strings
 - Files: `panel/src/i18n/locales/tr.json`
@@ -377,7 +377,7 @@
   all referenced via `t()` in the components (no hardcoded literals).
 - Verify: `cd panel && npm run lint` green; grep confirms no new hardcoded Turkish literals in the touched
   components.
-- Status: [ ]
+- Status: [x]
 
 ### Task 6.5: Final lint + test + build + docs
 - Files: `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `docs/DECISIONS.md`
@@ -385,7 +385,7 @@
   mark schedule editing landed for M1. DECISIONS.md — client reflow-mirror + duration-as-store-permanent.
   Then run `npm run lint`, `npm test`, `npm run build`.
 - Verify: all three panel commands green; `git diff` shows the three doc updates.
-- Status: [ ]
+- Status: [x]
 
 > **CHECKPOINT (final phase)** after Phase 6: summarize the whole spec, show full backend + panel test
 > results, give the final 1-minute manual UI test script, then run **/end-session** (per CLAUDE.md rule 3d).

@@ -39,7 +39,12 @@
     "noFindings": "Doğrulama bulgusu yok.",
     "objective": "Amaç",
     "visitsMaterialized": "Oluşturulan ziyaret sayısı",
-    "decisionRecorded": "Karar kaydedildi"
+    "decisionRecorded": "Karar kaydedildi",
+    "detail": "Detay",
+    "detailEmptySub": "Bir mağaza, rut veya kişi seç",
+    "newStart": "Yeni saat",
+    "fromTo": "Gün",
+    "pastWeekReadOnly": "(geçmiş hafta — salt okunur)"
   },
   "common": {
     "clear": "Temizle",
