@@ -124,43 +124,43 @@
 - Files: `backend/src/Evo.Domain/Scheduling/SchedulingSettings.cs`
 - Do: EF-free records the engine consumes: `record BreakBlock(string Label, TimeOnly Start, TimeOnly End)`; `record SchedulingSettings(int DailyWorkMinutes, int DefaultServiceMinutes, TimeOnly DayStart, int Over450ToleranceMinutes, int ServiceMixCapPct, int PlanHorizonWeeks, int SnapMinutes, IReadOnlyList<BreakBlock> Breaks)`. XML doc: mapped from the `setting` table by `SettingsProvider` (Task 30) so the engine never touches EF.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 17: Frequency expansion
 - Files: `backend/src/Evo.Domain/Scheduling/FrequencyExpander.cs`
 - Do: `static IEnumerable<DateOnly> ExpandVisitDates(Frequency freq, short weekdayMask, DateOnly? biweeklyAnchor, DateOnly from, DateOnly to)`. Rules: Daily = every Mon–Fri in range (weekend policy: Mon–Fri only for M1; note Saturday is a design Open Q). Weekly/2×-week = dates whose weekday bit is set in `weekdayMask` (Mon=bit 0). Biweekly = masked weekdays where `(ISOWeekNumberDiff(biweeklyAnchor, date)) % 2 == 0` — compute whole-weeks-between via `(date.DayNumber - anchor.DayNumber) / 7`. `Frequency` already lives in `Evo.Domain.Scheduling` (Task 2), so this file references it directly — no cross-project fix or enum move needed.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 18: Frequency expansion unit tests
 - Files: `backend/tests/Evo.Tests/Scheduling/FrequencyExpanderTests.cs`
 - Do: assert: daily over a 2-week range yields 10 weekday dates; a Mon+Thu mask yields exactly Mondays and Thursdays; biweekly with an anchor yields visits on alternating matching weeks only (anchor week included, next week skipped); an empty range yields none.
 - Verify: `dotnet test backend/Evo.sln --filter FrequencyExpanderTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 19: ValidationFinding type + day scheduler + statutory breaks + 450 rule
 - Files: `backend/src/Evo.Domain/Scheduling/ValidationFinding.cs`, `backend/src/Evo.Domain/Scheduling/DayScheduler.cs`
 - Do: FIRST create the shared finding type (needed here and by RouteValidator/tests): `public enum FindingSeverity : byte { Error = 1, Warning = 2, Info = 3 }`; `public record ValidationFinding(string Code, FindingSeverity Severity, string Message, string? Scope = null)` in `Evo.Domain.Scheduling`. Then in `DayScheduler.cs`: `record ScheduledVisit(Guid RouteStopId, Guid StoreId, int Minutes, TimeOnly Start, TimeOnly End)`; `record DayPlan(DateOnly Date, IReadOnlyList<ScheduledVisit> Visits, int PlannedMinutes, IReadOnlyList<ValidationFinding> Findings)`. `static DayPlan ScheduleDay(DateOnly date, IReadOnlyList<(Guid RouteStopId, Guid StoreId, int Minutes)> orderedVisits, SchedulingSettings settings)`: start a cursor at `DayStart`; for each visit, if the visit span `[cursor, cursor+Minutes)` would overlap a `BreakBlock`, advance the cursor to the break's end first (breaks are reserved, non-editable — design §3.3); assign Start/End; sum `PlannedMinutes` **excluding** breaks; emit V1 (`< DailyWorkMinutes` → Warning) and V2 (`> DailyWorkMinutes + Over450ToleranceMinutes` → Warning) findings. Document the "visit interrupted by lunch is one visit, not two" nuance as a deferred panel concern (spec Open questions).
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 20: Day scheduler unit tests
 - Files: `backend/tests/Evo.Tests/Scheduling/DaySchedulerTests.cs`
 - Do: assert: a day of 6×60min visits starting 09:00 pushes visits around the seeded lunch/tea blocks (no visit span overlaps a break; total span = 360 work + breaks); `PlannedMinutes` excludes breaks; a 400-minute day emits V1; a 470-minute day (tolerance 0) emits V2; a 450-minute day emits neither.
 - Verify: `dotnet test backend/Evo.sln --filter DaySchedulerTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ## Task 21: Patch resolution (baseline ⊕ patches)
 - Files: `backend/src/Evo.Domain/Scheduling/PatchResolver.cs`
 - Do: `record ProjectedVisit(Guid RouteStopId, Guid StoreId, DateOnly Date, int Minutes, Guid? MerchandiserId, PlannedVisitSource Source, Guid? PatchId)`; `record PatchInput(Guid Id, PatchType Type, Guid? StoreId, Guid? CoverMerchandiserId, DateOnly StartsOn, DateOnly EndsOn, string? ParamsJson)`. `static IReadOnlyList<ProjectedVisit> Apply(IReadOnlyList<ProjectedVisit> baseline, IReadOnlyList<PatchInput> patches, DateOnly date)`: consider only patches where `StartsOn <= date <= EndsOn` (past-`EndsOn` patches are never applied — auto-revert). Apply in priority order **SKIP > TIME_SHIFT > ADD > REASSIGN**: SkipStore removes that store's visits on the date; SkipRange removes all visits on the date; ReassignTemp repoints `MerchandiserId`; AddStore injects an extra visit (Source=Patch); TimeShift is carried as a marker (window applied later by DayScheduler). `PatchType` (Task 10) and `PlannedVisitSource` (Task 11) already live in `Evo.Domain.Scheduling`, so this file references them directly — no enum move needed.
 - Verify: `dotnet build backend/Evo.sln` succeeds.
-- Status: [ ]
+- Status: [x]
 
 ## Task 22: Patch-resolution unit tests
 - Files: `backend/tests/Evo.Tests/Scheduling/PatchResolverTests.cs`
 - Do: (`ValidationFinding`/`FindingSeverity` already exist from Task 19 — reuse, do not redefine.) Tests: a SkipStore patch removes exactly that store's visit inside its window and **leaves it present the day after `EndsOn`** (auto-revert boundary); a ReassignTemp patch repoints the merchandiser within the window; two conflicting patches resolve in SKIP>ADD priority.
 - Verify: `dotnet test backend/Evo.sln --filter PatchResolverTests` passes.
-- Status: [ ]
+- Status: [x]
 
 **PHASE 3 CHECKPOINT — HARD STOP: summarize + evidence (build + the three engine test classes green — frequency expansion, day/breaks/450, baseline⊕patch across the expiry boundary; these are the CLAUDE rule-4 test-critical paths), commit `feat(005): pure scheduling engine — frequency expansion, breaks/450, patch resolution`, numbered questions, 'CHECKPOINT — waiting for your go', END TURN.**
 
