@@ -30,6 +30,7 @@ export function RouteRail() {
   const province = useWorkspaceStore((s) => s.province)
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
   const focusRoute = useWorkspaceStore((s) => s.focusRoute)
+  const focusStore = useWorkspaceStore((s) => s.focusStore)
   const clearFocus = useWorkspaceStore((s) => s.clearFocus)
   const { data: routesPage } = useRoutes(province)
   const [tab, setTab] = useState<RailTab>('routes')
@@ -100,7 +101,7 @@ export function RouteRail() {
 
         {tab === 'pool' &&
           (poolStores ?? []).map((s) => (
-            <div key={s.id} className="pool-item">
+            <div key={s.id} className="pool-item" style={{ cursor: 'pointer' }} onClick={() => s.id && focusStore(s.id)} data-testid="pool-store-item">
               <div className="nm">{s.name}</div>
               <div className="sub">
                 {s.category !== undefined && (
@@ -123,7 +124,7 @@ export function RouteRail() {
             </div>
           ))}
 
-        {tab === 'pool' && (poolStores ?? []).length === 0 && <div className="empty">{t('planner.railPoolEmpty', 'Tüm mağazalar rutlarda')}</div>}
+        {tab === 'pool' && (poolStores ?? []).length === 0 && <div className="empty">{t('planner.railPoolEmpty', 'Havuz boş 🎉')}</div>}
       </div>
 
       {showNewRoute && (

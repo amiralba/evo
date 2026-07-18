@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../i18n'
 import { RouteRail } from './RouteRail'
@@ -62,5 +62,33 @@ describe('RouteRail', () => {
     render(<RouteRail />)
 
     expect(screen.getByTestId('new-route-trigger')).toBeTruthy()
+  })
+
+  it('shows "Havuz boş 🎉" when the pool is empty', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(queries.useRoutes).mockReturnValue({ data: { items: [] } } as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(queries.useStoresGeo).mockReturnValue({ data: [] } as any)
+
+    render(<RouteRail />)
+    fireEvent.click(screen.getByText(/Havuz/))
+
+    expect(screen.getByText('Havuz boş 🎉')).toBeTruthy()
+  })
+
+  it('clicking a pool store focuses it (workspaceStore.focusStore)', async () => {
+    const { useWorkspaceStore } = await import('../state/workspaceStore')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(queries.useRoutes).mockReturnValue({ data: { items: [] } } as any)
+    vi.mocked(queries.useStoresGeo).mockReturnValue({
+      data: [{ id: 's1', name: 'Migros Kadıköy', category: 1, chainName: 'Migros', activeRouteId: null }],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+
+    render(<RouteRail />)
+    fireEvent.click(screen.getByText(/Havuz/))
+    fireEvent.click(screen.getByTestId('pool-store-item'))
+
+    expect(useWorkspaceStore.getState().focusedStoreId).toBe('s1')
   })
 })

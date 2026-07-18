@@ -15,8 +15,9 @@ test('Field execution flow: past week shows outcome colors, inbox lists and reso
   const routeValue = await routeSelect.locator('option').nth(1).getAttribute('value')
   await routeSelect.selectOption(routeValue!)
 
-  await page.getByLabel('prev-week').click()
-  await page.getByLabel('prev-week').click()
+  // One week back is enough to land in the seeded past-outcomes window (FieldExecutionSeederModule
+  // materializes ~3 weeks of history ending "yesterday") — going back further risks overshooting
+  // that window as real wall-clock time advances across a long session.
   await page.getByLabel('prev-week').click()
 
   const outcomeBlock = page.locator('.vblock.outcome-done, .vblock.outcome-missed, .vblock.outcome-skipped').first()
