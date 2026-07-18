@@ -22,6 +22,7 @@ export function MapPane() {
   const map = useMapLibre(containerRef)
   const province = useWorkspaceStore((s) => s.province)
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
+  const focusedStoreId = useWorkspaceStore((s) => s.focusedStoreId)
   const focusStore = useWorkspaceStore((s) => s.focusStore)
   const { data: stores } = useStoresGeo(province)
   const { data: focusedRoute } = useRoute(focusedRouteId)
@@ -64,6 +65,14 @@ export function MapPane() {
       { padding: focusedStoreIds.size > 0 ? 80 : 40, maxZoom: focusedStoreIds.size > 0 ? 16 : 12, duration: 400 },
     )
   }, [map, province, stores, focusedRoute])
+
+  useEffect(() => {
+    if (!map || !stores || !focusedStoreId) return
+    const store = stores.find((s) => s.id === focusedStoreId)
+    if (!store || store.latitude == null || store.longitude == null) return
+    map.flyTo({ center: [store.longitude, store.latitude], zoom: Math.max(map.getZoom(), 16), duration: 500 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fly only on the store selection changing, not on every map/stores identity change
+  }, [focusedStoreId])
 
   useEffect(() => {
     if (!map) return
@@ -118,7 +127,16 @@ export function MapPane() {
       const props = feature.properties as Record<string, unknown>
       const store = stores?.find((s) => s.id === props.id)
       if (!store) return
-      setPopover({ store, x: e.point.x, y: e.point.y })
+
+      // Popover is ~220px wide and anchors centered/above the point (translate(-50%,-110%)) — clamp
+      // so it can't render past the map pane's edges (e.g. under the left rail for stores near the
+      // pane's left border, or above the pane for stores near its top border).
+      const el = containerRef.current
+      const halfWidth = 110
+      const topMargin = 140
+      const x = el ? Math.min(Math.max(e.point.x, halfWidth), el.clientWidth - halfWidth) : e.point.x
+      const y = el ? Math.max(e.point.y, topMargin) : e.point.y
+      setPopover({ store, x, y })
     }
 
     map.on('click', onClick)
