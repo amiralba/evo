@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useWorkspaceStore } from './workspaceStore'
+import { currentWeek } from '../schedule/week'
 
 describe('workspaceStore', () => {
   beforeEach(() => {
@@ -62,5 +63,22 @@ describe('workspaceStore', () => {
   it('setLayout switches layout', () => {
     useWorkspaceStore.getState().setLayout('map')
     expect(useWorkspaceStore.getState().layout).toBe('map')
+  })
+
+  it('goToNextWeek/goToPrevWeek move by 7 days and are inverse of each other', () => {
+    const start = useWorkspaceStore.getState().week
+    useWorkspaceStore.getState().goToNextWeek()
+    const next = useWorkspaceStore.getState().week
+    expect(next.from).not.toBe(start.from)
+
+    useWorkspaceStore.getState().goToPrevWeek()
+    expect(useWorkspaceStore.getState().week).toEqual(start)
+  })
+
+  it('resetWeek returns to the current week', () => {
+    useWorkspaceStore.getState().goToNextWeek()
+    useWorkspaceStore.getState().goToNextWeek()
+    useWorkspaceStore.getState().resetWeek()
+    expect(useWorkspaceStore.getState().week).toEqual(currentWeek())
   })
 })

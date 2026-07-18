@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { currentWeek, nextWeek, prevWeek, type WeekRange } from '../schedule/week'
 
 export type WorkspaceLayout = 'split' | 'map' | 'schedule' | 'table'
 
@@ -16,6 +17,10 @@ interface WorkspaceState {
    * 1874) — global like the prototype's `drawerOpen`, since the drawer itself renders full-width
    * below `.main`, not scoped to any one pane. */
   drawerOpen: boolean
+  /** Global week nav (prototype's single `currentWeek`, topbar `#wkPrev`/`#wkLabel`/`#wkNext` —
+   * evo-planner-prototype-v0.5.html:304). Lives here, not in SchedulePane, so the topbar can host
+   * the nav controls and every pane that cares about "the current week" shares one value. */
+  week: WeekRange
   setProvince: (province: string) => void
   focusRoute: (id: string) => void
   focusStore: (id: string) => void
@@ -25,6 +30,9 @@ interface WorkspaceState {
   clearSelection: () => void
   setLayout: (layout: WorkspaceLayout) => void
   setDrawerOpen: (open: boolean) => void
+  goToNextWeek: () => void
+  goToPrevWeek: () => void
+  resetWeek: () => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -34,6 +42,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   selection: new Set<string>(),
   layout: 'split',
   drawerOpen: false,
+  week: currentWeek(),
   setProvince: (province) => set({ province }),
   focusRoute: (id) => set({ focusedRouteId: id, focusedStoreId: null }),
   focusStore: (id) => set({ focusedStoreId: id }),
@@ -52,4 +61,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   clearSelection: () => set({ selection: new Set() }),
   setLayout: (layout) => set({ layout }),
   setDrawerOpen: (open) => set({ drawerOpen: open }),
+  goToNextWeek: () => set((state) => ({ week: nextWeek(state.week.from) })),
+  goToPrevWeek: () => set((state) => ({ week: prevWeek(state.week.from) })),
+  resetWeek: () => set({ week: currentWeek() }),
 }))

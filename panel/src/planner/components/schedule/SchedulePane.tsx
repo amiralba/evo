@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { usePlan } from '../../api/queries'
 import { useUpdateStop } from '../../api/mutations'
-import { currentWeek, nextWeek, prevWeek, weekdayDates } from '../../schedule/week'
-import { WeekNavigator } from './WeekNavigator'
+import { currentWeek, weekdayDates } from '../../schedule/week'
 import { VisitBlock } from './VisitBlock'
 import { BREAK_BLOCKS } from '../../schedule/breaks'
 import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES, minutesOfDay } from '../../schedule/position'
@@ -86,7 +85,7 @@ interface SchedulePaneProps {
 export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: SchedulePaneProps) {
   const { t } = useTranslation()
   const province = useWorkspaceStore((s) => s.province)
-  const [week, setWeek] = useState(currentWeek())
+  const week = useWorkspaceStore((s) => s.week)
   const drawerOpen = useWorkspaceStore((s) => s.drawerOpen)
   const setDrawerOpen = useWorkspaceStore((s) => s.setDrawerOpen)
   const { data: days, isLoading, isError } = usePlan(routeId, week.from, week.to)
@@ -243,13 +242,6 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
           ▤ {t('planner.tableDrawer', 'Tabloda gör')}
         </button>
       </div>
-
-      <WeekNavigator
-        week={week}
-        onPrev={() => setWeek((w) => prevWeek(w.from))}
-        onNext={() => setWeek((w) => nextWeek(w.from))}
-        onReset={() => setWeek(currentWeek())}
-      />
 
       {isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
       {isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}

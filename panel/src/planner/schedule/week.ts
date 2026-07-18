@@ -39,6 +39,11 @@ export function prevWeek(from: string): WeekRange {
   return weekFromMonday(monday)
 }
 
+export function formatWeekRange(week: WeekRange): string {
+  const fmt = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' })
+  return `${fmt.format(new Date(`${week.from}T00:00:00Z`))} – ${fmt.format(new Date(`${week.to}T00:00:00Z`))}`
+}
+
 /** The 5 weekday ISO dates (Mon-Fri) in a WeekRange, in order — used to always render 5 grid
  * columns regardless of which days have materialized visits (a day with none simply isn't in
  * the /plan response, but the grid should still show it as an empty column, matching the

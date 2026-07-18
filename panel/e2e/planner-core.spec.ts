@@ -18,7 +18,7 @@ test('planner core flow: login -> open workspace -> filter -> bulk-add -> health
   const routeValue = await routeSelect.locator('option').nth(1).getAttribute('value')
   await routeSelect.selectOption(routeValue!)
 
-  await expect(page.locator('strong').first()).not.toHaveText('', { timeout: 10_000 })
+  await expect(page.getByTestId('week-range')).not.toHaveText('', { timeout: 10_000 })
 
   // 3. Switch to the Tablo layout to reach the checkbox/list multi-select (not the map lasso).
   // Exact match — the schedule pane also has a "▤ Tabloda gör" drawer-toggle button (prototype

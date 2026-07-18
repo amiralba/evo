@@ -7,6 +7,8 @@ import { NotesInbox } from './inbox/NotesInbox'
 import { DecisionJournalModal } from './DecisionJournalModal'
 import { useDisruptions } from '../../onarim/api/queries'
 import { OnarimWorkbench } from '../../onarim/OnarimWorkbench'
+import { formatWeekRange } from '../schedule/week'
+import { HelpModal } from './HelpModal'
 
 const PROVINCES = ['Adana', 'Ankara', 'İstanbul', 'İzmir', 'Bursa']
 const LAYOUTS: { key: WorkspaceLayout; label: string }[] = [
@@ -25,12 +27,16 @@ export function TopFilterBar() {
   const clearFocus = useWorkspaceStore((s) => s.clearFocus)
   const layout = useWorkspaceStore((s) => s.layout)
   const setLayout = useWorkspaceStore((s) => s.setLayout)
+  const week = useWorkspaceStore((s) => s.week)
+  const goToPrevWeek = useWorkspaceStore((s) => s.goToPrevWeek)
+  const goToNextWeek = useWorkspaceStore((s) => s.goToNextWeek)
   const { data: routesPage } = useRoutes(province)
   const { data: openNotes } = useNotes({ status: 1 })
   const [showInbox, setShowInbox] = useState(false)
   const { data: disruptions } = useDisruptions()
   const [showOnarim, setShowOnarim] = useState(false)
   const [showJournal, setShowJournal] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const affectedVisitTotal = (disruptions ?? []).reduce((sum, d) => sum + (d.affectedVisitCount ?? 0), 0)
 
   return (
@@ -46,6 +52,16 @@ export function TopFilterBar() {
           </option>
         ))}
       </select>
+
+      <button type="button" onClick={goToPrevWeek} aria-label="prev-week">
+        ‹
+      </button>
+      <span data-testid="week-range" style={{ fontSize: 12, color: 'var(--tx2)' }}>
+        {formatWeekRange(week)}
+      </span>
+      <button type="button" onClick={goToNextWeek} aria-label="next-week">
+        ›
+      </button>
 
       <select
         value={focusedRouteId ?? ''}
@@ -90,6 +106,10 @@ export function TopFilterBar() {
         </button>
       )}
 
+      <button type="button" title={t('planner.helpTitle', 'Kullanım kılavuzu')} data-testid="help-trigger" style={{ fontWeight: 800 }} onClick={() => setShowHelp(true)}>
+        ?
+      </button>
+
       <button type="button" title={t('planner.decisionJournal', 'Karar Günlüğü')} data-testid="decision-journal-trigger" onClick={() => setShowJournal(true)}>
         📖
       </button>
@@ -101,6 +121,7 @@ export function TopFilterBar() {
       <NotesInbox open={showInbox} onClose={() => setShowInbox(false)} />
       {showOnarim && <OnarimWorkbench onClose={() => setShowOnarim(false)} />}
       {showJournal && <DecisionJournalModal onClose={() => setShowJournal(false)} />}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>
   )
 }
