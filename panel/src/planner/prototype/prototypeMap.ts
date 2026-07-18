@@ -50,7 +50,20 @@ type MapWindow = Window & {
 
 let map: maplibregl.Map | null = null
 let wired = false
-let fitted = false
+// Signature of the last camera target ('all' | 'route:<id>' | 'store:<id>') — the camera only
+// moves when this changes, so it doesn't fight the user's own pan/zoom.
+let lastCam = ''
+
+function fitToCoords(m: maplibregl.Map, coords: [number, number][]): void {
+  if (!coords.length) return
+  if (coords.length === 1) {
+    m.easeTo({ center: coords[0], zoom: Math.max(m.getZoom(), 13.5), duration: 600 })
+    return
+  }
+  const b = new maplibregl.LngLatBounds()
+  coords.forEach((c) => b.extend(c))
+  if (!b.isEmpty()) m.fitBounds(b, { padding: 80, maxZoom: 14, duration: 600 })
+}
 
 function state(): EvoState | null {
   return (window as MapWindow).__evoState?.() ?? null
@@ -81,8 +94,8 @@ function toGeo(stores: ProtoStore[]): StoreGeoDto[] {
     }))
 }
 
-/** Focused route's stops ordered by first-visit (day,start) → [lng,lat] pairs for the polyline. */
-function routeCoords(s: EvoState, routeId: string | null): [number, number][] {
+/** Focused route's visited stops ordered by first-visit (day,start) — the visit sequence. */
+function orderedRouteStores(s: EvoState, routeId: string | null): ProtoStore[] {
   if (!routeId) return []
   const earliest = new Map<string, number>()
   for (const v of s.visits) {
@@ -92,7 +105,37 @@ function routeCoords(s: EvoState, routeId: string | null): [number, number][] {
   return s.stores
     .filter((x) => x.activeRouteId === routeId && typeof x.lng === 'number' && earliest.has(x.id))
     .sort((a, b) => earliest.get(a.id)! - earliest.get(b.id)!)
-    .map((x) => [x.lng as number, x.lat as number])
+}
+
+/** Sequence-number labels (1..n) on the focused route's pins — the prototype shows these on the
+ * map so the visit order is legible; a symbol layer renders white numbers centered on each pin. */
+function upsertSeqLabels(m: maplibregl.Map, ordered: ProtoStore[]): void {
+  const data: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: ordered.map((x, i) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [x.lng as number, x.lat as number] },
+      properties: { seq: String(i + 1) },
+    })),
+  }
+  const src = m.getSource('route-seq') as maplibregl.GeoJSONSource | undefined
+  if (src) src.setData(data)
+  else m.addSource('route-seq', { type: 'geojson', data })
+  if (!m.getLayer('route-seq-labels')) {
+    m.addLayer({
+      id: 'route-seq-labels',
+      type: 'symbol',
+      source: 'route-seq',
+      layout: {
+        'text-field': ['get', 'seq'],
+        'text-size': 11,
+        'text-font': ['Noto Sans Bold'],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.55)', 'text-halo-width': 1.4 },
+    })
+  }
 }
 
 /** Idempotent: resize, and once the style is ready build/refresh layers, wire clicks, fit once. */
@@ -107,8 +150,14 @@ function apply(): void {
   if (!geo.length) return
 
   const fr = focusedRouteId(s)
+  const ordered = orderedRouteStores(s, fr)
   upsertStoreLayer(m, geo, fr)
-  upsertRouteLine(m, routeCoords(s, fr))
+  upsertRouteLine(m, ordered.map((x) => [x.lng as number, x.lat as number]))
+  upsertSeqLabels(m, ordered)
+  if (m.getLayer('route-sequence-line')) {
+    m.setPaintProperty('route-sequence-line', 'line-width', 3)
+    m.setPaintProperty('route-sequence-line', 'line-color', '#185FA5')
+  }
 
   // Match the prototype's category-COLORED pins (P teal / V amber / S gray) rather than the shared
   // React layer's blue fill + category ring (whose P/V ring mapping is also swapped vs the design).
@@ -156,11 +205,26 @@ function apply(): void {
     })
   }
 
-  if (!fitted) {
-    fitted = true
-    const bounds = new maplibregl.LngLatBounds()
-    geo.forEach((g) => bounds.extend([g.longitude ?? 0, g.latitude ?? 0]))
-    if (!bounds.isEmpty()) m.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 0 })
+  // Camera follows focus: a focused store centers on it, a focused route fits its stops (so the
+  // route line is actually visible), otherwise the whole province. Only moves when the target
+  // changes, so it doesn't override the user panning around.
+  const focusStoreId = s.focus && s.focus.type === 'store' ? s.focus.id : null
+  const camSig = focusStoreId ? `store:${focusStoreId}` : fr ? `route:${fr}` : 'all'
+  if (camSig !== lastCam) {
+    lastCam = camSig
+    if (focusStoreId) {
+      const fs = s.stores.find((x) => x.id === focusStoreId)
+      if (fs && typeof fs.lng === 'number' && typeof fs.lat === 'number') {
+        m.easeTo({ center: [fs.lng, fs.lat], zoom: Math.max(m.getZoom(), 13.5), duration: 600 })
+      }
+    } else if (fr) {
+      fitToCoords(
+        m,
+        s.stores.filter((x) => x.activeRouteId === fr && typeof x.lng === 'number').map((x) => [x.lng as number, x.lat as number]),
+      )
+    } else {
+      fitToCoords(m, geo.map((g) => [g.longitude ?? 0, g.latitude ?? 0]))
+    }
   }
 }
 
@@ -215,7 +279,7 @@ export function installMapBridge(): void {
   ;(window as MapWindow).__evoRenderMap = update
 }
 
-/** Let the next apply() refit — used when the loaded store set changes (province switch). */
+/** Let the next apply() re-fit — used when the loaded store set changes (province switch). */
 export function resetMapFit(): void {
-  fitted = false
+  lastCam = ''
 }
