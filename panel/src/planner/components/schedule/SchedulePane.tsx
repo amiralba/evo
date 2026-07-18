@@ -37,9 +37,13 @@ interface ParsedVisit {
   actualMinutes?: number | null
 }
 
+const DAILY_QUOTA_MINUTES = 450
+
+// Prototype's under-threshold is QUOTA*0.6 (evo-planner-prototype-v0.5.html:1396) — was
+// hardcoded to 400 here, flagging far more days as under-loaded than the prototype does.
 function loadClass(minutes: number): string {
-  if (minutes > 450) return 'over'
-  if (minutes < 400) return 'under'
+  if (minutes > DAILY_QUOTA_MINUTES) return 'over'
+  if (minutes < DAILY_QUOTA_MINUTES * 0.6) return 'under'
   return 'ok'
 }
 
@@ -73,6 +77,9 @@ interface DragState {
   currentY: number
   currentX: number
   targetDayIndex: number
+  /** Real pointer travel (>5px), not just a click — prototype's startMove() treats <5px as a
+   * click and focuses the store instead of dropping it in place (v0.5.html:1499-1538). */
+  moved: boolean
 }
 
 interface SchedulePaneProps {
@@ -88,6 +95,7 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
   const week = useWorkspaceStore((s) => s.week)
   const drawerOpen = useWorkspaceStore((s) => s.drawerOpen)
   const setDrawerOpen = useWorkspaceStore((s) => s.setDrawerOpen)
+  const focusStore = useWorkspaceStore((s) => s.focusStore)
   const { data: days, isLoading, isError } = usePlan(routeId, week.from, week.to)
   const updateStop = useUpdateStop(routeId, province)
 
@@ -119,7 +127,7 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
 
   const weekLoadPct = useMemo(() => {
     const total = visibleDays.reduce((sum, d) => sum + (d.plannedMinutes ?? 0), 0)
-    return Math.round((total / (450 * 5)) * 100)
+    return Math.round((total / (DAILY_QUOTA_MINUTES * 5)) * 100)
   }, [visibleDays])
 
   function updateDrag(next: DragState) {
@@ -138,6 +146,7 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
       currentY: e.clientY,
       currentX: e.clientX,
       targetDayIndex: dayIndex,
+      moved: false,
     }
     updateDrag(next)
 
@@ -154,8 +163,10 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
     function onMove(ev: PointerEvent) {
       const current = dragRef.current
       if (!current) return
+      const moved =
+        current.moved || Math.abs(ev.clientX - current.pointerStartX) > 5 || Math.abs(ev.clientY - current.pointerStartY) > 5
       const targetDayIndex = current.kind === 'move' ? hitTestDay(ev.clientX, current.dayIndex) : current.dayIndex
-      updateDrag({ ...current, currentY: ev.clientY, currentX: ev.clientX, targetDayIndex })
+      updateDrag({ ...current, currentY: ev.clientY, currentX: ev.clientX, targetDayIndex, moved })
     }
     function onUp() {
       window.removeEventListener('pointermove', onMove)
@@ -174,6 +185,11 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
 
     const visit = parsedDays[current.dayIndex]?.[current.visitIndex]
     if (!visit) return
+
+    if (!current.moved) {
+      if (current.kind === 'move') focusStore(visit.storeId)
+      return
+    }
 
     const sourceDate = dates[current.dayIndex]
     const targetDate = dates[current.targetDayIndex]
@@ -224,6 +240,20 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
     const rawStart = snapMinutes(visit.startMin + deltaMin)
     const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
     return { dayIndex: drag.targetDayIndex, visit, startMin: newStart }
+  }, [drag, parsedDays])
+
+  /** Exact-snap drop indicator (dashed box + "HH:MM–HH:MM · Ndk" label) shown in the target day
+   * column for any in-progress move — matches the prototype's dropInd (evo-planner-prototype-
+   * v0.5.html:1514-1531), which is the only clear "here's exactly where this lands" feedback
+   * during a drag; the plain day-cell outline alone doesn't communicate a time. */
+  const dropIndicator = useMemo(() => {
+    if (!drag || drag.kind !== 'move' || !drag.moved) return null
+    const visit = parsedDays[drag.dayIndex]?.[drag.visitIndex]
+    if (!visit) return null
+    const deltaMin = pxToMinutes(drag.currentY - drag.pointerStartY)
+    const rawStart = snapMinutes(visit.startMin + deltaMin)
+    const newStart = clampStart(rawStart, visit.durationMin, DAY_START_MINUTES, DAY_END_MINUTES)
+    return { dayIndex: drag.targetDayIndex, startMin: newStart, durationMin: visit.durationMin }
   }, [drag, parsedDays])
 
   if (!routeId) return null
@@ -302,7 +332,9 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
                       <div key={m} className="hline" style={{ top: (m - DAY_START_MINUTES) * PX_PER_MINUTE }} />
                     ))}
 
-                    <div className={`day-total ${loadClass(dayMinutes)}`}>{formatMinutes(dayMinutes)} / 450</div>
+                    <div className={`day-total ${loadClass(dayMinutes)}`}>
+                      {formatMinutes(dayMinutes)} / {DAILY_QUOTA_MINUTES}
+                    </div>
                     {BREAK_BLOCKS.map((b, bi) => (
                       <div
                         key={bi}
@@ -351,6 +383,21 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
                         readOnly
                         ghost={false}
                       />
+                    )}
+
+                    {dropIndicator && dropIndicator.dayIndex === dayIndex && (
+                      <div
+                        className="drop-indicator"
+                        style={{
+                          top: (dropIndicator.startMin - DAY_START_MINUTES) * PX_PER_MINUTE,
+                          height: Math.max(dropIndicator.durationMin * PX_PER_MINUTE - 2, 12),
+                        }}
+                      >
+                        <span>
+                          {fmtHour(dropIndicator.startMin)}–{fmtHour(dropIndicator.startMin + dropIndicator.durationMin)} ·{' '}
+                          {dropIndicator.durationMin}dk
+                        </span>
+                      </div>
                     )}
                   </div>
 
