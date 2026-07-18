@@ -42,6 +42,7 @@ public class RouteSeederModule : ISeederModule
 
         var routesCreated = 0;
         var routeIdsToMaterialize = new List<Guid>();
+        var usedStoreIdsThisRun = new HashSet<Guid>();
 
         for (var i = 1; i <= routeCount; i++)
         {
@@ -69,12 +70,22 @@ public class RouteSeederModule : ISeederModule
             };
             db.Routes.Add(route);
 
+            // Neighborhood-scale routes (user decision 2026-07-18): a merchandiser's day covers a
+            // handful of nearby stores, not the whole province — prefer the single District with the
+            // most still-unrouted stores, so a route's stops actually cluster on the map instead of
+            // being picked arbitrarily across the whole (large) province.
             var candidateStores = await db.Stores
                 .Where(s => s.Province == province)
-                .Select(s => s.Id)
+                .Select(s => new { s.Id, s.District })
                 .ToListAsync(ct);
             var alreadyRouted = await db.RouteStops.Where(rs => rs.EffectiveTo == null).Select(rs => rs.StoreId).ToListAsync(ct);
-            var availableStores = candidateStores.Except(alreadyRouted).Take(5).ToList();
+            var availableByDistrict = candidateStores
+                .Where(s => !alreadyRouted.Contains(s.Id) && !usedStoreIdsThisRun.Contains(s.Id))
+                .GroupBy(s => s.District)
+                .OrderByDescending(g => g.Count())
+                .FirstOrDefault();
+            var availableStores = (availableByDistrict?.Select(s => s.Id) ?? Enumerable.Empty<Guid>()).Take(4).ToList();
+            availableStores.ForEach(id => usedStoreIdsThisRun.Add(id));
 
             var sequence = 1;
             foreach (var storeId in availableStores)

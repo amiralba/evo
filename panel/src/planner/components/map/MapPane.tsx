@@ -42,7 +42,15 @@ export function MapPane() {
 
   useEffect(() => {
     if (!map || !stores) return
-    const bounds: [number, number][] = stores
+
+    // Routes are neighborhood-scale (a merchandiser's day covers 3-4 nearby stores, not the whole
+    // province) — when a route is focused, fit tightly to just ITS stops' stores. Fitting to every
+    // store in the province (the old behavior) zoomed out to a whole-city/country view even for a
+    // 4-stop route, which is unusable at real street-level detail.
+    const focusedStoreIds = new Set((focusedRoute?.stops ?? []).map((s) => s.storeId).filter(Boolean))
+    const relevantStores = focusedStoreIds.size > 0 ? stores.filter((s) => s.id && focusedStoreIds.has(s.id)) : stores
+
+    const bounds: [number, number][] = relevantStores
       .filter((s) => s.latitude != null && s.longitude != null)
       .map((s) => [s.longitude!, s.latitude!])
     if (bounds.length === 0) return
@@ -53,9 +61,9 @@ export function MapPane() {
         [Math.min(...lngs), Math.min(...lats)],
         [Math.max(...lngs), Math.max(...lats)],
       ],
-      { padding: 40, maxZoom: 12, duration: 400 },
+      { padding: focusedStoreIds.size > 0 ? 80 : 40, maxZoom: focusedStoreIds.size > 0 ? 16 : 12, duration: 400 },
     )
-  }, [map, province, stores])
+  }, [map, province, stores, focusedRoute])
 
   useEffect(() => {
     if (!map) return
