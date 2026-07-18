@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { formatMinutes } from '../../format'
+import { PX_PER_MINUTE } from '../../schedule/position'
 
 const OUTCOME_CLASS: Record<number, string> = { 2: 'outcome-done', 3: 'outcome-missed', 4: 'outcome-skipped' }
 
@@ -33,8 +34,8 @@ export function VisitBlock({
   onResizeStart,
 }: VisitBlockProps) {
   const { t } = useTranslation()
-  const topPx = (startMin - dayStartMinutes) * 1.2
-  const heightPx = Math.max(4, durationMin * 1.2)
+  const topPx = (startMin - dayStartMinutes) * PX_PER_MINUTE
+  const heightPx = Math.max(4, durationMin * PX_PER_MINUTE)
   const outcomeClass = status !== undefined ? OUTCOME_CLASS[status] : undefined
 
   const title = checkInAt

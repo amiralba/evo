@@ -8,7 +8,7 @@ describe('decideDrop', () => {
       storeId: 's1',
       originalStartMin: 9 * 60,
       durationMin: 30,
-      deltaPx: 72, // 60 minutes at 1.2px/min
+      deltaPx: 30, // 60 minutes at 0.5px/min (prototype-parity geometry)
       sourceDate: '2026-07-20',
       targetDate: '2026-07-20',
     })

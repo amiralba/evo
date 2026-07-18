@@ -1,6 +1,8 @@
-export const PX_PER_MINUTE = 1.2
-export const DAY_START_MINUTES = 9 * 60
-export const DAY_END_MINUTES = 18 * 60
+/** Prototype-parity geometry (evo-planner-prototype-v0.5.html DAY_START/DAY_END/CELL_H) —
+ * 06:00–23:00 at 0.5px/min. Matched exactly so schedules render at the same visual scale. */
+export const PX_PER_MINUTE = 0.5
+export const DAY_START_MINUTES = 6 * 60
+export const DAY_END_MINUTES = 23 * 60
 
 export interface BlockGeometry {
   topPx: number
@@ -17,8 +19,8 @@ export function minutesOfDay(iso: string): number {
 }
 
 /** start/end are ISO date-time strings; dayStartMinutes is the grid's top-of-day reference
- * (minutes since midnight, e.g. 9*60 for a 09:00 grid start). */
-export function blockGeometry(start: string, end: string, dayStartMinutes = 9 * 60): BlockGeometry {
+ * (minutes since midnight, e.g. 6*60 for a 06:00 grid start). */
+export function blockGeometry(start: string, end: string, dayStartMinutes = DAY_START_MINUTES): BlockGeometry {
   const startMinutes = minutesOfDay(start) - dayStartMinutes
   const endMinutes = minutesOfDay(end) - dayStartMinutes
 
