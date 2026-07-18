@@ -3201,8 +3201,19 @@ window.__evoLoadData = function (d) {
 // Read-only view of engine state for the publish bridge (runs in engine scope, so the live
 // let-bindings for visits/stores/routes are captured, not stale copies).
 window.__evoState = function () {
-  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek, filter: filter, focus: focus, selection: selection };
+  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek, filter: filter, focus: focus, selection: selection, panelTab: panelTab };
 };
+
+// Post-render hook: after renderPanel paints, let the tasks bridge swap the store Görevler tab
+// for a backend-driven list (GET /stores/{id}/task-plan). Wrap the function binding — callers
+// reference renderPanel by name at runtime, so they pick up the wrapper.
+if (typeof renderPanel === 'function') {
+  var __evoOrigRenderPanel = renderPanel;
+  renderPanel = function () {
+    __evoOrigRenderPanel.apply(this, arguments);
+    try { if (window.__evoAfterPanel) window.__evoAfterPanel(); } catch (e) { console.error('[evo] afterPanel', e); }
+  };
+}
 
 // Focus a store in the detail panel (used by the MapLibre pin click — the prototype's own
 // SVG showPopover doesn't apply once the real map replaces the SVG).
