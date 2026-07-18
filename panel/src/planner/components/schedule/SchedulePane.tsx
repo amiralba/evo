@@ -87,6 +87,8 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
   const { t } = useTranslation()
   const province = useWorkspaceStore((s) => s.province)
   const [week, setWeek] = useState(currentWeek())
+  const drawerOpen = useWorkspaceStore((s) => s.drawerOpen)
+  const setDrawerOpen = useWorkspaceStore((s) => s.setDrawerOpen)
   const { data: days, isLoading, isError } = usePlan(routeId, week.from, week.to)
   const updateStop = useUpdateStop(routeId, province)
 
@@ -236,6 +238,10 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
             {t('planner.pastWeekReadOnly', '(geçmiş hafta — salt okunur)')}
           </span>
         )}
+        <div className="spacer" />
+        <button type="button" data-testid="drawer-toggle" onClick={() => setDrawerOpen(!drawerOpen)}>
+          ▤ {t('planner.tableDrawer', 'Tabloda gör')}
+        </button>
       </div>
 
       <WeekNavigator

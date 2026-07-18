@@ -12,6 +12,10 @@ interface WorkspaceState {
   focusedStoreId: string | null
   selection: Set<string>
   layout: WorkspaceLayout
+  /** Bottom table drawer (prototype `.drawer`/`.drawer.open`, evo-planner-prototype-v0.5.html:420,
+   * 1874) — global like the prototype's `drawerOpen`, since the drawer itself renders full-width
+   * below `.main`, not scoped to any one pane. */
+  drawerOpen: boolean
   setProvince: (province: string) => void
   focusRoute: (id: string) => void
   focusStore: (id: string) => void
@@ -20,6 +24,7 @@ interface WorkspaceState {
   setSelection: (ids: string[]) => void
   clearSelection: () => void
   setLayout: (layout: WorkspaceLayout) => void
+  setDrawerOpen: (open: boolean) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -28,6 +33,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   focusedStoreId: null,
   selection: new Set<string>(),
   layout: 'split',
+  drawerOpen: false,
   setProvince: (province) => set({ province }),
   focusRoute: (id) => set({ focusedRouteId: id, focusedStoreId: null }),
   focusStore: (id) => set({ focusedStoreId: id }),
@@ -45,4 +51,5 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setSelection: (ids) => set({ selection: new Set(ids) }),
   clearSelection: () => set({ selection: new Set() }),
   setLayout: (layout) => set({ layout }),
+  setDrawerOpen: (open) => set({ drawerOpen: open }),
 }))

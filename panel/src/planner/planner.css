@@ -576,6 +576,44 @@
   font-size: 11px;
 }
 
+.drawer {
+  background: var(--card);
+  border-top: 2px solid var(--border2);
+  max-height: 0;
+  transition: max-height 0.25s;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.drawer.open {
+  max-height: 240px;
+}
+.drawer-inner {
+  padding: 10px 14px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.drawer table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.drawer th {
+  text-align: left;
+  color: var(--tx2);
+  font-weight: 600;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border2);
+  font-size: 11px;
+}
+.drawer td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--gray-l);
+  cursor: pointer;
+}
+.drawer tr:hover td {
+  background: var(--gray-l);
+}
+
 .page {
   position: fixed;
   top: 0;

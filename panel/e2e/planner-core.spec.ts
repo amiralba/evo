@@ -20,8 +20,10 @@ test('planner core flow: login -> open workspace -> filter -> bulk-add -> health
 
   await expect(page.locator('strong').first()).not.toHaveText('', { timeout: 10_000 })
 
-  // 3. Switch to the Tablo layout to reach the checkbox/list multi-select (not the map lasso)
-  await page.getByRole('button', { name: 'Tablo' }).click()
+  // 3. Switch to the Tablo layout to reach the checkbox/list multi-select (not the map lasso).
+  // Exact match — the schedule pane also has a "▤ Tabloda gör" drawer-toggle button (prototype
+  // wording), which a substring match on "Tablo" would ambiguously also hit.
+  await page.getByRole('button', { name: 'Tablo', exact: true }).click()
   const firstCheckbox = page.locator('[data-testid^="select-store-"]').first()
   await expect(firstCheckbox).toBeVisible({ timeout: 15_000 })
 

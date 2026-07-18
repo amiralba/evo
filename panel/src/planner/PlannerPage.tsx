@@ -11,6 +11,7 @@ import { RouteDetailPanel } from './components/panel/RouteDetailPanel'
 import { SelectionListPane } from './components/editing/SelectionListPane'
 import { SelectionBar } from './components/editing/SelectionBar'
 import { Toast } from './components/Toast'
+import { TableDrawer } from './components/schedule/TableDrawer'
 import './planner.css'
 
 export function PlannerPage() {
@@ -18,6 +19,7 @@ export function PlannerPage() {
   const clearFocus = useWorkspaceStore((s) => s.clearFocus)
   const clearSelection = useWorkspaceStore((s) => s.clearSelection)
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
+  const drawerOpen = useWorkspaceStore((s) => s.drawerOpen)
   const { data: focusedRoute } = useRoute(focusedRouteId)
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export function PlannerPage() {
           <RouteDetailPanel />
         </div>
       </div>
+      <TableDrawer routeId={focusedRouteId} open={drawerOpen} />
       <SelectionBar />
       <Toast />
     </div>
