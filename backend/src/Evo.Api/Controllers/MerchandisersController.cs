@@ -1,9 +1,12 @@
 using System.Security.Claims;
+using Evo.Api.Audit;
 using Evo.Api.Audit.Dtos;
+using Evo.Api.People.Dtos;
 using Evo.Api.Routing.Dtos;
 using Evo.Domain.Auth;
 using Evo.Domain.Exceptions;
 using Evo.Infrastructure;
+using Evo.Infrastructure.People;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,10 +21,12 @@ public class MerchandisersController : ControllerBase
     private const int MaxPageSize = 500;
 
     private readonly EvoDbContext _db;
+    private readonly IAuditWriter _auditWriter;
 
-    public MerchandisersController(EvoDbContext db)
+    public MerchandisersController(EvoDbContext db, IAuditWriter auditWriter)
     {
         _db = db;
+        _auditWriter = auditWriter;
     }
 
     private bool CanAccessMerchandiser(Guid merchandiserUserId)
@@ -101,6 +106,58 @@ public class MerchandisersController : ControllerBase
             .Where(n => n.MerchandiserId == id)
             .OrderByDescending(n => n.CreatedAt)
             .Select(n => new NotificationDto(n.Id, n.PayloadJson, n.CreatedAt, n.ReadAt))
+            .ToListAsync();
+    }
+
+    [Authorize(Roles = Roles.Supervisor)]
+    [HttpPost("{id:guid}/absences")]
+    public async Task<ActionResult<AbsenceDto>> CreateAbsence(Guid id, [FromBody] CreateAbsenceRequest request)
+    {
+        var merchandiser = await _db.Merchandisers.FirstOrDefaultAsync(m => m.Id == id) ?? throw new NotFoundException("Merchandiser");
+        if (request.EndDate < request.StartDate)
+        {
+            throw new EvoValidationException(new Dictionary<string, string[]>
+            {
+                ["endDate"] = ["endDate must not be before startDate."],
+            });
+        }
+
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        Guid? actorId = Guid.TryParse(idClaim, out var currentUserId) ? currentUserId : null;
+
+        var absence = new Absence
+        {
+            Id = Guid.NewGuid(),
+            MerchandiserId = merchandiser.Id,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Reason = request.Reason,
+            Note = request.Note,
+            CreatedBy = actorId,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        _db.Absences.Add(absence);
+        await _db.SaveChangesAsync();
+
+        var dto = new AbsenceDto(absence.Id, absence.MerchandiserId, absence.StartDate, absence.EndDate, absence.Reason, absence.Note, absence.CreatedAt);
+        await _auditWriter.WriteAsync("Absence", absence.Id.ToString(), "create", after: dto, actorId: actorId);
+
+        return dto;
+    }
+
+    [HttpGet("{id:guid}/absences")]
+    public async Task<ActionResult<IReadOnlyList<AbsenceDto>>> GetAbsences(Guid id)
+    {
+        var merchandiser = await _db.Merchandisers.FirstOrDefaultAsync(m => m.Id == id) ?? throw new NotFoundException("Merchandiser");
+        if (!CanAccessMerchandiser(merchandiser.UserId))
+        {
+            return Forbid();
+        }
+
+        return await _db.Absences
+            .Where(a => a.MerchandiserId == id)
+            .OrderByDescending(a => a.StartDate)
+            .Select(a => new AbsenceDto(a.Id, a.MerchandiserId, a.StartDate, a.EndDate, a.Reason, a.Note, a.CreatedAt))
             .ToListAsync();
     }
 }

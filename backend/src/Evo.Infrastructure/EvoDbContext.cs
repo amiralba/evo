@@ -38,6 +38,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
     public DbSet<VisitRealization> VisitRealizations => Set<VisitRealization>();
     public DbSet<MerchandiserLocationPing> LocationPings => Set<MerchandiserLocationPing>();
+    public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<Note> Notes => Set<Note>();
     public DbSet<Notification> Notifications => Set<Notification>();
 
@@ -190,6 +191,8 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
                 new Setting { Key = "service_mix_cap_pct", RegionId = "", ValueJson = "20" },
                 new Setting { Key = "plan_horizon_weeks", RegionId = "", ValueJson = "6" },
                 new Setting { Key = "snap_minutes", RegionId = "", ValueJson = "5" },
+                new Setting { Key = "utilization_band_lower", RegionId = "", ValueJson = "0.90" },
+                new Setting { Key = "utilization_band_upper", RegionId = "", ValueJson = "1.05" },
                 new Setting
                 {
                     Key = "break_blocks",
@@ -242,6 +245,15 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
             entity.ToTable("merchandiser_location_ping");
             entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => new { e.MerchandiserId, e.RecordedAt });
+        });
+
+        builder.Entity<Absence>(entity =>
+        {
+            entity.ToTable("absence");
+            entity.Property(e => e.Note).HasMaxLength(1000);
+            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(e => new { e.MerchandiserId, e.StartDate, e.EndDate });
         });
 
         builder.Entity<Note>(entity =>

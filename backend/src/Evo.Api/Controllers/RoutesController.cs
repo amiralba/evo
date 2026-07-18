@@ -584,11 +584,47 @@ public class RoutesController : ControllerBase
                 .Select(v => (v.MerchandiserId!.Value, v.VisitDate, TimeOnly.FromDateTime(v.PlannedStart!.Value.DateTime), TimeOnly.FromDateTime(v.PlannedEnd!.Value.DateTime)));
             findings.AddRange(OverlapValidator.V12_Overlaps(overlapInputs));
 
+            findings.AddRange(await BuildV14FindingsAsync(group.ToList()));
+
             days.Add(new PlanDayDto(group.Key, visitDtos, plannedMinutes,
                 findings.Select(f => new FindingDto(f.Code, f.Severity, f.Message, f.Scope)).ToList()));
         }
 
         return days;
+    }
+
+    /// <summary>V14 (design §3.2) — visit planned while the assignee is on leave or the store is
+    /// temporarily closed. Never hard-blocks; the finding surfaces on plan/validate and links the
+    /// Onarım workbench (spec 010).</summary>
+    private async Task<IReadOnlyList<ValidationFinding>> BuildV14FindingsAsync(IReadOnlyList<PlannedVisit> visits)
+    {
+        if (visits.Count == 0) return [];
+
+        var merchandiserIds = visits.Where(v => v.MerchandiserId is not null).Select(v => v.MerchandiserId!.Value).Distinct().ToList();
+        var storeIds = visits.Select(v => v.StoreId).Distinct().ToList();
+        var dates = visits.Select(v => v.VisitDate).Distinct().ToList();
+        var minDate = dates.Min();
+        var maxDate = dates.Max();
+
+        var absences = merchandiserIds.Count == 0
+            ? []
+            : await _db.Absences
+                .Where(a => merchandiserIds.Contains(a.MerchandiserId) && a.StartDate <= maxDate && a.EndDate >= minDate)
+                .Select(a => new { a.MerchandiserId, a.StartDate, a.EndDate })
+                .ToListAsync();
+
+        var closedStores = await _db.StoreFlags
+            .Where(f => f.Type == StoreFlagType.ClosedTemp && storeIds.Contains(f.StoreId) && f.StartsOn <= maxDate && (f.EndsOn == null || f.EndsOn >= minDate))
+            .Select(f => new { f.StoreId, f.StartsOn, f.EndsOn })
+            .ToListAsync();
+
+        var visitEvals = visits.Where(v => v.MerchandiserId is not null)
+            .Select(v => new VisitAbsenceEval(v.Id, v.MerchandiserId!.Value, v.StoreId, v.VisitDate))
+            .ToList();
+        var absenceWindows = absences.Select(a => (a.MerchandiserId, a.StartDate, a.EndDate)).ToList();
+        var closedWindows = closedStores.Select(f => (f.StoreId, f.StartsOn, f.EndsOn ?? DateOnly.MaxValue)).ToList();
+
+        return AbsenceValidator.Evaluate(visitEvals, absenceWindows, closedWindows);
     }
 
     [HttpGet("{id:guid}/health")]
@@ -643,8 +679,48 @@ public class RoutesController : ControllerBase
 
         var settings = await _settingsProvider.GetAsync(route.Province);
         var routeEval = BuildRouteEval(route, stops, stores, sixMonthRevenue, settings.ServiceMixCapPct);
-        var findings = RouteValidator.Evaluate(routeEval);
+        var findings = new List<ValidationFinding>(RouteValidator.Evaluate(routeEval));
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var futureVisits = await _db.PlannedVisits
+            .Where(v => v.RouteId == id && v.VisitDate >= today)
+            .ToListAsync();
+        findings.AddRange(await BuildV14FindingsAsync(futureVisits));
+        findings.AddRange(await BuildV8FindingsAsync(futureVisits, today, settings.DailyWorkMinutes));
+
         return findings.Select(f => new FindingDto(f.Code, f.Severity, f.Message, f.Scope)).ToList();
+    }
+
+    /// <summary>V8 (design §3.2) — weekly minutes utilization outside the configurable band, per
+    /// assigned merchandiser on this route, over the coming 7 days. Warning severity, never blocks.</summary>
+    private async Task<IReadOnlyList<ValidationFinding>> BuildV8FindingsAsync(IReadOnlyList<PlannedVisit> futureVisits, DateOnly today, int dailyWorkMinutes)
+    {
+        var weekEnd = today.AddDays(6);
+        var weekVisits = futureVisits.Where(v => v.VisitDate <= weekEnd && v.MerchandiserId is not null && v.PlannedStart is not null && v.PlannedEnd is not null).ToList();
+        if (weekVisits.Count == 0) return [];
+
+        var lowerBand = await ReadSettingDoubleAsync("utilization_band_lower", 0.90);
+        var upperBand = await ReadSettingDoubleAsync("utilization_band_upper", 1.05);
+        var workingDays = weekVisits.Select(v => v.VisitDate).Distinct().Count();
+        var weeklyCapacity = dailyWorkMinutes * Math.Max(workingDays, 1);
+
+        var findings = new List<ValidationFinding>();
+        foreach (var group in weekVisits.GroupBy(v => v.MerchandiserId!.Value))
+        {
+            var plannedMinutes = group.Sum(v => (int)(v.PlannedEnd!.Value - v.PlannedStart!.Value).TotalMinutes);
+            var finding = UtilizationValidator.Evaluate(plannedMinutes, weeklyCapacity, lowerBand, upperBand);
+            if (finding is not null)
+            {
+                findings.Add(finding with { Scope = group.Key.ToString() });
+            }
+        }
+        return findings;
+    }
+
+    private async Task<double> ReadSettingDoubleAsync(string key, double fallback)
+    {
+        var raw = await _db.Settings.Where(s => s.Key == key && s.RegionId == "").Select(s => s.ValueJson).FirstOrDefaultAsync();
+        return raw is null ? fallback : JsonSerializer.Deserialize<double>(raw);
     }
 
     private static RouteEval BuildRouteEval(Route route, IReadOnlyList<RouteStop> stops, IReadOnlyList<Store> stores, decimal sixMonthRevenue, int serviceMixCapPct)
