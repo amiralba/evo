@@ -166,6 +166,18 @@ export async function getMerchandisers(): Promise<MerchandiserSummaryDto[]> {
   return json<MerchandiserSummaryDto[]>(response)
 }
 
+export async function updateRoute(
+  id: string,
+  body: components['schemas']['UpdateRouteRequest'],
+): Promise<RouteSummaryDto> {
+  const response = await authorizedFetch(`/api/v1/routes/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return json<RouteSummaryDto>(response)
+}
+
 export async function reassignRoute(routeId: string, body: ReassignRequest): Promise<AssignmentDto> {
   const response = await authorizedFetch(`/api/v1/routes/${routeId}/assignment`, {
     method: 'POST',

@@ -30,6 +30,17 @@ let script = slice(438, 3593)
 // Give the region button an id so the province control can wire it (it's a static mock otherwise).
 body = body.replace('<button>Ankara ▾</button>', '<button id="evoRegionBtn">Ankara ▾</button>')
 
+// --- Calendar people filter ---
+// `people` now includes unassigned merchandisers (candidates for the reassign/new-route pickers),
+// so visiblePeople() must not put them on the calendar as empty rows — only people with a route or
+// visits belong there when nothing is filtered.
+const VISPEOPLE_ANCHOR = 'function visiblePeople(){\n  if(!filter)return people;'
+if (!script.includes(VISPEOPLE_ANCHOR)) throw new Error('visiblePeople anchor not found — prototype changed?')
+script = script.replace(
+  VISPEOPLE_ANCHOR,
+  'function visiblePeople(){\n  if(!filter)return people.filter(function(p){return routes.some(function(r){return r.person===p.id;})||visits.some(function(v){return v.personId===p.id;});});',
+)
+
 // --- Map delegation (M4) ---
 // Let the React MapLibre controller (window.__evoRenderMap) take over map rendering; the
 // prototype's SVG map is skipped when the hook is present. #mapSvg stays in the DOM (empty) so

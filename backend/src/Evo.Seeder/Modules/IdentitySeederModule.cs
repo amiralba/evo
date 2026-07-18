@@ -60,10 +60,10 @@ public class IdentitySeederModule : ISeederModule
 
         if (profile == SeedProfile.Demo)
         {
-            // One field agent per demo route (RouteSeederModule seeds 5 routes and assigns a
-            // distinct merchandiser to each) — fewer agents than routes collides on the
-            // one-assignment-per-merchandiser unique index.
-            var demoAgents = new[]
+            // Field agents = the pool of people the planner assigns to routes. Seed a surplus (well
+            // more than the 5 seeded routes) so routes can be BUILT in the panel with a free
+            // merchandiser to choose from — routes are the planner's work product, not seed data.
+            var demoAgents = new List<(string Email, string Name)>
             {
                 ("ayse.demir@evo.local", "Ayşe Demir"),
                 ("mehmet.kaya@evo.local", "Mehmet Kaya"),
@@ -71,6 +71,10 @@ public class IdentitySeederModule : ISeederModule
                 ("ali.yildiz@evo.local", "Ali Yıldız"),
                 ("zeynep.arslan@evo.local", "Zeynep Arslan"),
             };
+            for (var i = 1; i <= 20; i++)
+            {
+                demoAgents.Add(($"saha-{i:D2}@evo.local", faker.Name.FullName()));
+            }
 
             foreach (var (email, displayName) in demoAgents)
             {

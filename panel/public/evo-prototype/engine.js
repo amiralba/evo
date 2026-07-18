@@ -635,7 +635,7 @@ function visibleStores(){
   return stores.filter(s=>(s.route&&ids.has(s.route))||!s.route);
 }
 function visiblePeople(){
-  if(!filter)return people;
+  if(!filter)return people.filter(function(p){return routes.some(function(r){return r.person===p.id;})||visits.some(function(v){return v.personId===p.id;});});
   if(filter.type==='person')return people.filter(p=>p.id===filter.id);
   const ids=filterRouteIds();
   if(ids){const ps=new Set([...ids].map(id=>route(id).person));return people.filter(p=>ps.has(p.id));}

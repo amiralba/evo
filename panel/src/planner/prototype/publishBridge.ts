@@ -166,6 +166,9 @@ async function flush(opts: PublishOpts): Promise<void> {
     if (!created.id) continue
     await planner.bulkAddStops(created.id, { storeIds, frequency: 1, weekdayMask: 0, serviceMinutes: null })
     if (nr.person) await planner.reassignRoute(created.id, { merchandiserId: nr.person, startDate: today, reason: 1 })
+    // createRoute makes a Draft route; activate it (Draft -> Active) so its plan is generated and it
+    // shows in the rail/map/calendar (the bridge only loads Active routes).
+    await planner.updateRoute(created.id, { status: 2 })
     createdRouteIds.push(created.id)
   }
 

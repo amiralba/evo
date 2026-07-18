@@ -88,16 +88,15 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   }))
   const personByRouteId = new Map(routes.map((r) => [r.id, r.person]))
 
-  // The prototype's calendar renders one row per entry in `people` (visiblePeople() returns them
-  // all when unfiltered), so inject ONLY the merchandisers assigned to a loaded route — otherwise
-  // the whole merchandiser roster (~100) becomes ~100 empty calendar rows. Candidate lists for the
-  // reassign/new-route pickers are wired separately.
-  const routedPersonIds = new Set(routes.map((r) => r.person).filter((id): id is string => Boolean(id)))
-  const routedById = new Map(merchandisers.map((m) => [m.id, m]))
-  const people = [...routedPersonIds].map((id) => {
-    const m = routedById.get(id)
-    return { id, name: (m?.name ?? '').trim(), active: m?.active ?? true, activeRouteCode: m?.activeRouteCode ?? null }
-  })
+  // Inject the merchandisers the panel needs: those on a route in THIS province (calendar rows +
+  // detail) plus every UNASSIGNED one (activeRouteCode null) as candidates for the reassign/new-
+  // route pickers. Exclude merchandisers tied to other provinces' routes (can't be picked here).
+  // The engine's visiblePeople() is patched (see extractor) to only put ROUTED people on the
+  // calendar, so the unassigned candidates don't become empty rows.
+  const loadedRouteCodes = new Set(routeItems.map((r) => r.routeCode).filter(Boolean))
+  const people = merchandisers
+    .filter((m) => m.active && (!m.activeRouteCode || loadedRouteCodes.has(m.activeRouteCode)))
+    .map((m) => ({ id: m.id, name: (m.name ?? '').trim(), active: !!m.active, activeRouteCode: m.activeRouteCode ?? null }))
 
   // Project real lat/lng into the prototype's 600×520 SVG box (temporary — the SVG map is
   // replaced by the React MapLibre map in a later step; until then this keeps the map plausible).
