@@ -97,7 +97,11 @@
     "notesInbox": "Gelen kutusu",
     "noOpenNotes": "Açık not yok.",
     "acknowledge": "Onayla",
-    "resolve": "Çözüldü"
+    "resolve": "Çözüldü",
+    "railRoutes": "Rutlar",
+    "railStops": "nokta",
+    "railPoolEmpty": "Tüm mağazalar rutlarda",
+    "dragToReorder": "sıralamak için sürükle"
   },
   "common": {
     "clear": "Temizle",

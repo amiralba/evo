@@ -136,10 +136,47 @@
   flex-shrink: 0;
   overflow-y: auto;
 }
+.rail .tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.rail .tabs div {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  cursor: pointer;
+  color: var(--tx2);
+  font-size: 12px;
+}
+.rail .tabs div.on {
+  color: var(--tx);
+  font-weight: 600;
+  border-bottom: 2px solid var(--blue-d);
+}
 .rail .list {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+}
+.pool-item {
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 6px;
+  cursor: grab;
+  background: var(--card);
+}
+.pool-item .nm {
+  font-weight: 600;
+  font-size: 12px;
+}
+.pool-item .sub {
+  color: var(--tx2);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.pool-item:active {
+  cursor: grabbing;
 }
 .route-item {
   border: 1px solid var(--border);
