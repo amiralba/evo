@@ -41,14 +41,18 @@ export function AnalyticsPage() {
       </select>
 
       <h2>{t('analytics.planHealth', 'Plan Sağlığı')}</h2>
-      {planHealth.isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
-      {planHealth.isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
-      {planHealth.data && <PlanHealthTable routes={planHealth.data.routes ?? []} />}
+      <div className="analytics-card">
+        {planHealth.isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
+        {planHealth.isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
+        {planHealth.data && <PlanHealthTable routes={planHealth.data.routes ?? []} />}
+      </div>
 
       <h2>{t('analytics.mobility', 'Hareketlilik')}</h2>
-      {mobility.isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
-      {mobility.isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
-      {mobility.data && <MobilityTable merchandisers={mobility.data} />}
+      <div className="analytics-card">
+        {mobility.isLoading && <div className="empty">{t('common.loading', 'Yükleniyor…')}</div>}
+        {mobility.isError && <div className="empty">{t('common.loadError', 'Yüklenemedi. Tekrar deneyin.')}</div>}
+        {mobility.data && <MobilityTable merchandisers={mobility.data} />}
+      </div>
     </div>
   )
 }

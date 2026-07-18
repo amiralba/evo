@@ -1,47 +1,103 @@
 .analytics-page {
-  padding: 20px;
-  max-width: 1200px;
+  --bg: #fafaf7;
+  --card: #ffffff;
+  --border: #e3e1d9;
+  --tx: #2c2c2a;
+  --tx2: #6b6a64;
+  --blue: #378add;
+  --blue-d: #185fa5;
+  --blue-l: #e6f1fb;
+  --amber-l: #faeeda;
+
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--tx);
+  font: 13px/1.4 -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding: 24px 28px;
+  max-width: 1100px;
   margin: 0 auto;
+}
+
+.analytics-page a {
+  color: var(--blue-d);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.analytics-page a:hover {
+  text-decoration: underline;
 }
 
 .analytics-page h1 {
   font-size: 18px;
-  margin: 0 0 4px;
+  font-weight: 700;
+  margin: 12px 0 14px;
 }
 
 .analytics-page h2 {
-  font-size: 14px;
-  margin: 24px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tx2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 28px 0 10px;
+}
+
+.analytics-page select {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--tx);
+}
+
+.analytics-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .analytics-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  background: var(--card);
 }
 
 .analytics-table th,
 .analytics-table td {
   text-align: left;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border, #e3e1d9);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .analytics-table th {
   font-weight: 600;
-  color: var(--text2, #6b6a64);
+  color: var(--tx2);
   font-size: 11px;
+  background: #f6f5f0;
+}
+
+.analytics-table tbody tr:hover {
+  background: #fbfaf6;
 }
 
 .analytics-table tr.outlier-row {
-  background: var(--amber-l, #faeeda);
+  background: var(--amber-l);
+}
+
+.analytics-table tr.outlier-row:hover {
+  background: #f7e6c3;
 }
 
 .band-pill {
   font-size: 10px;
   border-radius: 8px;
-  padding: 1px 7px;
+  padding: 2px 8px;
   font-weight: 600;
   color: #fff;
+  display: inline-block;
 }
