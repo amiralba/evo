@@ -27,6 +27,14 @@ let css = slice(68, 297)
 const body = slice(301, 436)
 let script = slice(438, 3593)
 
+// --- Map delegation (M4) ---
+// Let the React MapLibre controller (window.__evoRenderMap) take over map rendering; the
+// prototype's SVG map is skipped when the hook is present. #mapSvg stays in the DOM (empty) so
+// the marquee init doesn't throw; MapLibre is overlaid in #mapSvgWrap.
+const RENDERMAP_ANCHOR = 'function renderMap(){'
+if (!script.includes(RENDERMAP_ANCHOR)) throw new Error('renderMap anchor not found — prototype changed?')
+script = script.replace(RENDERMAP_ANCHOR, RENDERMAP_ANCHOR + 'if(window.__evoRenderMap){window.__evoRenderMap();return;}')
+
 // --- Backend publish hook (M3) ---
 // The prototype's confirmPub commits by clearing changes[] locally; splice in a call to the
 // React publishBridge (window.__evoPublish) FIRST, so Yayınla flushes the buffered edits to the
@@ -90,7 +98,7 @@ window.__evoLoadData = function (d) {
 // Read-only view of engine state for the publish bridge (runs in engine scope, so the live
 // let-bindings for visits/stores/routes are captured, not stale copies).
 window.__evoState = function () {
-  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek };
+  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek, filter: filter, focus: focus, selection: selection };
 };
 
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }

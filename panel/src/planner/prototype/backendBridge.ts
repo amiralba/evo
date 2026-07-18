@@ -107,6 +107,11 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
     y: PAD + ((maxLat - (s.latitude ?? maxLat)) / spanLat) * (H - 2 * PAD),
     route: s.activeRouteId ?? null,
     active: true,
+    // Extra fields (ignored by the prototype) for the MapLibre controller:
+    lat: s.latitude ?? null,
+    lng: s.longitude ?? null,
+    catInt: (s.category as number) ?? null,
+    activeRouteId: s.activeRouteId ?? null,
   }))
 
   const plans = await Promise.all(

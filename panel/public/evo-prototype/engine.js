@@ -748,7 +748,7 @@ const MAP_BG=`<g pointer-events="none">
     <text x="250" y="500">Ankara Çayı</text>
   </g>
 </g>`;
-function renderMap(){
+function renderMap(){if(window.__evoRenderMap){window.__evoRenderMap();return;}
   const svg=$('#mapSvg');svg.innerHTML=MAP_BG;
   const vs=new Set(visibleStores().map(s=>s.id));
   const fids=filterRouteIds();
@@ -3191,7 +3191,7 @@ window.__evoLoadData = function (d) {
 // Read-only view of engine state for the publish bridge (runs in engine scope, so the live
 // let-bindings for visits/stores/routes are captured, not stale copies).
 window.__evoState = function () {
-  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek };
+  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek, filter: filter, focus: focus, selection: selection };
 };
 
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }
