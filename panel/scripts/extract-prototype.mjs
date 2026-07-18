@@ -36,9 +36,32 @@ css = css.replace(
 
 const footer = `
 
-/* ==== EVO host bridge (appended; not part of the prototype) ==== */
+/* ==== EVO host bridge (appended; not part of the prototype) ====
+   Runs in the engine's top-level scope, so it can mutate the prototype's const arrays
+   (people/routes/stores — in place) and reassign its let state (visits/baseVisits/weekData/…).
+   The React backend bridge calls window.__evoLoadData(...) with mapped backend data; the
+   prototype's own changes[] buffer still gates every commit behind Yayınla. */
 window.__EVO_BOOTED__ = true;
 window.__evoRenderAll = (typeof renderAll === 'function') ? renderAll : function(){};
+
+window.__evoLoadData = function (d) {
+  try {
+    if (d.people) { people.length = 0; for (const p of d.people) people.push(p); }
+    if (d.routes) { routes.length = 0; for (const r of d.routes) routes.push(r); }
+    if (d.stores) { stores.length = 0; for (const s of d.stores) stores.push(s); }
+    if (d.visits) {
+      visits = d.visits;
+      baseVisits = JSON.parse(JSON.stringify(d.visits));
+      weekData = {}; weekData[currentWeek] = visits;
+    }
+    if (typeof d.quota === 'number') QUOTA = d.quota;
+    // Reset transient UI/edit state so a data (re)load starts clean.
+    filter = null; focus = null; selection = new Set(); changes = []; expandedRoutes = new Set();
+    if (typeof renderAll === 'function') renderAll();
+    if (typeof d.weekLabel === 'string') { var wl = document.getElementById('wkLabel'); if (wl) wl.textContent = d.weekLabel; }
+  } catch (e) { console.error('[evo] __evoLoadData', e); }
+};
+
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }
 `
 
