@@ -3178,6 +3178,8 @@ window.__evoLoadData = function (d) {
     // matching backend mutations on Yayınla (resize -> UpdateStop, move -> Patch).
     window.__evoSnapshot = {
       visits: JSON.parse(JSON.stringify(d.visits || [])),
+      storeRoute: (d.stores || []).reduce(function (m, s) { m[s.id] = s.route || null; return m; }, {}),
+      routePerson: (d.routes || []).reduce(function (m, r) { m[r.id] = r.person || null; return m; }, {}),
       weekFrom: d.weekFrom || null,
       weekTo: d.weekTo || null,
     };

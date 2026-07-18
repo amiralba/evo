@@ -27,10 +27,13 @@ interface ProtoVisit {
 interface EvoState {
   visits: ProtoVisit[]
   stores: Array<{ id: string; route: string | null }>
+  routes: Array<{ id: string; person: string | null }>
 }
 
 interface EvoSnapshot {
   visits: ProtoVisit[]
+  storeRoute: Record<string, string | null>
+  routePerson: Record<string, string | null>
   weekFrom: string | null
   weekTo: string | null
 }
@@ -104,18 +107,46 @@ async function flush(opts: PublishOpts): Promise<void> {
     }
   }
 
-  const affected = new Set<string>([...resizeOps.map((o) => o.routeId), ...patchOps.map((o) => o.routeId)])
+  // Add store (pool -> route): a store that had no route now belongs to one. (Route->route moves
+  // and route->pool removals need a stop id / a remove endpoint and are left for a follow-up.)
+  const addOps: Array<{ routeId: string; storeId: string }> = []
+  for (const s of state.stores) {
+    const prevRoute = snap.storeRoute[s.id] ?? null
+    const nowRoute = s.route ?? null
+    if (!prevRoute && nowRoute) addOps.push({ routeId: nowRoute, storeId: s.id })
+  }
+
+  // Reassign merchandiser (Kişi değiştir): a route's person changed.
+  const reassignOps: Array<{ routeId: string; merchandiserId: string }> = []
+  for (const r of state.routes) {
+    const prevP = snap.routePerson[r.id] ?? null
+    if (r.person && prevP && r.person !== prevP) reassignOps.push({ routeId: r.id, merchandiserId: r.person })
+  }
+
+  const affected = new Set<string>([
+    ...resizeOps.map((o) => o.routeId),
+    ...patchOps.map((o) => o.routeId),
+    ...addOps.map((o) => o.routeId),
+    ...reassignOps.map((o) => o.routeId),
+  ])
   if (affected.size === 0) {
-    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (sadece takvim düzenleri destekli)')
+    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: süre · taşıma · havuzdan ekleme · kişi)')
     return
   }
 
+  const today = dateForDay(snap.weekFrom, 0) // Monday of the loaded week — a safe start date
   for (const op of resizeOps) await planner.updateStop(op.routeId, op.stopId, buildResizeUpdate(op.minutes))
   for (const op of patchOps) await planner.createPatch(op.routeId, op.req)
+  for (const op of addOps)
+    await planner.bulkAddStops(op.routeId, { storeIds: [op.storeId], frequency: 2, weekdayMask: 0, serviceMinutes: null })
+  for (const op of reassignOps)
+    await planner.reassignRoute(op.routeId, { merchandiserId: op.merchandiserId, startDate: today, reason: 1 })
   for (const routeId of affected) {
     await planner.publishRoute(routeId, { reason: opts.reason ?? null, objective: opts.objective ?? null })
   }
 
-  engineToast(`Backend’e yazıldı ✓ ${resizeOps.length} süre · ${patchOps.length} yama · ${affected.size} rut yayınlandı`)
+  engineToast(
+    `Backend’e yazıldı ✓ ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi · ${affected.size} rut`,
+  )
   await loadBackendIntoPrototype(province)
 }
