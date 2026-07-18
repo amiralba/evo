@@ -55,6 +55,14 @@ export function useRouteAuditLog(enabled: boolean) {
   })
 }
 
+export function useDecisionJournal(enabled: boolean) {
+  return useQuery({
+    queryKey: ['decision-journal'],
+    queryFn: () => planner.getDecisionJournal(),
+    enabled,
+  })
+}
+
 export function useStoreDetail(storeId: string | null) {
   return useQuery({
     queryKey: ['store-detail', storeId],

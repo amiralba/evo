@@ -17,6 +17,7 @@ type PatchDto = components['schemas']['PatchDto']
 type PublishRequest = components['schemas']['PublishRequest']
 type PublishResultDto = components['schemas']['PublishResultDto']
 type AuditLogEntryDtoPagedResult = components['schemas']['AuditLogEntryDtoPagedResult']
+type DecisionJournalEntryDtoPagedResult = components['schemas']['DecisionJournalEntryDtoPagedResult']
 type TaskPlanDto = components['schemas']['TaskPlanDto']
 type RuleImpactDto = components['schemas']['RuleImpactDto']
 type RuleScopeLevel = components['schemas']['RuleScopeLevel']
@@ -134,6 +135,11 @@ export async function publishRoute(id: string, body: PublishRequest): Promise<Pu
 export async function getRouteAuditLog(): Promise<AuditLogEntryDtoPagedResult> {
   const response = await authorizedFetch(`/api/v1/audit-log?entityType=Route&pageSize=200`)
   return json<AuditLogEntryDtoPagedResult>(response)
+}
+
+export async function getDecisionJournal(): Promise<DecisionJournalEntryDtoPagedResult> {
+  const response = await authorizedFetch(`/api/v1/decision-journal?pageSize=200`)
+  return json<DecisionJournalEntryDtoPagedResult>(response)
 }
 
 export async function getStoreDetail(storeId: string): Promise<StoreDetailDto> {

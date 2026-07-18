@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useWorkspaceStore, type WorkspaceLayout } from '../state/workspaceStore'
 import { useRoutes, useNotes } from '../api/queries'
 import { NotesInbox } from './inbox/NotesInbox'
+import { DecisionJournalModal } from './DecisionJournalModal'
 import { useDisruptions } from '../../onarim/api/queries'
 import { OnarimWorkbench } from '../../onarim/OnarimWorkbench'
 
@@ -29,6 +30,7 @@ export function TopFilterBar() {
   const [showInbox, setShowInbox] = useState(false)
   const { data: disruptions } = useDisruptions()
   const [showOnarim, setShowOnarim] = useState(false)
+  const [showJournal, setShowJournal] = useState(false)
   const affectedVisitTotal = (disruptions ?? []).reduce((sum, d) => sum + (d.affectedVisitCount ?? 0), 0)
 
   return (
@@ -88,12 +90,17 @@ export function TopFilterBar() {
         </button>
       )}
 
+      <button type="button" title={t('planner.decisionJournal', 'Karar Günlüğü')} data-testid="decision-journal-trigger" onClick={() => setShowJournal(true)}>
+        📖
+      </button>
+
       <button type="button" title={t('planner.notesInbox', 'Gelen kutusu')} data-testid="inbox-trigger" onClick={() => setShowInbox(true)}>
         🔔 {openNotes?.length ?? 0}
       </button>
 
       <NotesInbox open={showInbox} onClose={() => setShowInbox(false)} />
       {showOnarim && <OnarimWorkbench onClose={() => setShowOnarim(false)} />}
+      {showJournal && <DecisionJournalModal onClose={() => setShowJournal(false)} />}
     </div>
   )
 }
