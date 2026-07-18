@@ -1,65 +1,15 @@
-import { useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useWorkspaceStore } from './state/workspaceStore'
-import { useRoute } from './api/queries'
-import { TopFilterBar } from './components/TopFilterBar'
-import { RouteRail } from './components/RouteRail'
-import { WorkspaceLayout } from './components/WorkspaceLayout'
-import { MapPane } from './components/map/MapPane'
-import { SchedulePane } from './components/schedule/SchedulePane'
-import { RouteDetailPanel } from './components/panel/RouteDetailPanel'
-import { SelectionListPane } from './components/editing/SelectionListPane'
-import { SelectionBar } from './components/editing/SelectionBar'
-import { Toast } from './components/Toast'
-import { TableDrawer } from './components/schedule/TableDrawer'
-import './planner.css'
+import { PrototypeHost } from './prototype/PrototypeHost'
 
+/**
+ * The planner workspace IS the v0.5 prototype now (hosted verbatim by PrototypeHost), per the
+ * decision to run the prototype directly and wire the backend in behind it rather than
+ * re-implement its UI in React. The prototype's own `changes[]` buffer gives draft-until-publish
+ * for free: nothing commits until Yayınla.
+ *
+ * The previous React re-implementation (TopFilterBar / RouteRail / SchedulePane / RouteDetailPanel
+ * / MapPane / …) still lives under planner/components and is kept for its MapLibre map, which will
+ * be portaled into the prototype's map pane in a later step.
+ */
 export function PlannerPage() {
-  const { t } = useTranslation()
-  const clearFocus = useWorkspaceStore((s) => s.clearFocus)
-  const clearSelection = useWorkspaceStore((s) => s.clearSelection)
-  const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
-  const drawerOpen = useWorkspaceStore((s) => s.drawerOpen)
-  const { data: focusedRoute } = useRoute(focusedRouteId)
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        clearFocus()
-        clearSelection()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [clearFocus, clearSelection])
-
-  return (
-    <div className="planner-root">
-      <TopFilterBar />
-      <div className="main">
-        <RouteRail />
-        <WorkspaceLayout
-          map={<MapPane />}
-          schedule={
-            focusedRouteId ? (
-              <SchedulePane
-                routeId={focusedRouteId}
-                routeCode={focusedRoute?.routeCode ?? ''}
-                merchandiserName={focusedRoute?.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}
-              />
-            ) : (
-              <div className="empty">{t('planner.noRouteFocused', 'Haritadan veya listeden bir rota seçin.')}</div>
-            )
-          }
-          bottom={<SelectionListPane />}
-        />
-        <div className="panel">
-          <RouteDetailPanel />
-        </div>
-      </div>
-      <TableDrawer routeId={focusedRouteId} open={drawerOpen} />
-      <SelectionBar />
-      <Toast />
-    </div>
-  )
+  return <PrototypeHost />
 }

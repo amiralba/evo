@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EVO prototype — standalone QA fixture</title>
+  <link rel="stylesheet" href="/evo-prototype/proto.css" />
+</head>
+<body>
+  <!-- QA-only fixture: composes the sliced prototype assets exactly like PrototypeHost, but
+       without the React auth gate, so the ported prototype can be eyeballed in isolation. -->
+  <div class="evo-proto-root" id="r"></div>
+  <script>
+    fetch('/evo-prototype/body.html')
+      .then((r) => r.text())
+      .then((html) => {
+        document.getElementById('r').innerHTML = html
+        const s = document.createElement('script')
+        s.src = '/evo-prototype/engine.js'
+        s.async = false
+        document.body.appendChild(s)
+      })
+  </script>
+</body>
+</html>

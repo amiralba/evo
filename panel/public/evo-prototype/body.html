@@ -1,0 +1,135 @@
+
+<div class="topbar">
+  <span class="logo">EVO · Rut Planlayıcı <span class="pill">v0.5</span></span>
+  <button>Ankara ▾</button>
+  <button id="wkPrev">‹</button><span id="wkLabel" style="font-size:12px;color:var(--tx2);">Hafta 28 · 6–10 Tem</span><button id="wkNext">›</button>
+  <div class="seg" id="layoutSeg">
+    <button data-l="map">Harita</button>
+    <button data-l="split" class="on">Bölünmüş</button>
+    <button data-l="sched">Takvim</button>
+    <button data-l="table">Tablo</button>
+  </div>
+  <div class="seg" id="modeSeg">
+    <button data-m="eff" class="on">Efektif</button>
+    <button data-m="base">Baz</button>
+  </div>
+  <span id="filterChip"></span>
+  <div class="spacer"></div>
+  <div style="position:relative;">
+    <input id="globalSearch" placeholder="🔍 ara…  ( / veya ⌘K )" style="border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:12px;width:190px;background:var(--card);color:var(--tx);">
+    <div id="searchResults" style="display:none;position:absolute;top:28px;left:0;width:250px;background:var(--card);border:1px solid var(--border2);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);z-index:70;max-height:260px;overflow-y:auto;"></div>
+  </div>
+  <button id="publishBtn" class="primary">Yayınla (<span id="chgCount">0</span>)</button>
+  <button title="Kullanım kılavuzu" id="helpBtn" style="font-weight:800;">?</button>
+  <button title="Gelen kutusu" id="inboxBtn">🔔 <span id="inboxCount">3</span></button>
+  <button title="Yönetim: katalog + ayarlar" id="adminBtn">⚙</button>
+</div>
+
+<div id="draftBanner" style="display:none;background:var(--amber-l);color:var(--amber-d);padding:6px 14px;font-size:12px;border-bottom:1px solid var(--amber);align-items:center;gap:10px;"></div>
+
+<div class="main">
+  <div class="rail">
+    <div class="tabs">
+      <div class="on" data-t="routes">Rutlar</div>
+      <div data-t="pool">Havuz <span class="pill" id="poolCount"></span></div>
+    </div>
+    <div class="list" id="railList"></div>
+  </div>
+
+  <div class="pane" id="mapPane">
+    <div class="pane-head">HARİTA <span style="color:var(--tx3)">— pin: tıkla · boş alan: sürükleyerek seç</span><div class="spacer"></div><span id="mapInfo"></span></div>
+    <div id="mapSvgWrap">
+      <div class="map-tools">
+        <button id="lassoBtn" class="on" title="Sürükleyerek seçim">▭ Seç</button>
+        <button id="layersBtn" title="Katmanlar">≡ Katman</button>
+        <button id="whatifBtn" title="Simülasyon">⚗ Simüle</button>
+      </div>
+      <svg id="mapSvg" viewBox="0 0 600 520"></svg>
+    </div>
+  </div>
+
+  <div class="pane" id="schedPane">
+    <div class="pane-head">TAKVİM <span style="color:var(--tx3)">— blok: sürükle / alt kenar: süre uzat · 5dk adım</span></div>
+    <div class="sched-scroll" id="schedScroll"></div>
+  </div>
+
+  <div class="pane" id="tablePane" style="display:none;">
+    <div class="tbl-tabs" id="tblTabs"></div>
+    <div class="tbl-toolbar" id="tblToolbar"></div>
+    <div class="tbl-scroll" id="tblScroll"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head" id="panelHead"><div class="ttl">Detay</div><div class="sub">Bir mağaza, rut veya kişi seç</div></div>
+    <div class="panel-tabs" id="panelTabs">
+      <div class="on" data-t="info">Bilgi</div><div data-t="tasks">Görevler</div><div data-t="hist">Geçmiş</div>
+    </div>
+    <div class="panel-body" id="panelBody"><div class="empty">Haritadan bir pine, takvimden bir bloğa veya soldan bir ruta tıkla.</div></div>
+  </div>
+</div>
+
+<!-- YÖNETİM SAYFASI: görev kataloğu + kurallar + presetler + ayarlar.
+     Gerçek build notu: kural/şablon değişiklikleri blast-radius önizlemesi
+     göstermeli (kaç mağaza/rut etkileniyor, hangi günler kota aşıyor - V10). -->
+<div class="page" id="adminPage">
+  <div class="page-top">
+    <span class="ttl">Yönetim</span>
+    <span style="font-size:11px;color:var(--tx3);">Türkiye genelini etkiler — Kaydet + onay gerekir, kayda geçer</span>
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="showPage('planner')">✕ Kapat</button>
+  </div>
+  <div class="admin-tabs" id="adminTabs">
+    <div class="on" data-t="templates">Görev şablonları</div>
+    <div data-t="rules">Mağaza tipi kuralları</div>
+  </div>
+  <div class="page-body" id="adminBody"></div>
+  <div style="padding:8px 16px;border-top:1px solid var(--border);background:var(--card);display:flex;gap:8px;align-items:center;">
+    <button class="primary" id="adminSave" disabled style="opacity:.5;">Kaydet</button>
+    <button id="adminDiscard">Vazgeç</button>
+    <span id="adminDirty" style="font-size:11px;color:var(--tx3);"></span>
+    <span class="spacer" style="flex:1"></span>
+    <button id="adminHist" style="font-size:11px;">📜 Denetim kaydı</button>
+    <button onclick="showPage('settings')" style="font-size:11px;">⚠ Sistem ayarları →</button>
+  </div>
+</div>
+
+<!-- SİSTEM AYARLARI: bilerek ayrı sayfa — nadiren dokunulur, hata önlemek için. -->
+<div class="page" id="settingsPage">
+  <div class="page-top">
+    <span class="ttl">Sistem ayarları</span>
+    <span style="font-size:11px;color:var(--amber-d);">nadiren değişir — dikkatli düzenle</span>
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="showPage('admin')">← Yönetim</button>
+    <button onclick="showPage('planner')">✕ Kapat</button>
+  </div>
+  <div class="page-body" id="settingsBody"></div>
+</div>
+
+<!-- GELEN KUTUSU: saha notları + değişiklik talepleri + geciken görevler.
+     "Bağlama git" = planlayıcıya dön + ilgili mağazayı odakla. -->
+<div class="page" id="inboxPage">
+  <div class="page-top">
+    <span class="ttl">Gelen kutusu</span>
+    <span class="spacer" style="flex:1"></span>
+    <button onclick="showPage('planner')">✕ Kapat</button>
+  </div>
+  <div class="admin-tabs" id="inboxTabs"></div>
+  <div class="page-body" id="inboxBody"></div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="drawer-inner">
+    <table id="tbl"></table>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="statusWarns"></span>
+  <span>⚖ Adalet: <span id="fairness"></span></span>
+  <div class="spacer"></div>
+  <button id="undoBtn">↶ Geri al</button>
+  <button id="journalBtn" title="Karar günlüğü — kim, neyi, neden, hangi hedefle">📖 Kararlar</button>
+  <button id="drawerBtn">▤ Tablo</button>
+</div>
+
+<div id="overlay"></div>
