@@ -26,7 +26,7 @@ describe('NotesInbox', () => {
     const mutate = vi.fn()
     vi.mocked(mutations.useUpdateNoteStatus).mockReturnValue({ mutate, isPending: false } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    render(<NotesInbox onClose={() => {}} />)
+    render(<NotesInbox open onClose={() => {}} />)
 
     expect(screen.getByText(/perşembe servis istemiyor/)).toBeTruthy()
 
@@ -39,7 +39,7 @@ describe('NotesInbox', () => {
     vi.mocked(queries.useNotes).mockReturnValue({ data: [], isLoading: false, isError: false } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
     vi.mocked(mutations.useUpdateNoteStatus).mockReturnValue({ mutate: vi.fn(), isPending: false } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    render(<NotesInbox onClose={() => {}} />)
+    render(<NotesInbox open onClose={() => {}} />)
 
     expect(screen.getByText(/Açık not yok/)).toBeTruthy()
   })

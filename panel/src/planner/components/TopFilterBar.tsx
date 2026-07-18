@@ -78,12 +78,11 @@ export function TopFilterBar() {
         </button>
       )}
 
-      <button type="button" data-testid="inbox-trigger" onClick={() => setShowInbox(true)}>
-        {t('planner.notesInbox', 'Gelen Kutusu')}
-        {(openNotes?.length ?? 0) > 0 && <span className="pill">{openNotes!.length}</span>}
+      <button type="button" title={t('planner.notesInbox', 'Gelen kutusu')} data-testid="inbox-trigger" onClick={() => setShowInbox(true)}>
+        🔔 {openNotes?.length ?? 0}
       </button>
 
-      {showInbox && <NotesInbox onClose={() => setShowInbox(false)} />}
+      <NotesInbox open={showInbox} onClose={() => setShowInbox(false)} />
       {showOnarim && <OnarimWorkbench onClose={() => setShowOnarim(false)} />}
     </div>
   )

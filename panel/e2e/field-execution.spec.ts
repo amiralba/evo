@@ -23,12 +23,12 @@ test('Field execution flow: past week shows outcome colors, inbox lists and reso
   await expect(outcomeBlock).toBeVisible({ timeout: 15_000 })
 
   await page.getByTestId('inbox-trigger').click()
-  await expect(page.locator('.modal-head')).toHaveText('Gelen Kutusu')
+  await expect(page.locator('.page.on .page-top .ttl')).toHaveText('Gelen kutusu')
 
   const resolveButton = page.getByRole('button', { name: 'Çözüldü' }).first()
   if (await resolveButton.isVisible().catch(() => false)) {
     await resolveButton.click()
-    await expect(page.locator('.modal-head')).toHaveText('Gelen Kutusu')
+    await expect(page.locator('.page.on .page-top .ttl')).toHaveText('Gelen kutusu')
   }
 
   await page.screenshot({ path: 'e2e/artifacts/field-execution.png' })
