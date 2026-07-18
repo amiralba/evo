@@ -51,6 +51,8 @@ builder.Services.AddScoped<INotificationDispatcher, MockNotificationDispatcher>(
 builder.Services.AddScoped<Evo.Api.Analytics.IStabilityService, Evo.Api.Analytics.StabilityService>();
 builder.Services.AddScoped<Evo.Api.Analytics.IPlanHealthService, Evo.Api.Analytics.PlanHealthService>();
 builder.Services.AddScoped<Evo.Api.Analytics.IMobilityService, Evo.Api.Analytics.MobilityService>();
+builder.Services.AddScoped<Evo.Api.Onarim.DisruptionSource>();
+builder.Services.AddScoped<Evo.Api.Onarim.IOnarimService, Evo.Api.Onarim.OnarimService>();
 builder.Services.AddHostedService<PlanHorizonBackgroundService>();
 
 // AddIdentityCore (not AddIdentity) — avoids registering the default cookie auth schemes,

@@ -197,7 +197,7 @@
 - Files: `backend/src/Evo.Api/Onarim/Dtos/OnarimDtos.cs` (new)
 - Do: `DisruptionDto(Guid Id, string Kind /* Absence|StoreClosure */, string Label, DateOnly Start, DateOnly End, int AffectedVisitCount)`; `AffectedVisitDto(Guid PlannedVisitId, Guid RouteId, string RouteCode, Guid StoreId, string StoreName, DateOnly Date, int StartMinutes, int PlannedMinutes, IReadOnlyList<CandidateDto> Candidates)`; `CandidateDto(Guid MerchandiserId, string Name, Guid? RouteId, bool Available, int CapacityMinutesAfterMove, bool WithinCapacity, string RegionProximity, string Reasoning, int Rank)`; `ApplyOnarimRequest(string Reason, string Objective, IReadOnlyList<OnarimDecisionDto> Decisions)`; `OnarimDecisionDto(Guid PlannedVisitId, OnarimAction Action, DateOnly? TargetDate, Guid? TargetMerchandiserId, Guid? TargetRouteId)` with `enum OnarimAction : byte { Skip = 1, MoveDay = 2, ReassignRoute = 3, ReassignPerson = 4 }`. `CandidateDto.RouteId` is populated when the candidate's own active route is the reassignment target for `ReassignPerson`.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 31: CrossReassignVisit — new PatchType + params shape
 - Files: `backend/src/Evo.Domain/Scheduling/PatchType.cs` (locate via `grep -rn "enum PatchType" backend/src`)
@@ -222,85 +222,85 @@
 - Do: when a `CrossReassignVisit` patch is created, call `IPlanGenerationService.RegenerateFutureAsync` for BOTH `sourceRouteId` and `targetRouteId` — mirror the existing dual-regeneration already present in `POST /routes/{id}/stops/{sid}:move` (`grep -n "RegenerateFutureAsync" backend/src/Evo.Api/Controllers/RoutesController.cs` to find that precedent and copy the pattern).
 - Progress: `PlanGenerationService.GenerateAsync` now loads target-side `CrossReassignVisit` patches (those whose `RouteId` column points at the source but whose parsed `ParamsJson.TargetRouteId` names this route) and passes `currentRouteId` into `PatchResolver.Apply`, so regenerating either the source OR the target route independently now resolves the correct half. The remaining piece — actually calling `RegenerateFutureAsync` for both route ids at the moment a `CrossReassignVisit` patch is created — belongs in `OnarimService.ApplyAsync` (Task 42), since that's where the patch row is written.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ] (plumbing done; call-site pairing lands with Task 42)
+- Status: [x] (call-site pairing landed in `OnarimService.ApplyAsync`, Task 42; verified by Task 47's integration test)
 
 ### Task 35: Disruption identity helper
 - Files: `backend/src/Evo.Api/Onarim/DisruptionSource.cs` (new)
 - Do: a small helper that enumerates current disruptions as a uniform `(Guid Id, kind, label, start, end)` — an `Absence` row (Id = absence id, kind=Absence) or a `StoreFlag` ClosedTemp window (Id = flag id, kind=StoreClosure). One place both Onarım endpoints resolve a disruption id back to its affected merchandiser/store + window.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 36: GET /onarim/disruptions
 - Files: `backend/src/Evo.Api/Controllers/OnarimController.cs` (new)
 - Do: `[Authorize(Roles = "Supervisor")]` `[HttpGet("disruptions")]` with optional `region`; list active/future absences + ClosedTemp closures via `DisruptionSource`, each with its `AffectedVisitCount` (count of future `planned_visit` rows colliding — reuse the same collision logic as V14). Supervisor only.
 - Verify: `dotnet build backend/Evo.sln`; endpoint present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 37: Affected-visit query
 - Files: `backend/src/Evo.Api/Onarim/OnarimService.cs` (new); interface `IOnarimService`
 - Do: `GetAffectedVisitsAsync(Guid disruptionId)` — resolve the disruption, return future `planned_visit` rows that collide (absence → visits of that merchandiser in the window; closure → visits at that store in the window), projected to the pre-candidate shape.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 38: Candidate ranking (pure, deterministic)
 - Files: `backend/src/Evo.Domain/Onarim/CandidateRanker.cs` (new, pure)
 - Do: pure static `Rank(...)` taking a plain input per candidate merchandiser `{ Guid Id, string Name, bool OnLeaveThatDay, int CurrentDayMinutes, int DailyCapacity, bool SameProvince, int? HomeDistanceBucket }` + the visit's `PlannedMinutes`; compute `capacityMinutesAfterMove = DailyCapacity − (CurrentDayMinutes + PlannedMinutes)`, `withinCapacity = capacityAfterMove ≥ 0 && !OnLeaveThatDay`. Rank: available+within-capacity first, then by SameProvince, then HomeDistanceBucket asc, then most spare capacity; produce a human `Reasoning` string per candidate. Deterministic tie-break by `Id`. No `Evo.Infrastructure` reference (layering rule).
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 39 [P]: CandidateRanker unit tests
 - Files: `backend/tests/Evo.Tests/Onarim/CandidateRankerTests.cs` (new)
 - Do: an on-leave candidate ranks last with `Available=false`; a same-province with capacity outranks an out-of-province one; an over-capacity candidate is `WithinCapacity=false`; tie-break is deterministic. Assert `Reasoning` is non-empty.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~CandidateRankerTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 40: OnarimService — assemble affected visits + ranked candidates
 - Files: `backend/src/Evo.Api/Onarim/OnarimService.cs`
 - Do: for each affected visit, gather candidate merchandisers (active, assigned in the same region — EXCLUDING the disrupted visit's own current route/person), map each to `CandidateRanker`'s plain input (compute their current planned minutes on the visit's date from `planned_visit`, same-province, home-distance bucket via the existing home_location if trivial else null), call the ranker, return `AffectedVisitDto` with ranked `Candidates` — each `CandidateDto.RouteId` set to that candidate's own currently-assigned active route (the `ReassignPerson` target route).
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 41: GET /onarim/disruptions/{id}/affected-visits
 - Files: `backend/src/Evo.Api/Controllers/OnarimController.cs`
 - Do: `[HttpGet("disruptions/{id}/affected-visits")]` → `OnarimService.GetAffectedWithCandidatesAsync`. Supervisor only.
 - Verify: `dotnet build backend/Evo.sln`; endpoint present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 42: OnarimService — apply decisions as windowed patches (existing engine + CrossReassignVisit)
 - Files: `backend/src/Evo.Api/Onarim/OnarimService.cs`
 - Do: `ApplyAsync(Guid disruptionId, ApplyOnarimRequest req, Guid actorId)` — per decision, create a `patch` row: `Skip` → `SkipStore` for that store/date; `MoveDay` → `MoveVisit` (`fromDate`=visit date, `toDate`=`TargetDate`, existing engine); `ReassignRoute` → `ReassignTemp` (target = `TargetMerchandiserId`, window = disruption span, existing engine) — de-duplicate to one ReassignTemp per route even if multiple visits chose it; `ReassignPerson` → the new `CrossReassignVisit` (Tasks 31–34) with `sourceRouteId` = the visit's current route, `targetRouteId` = `TargetRouteId`, `plannedVisitId`, `targetMerchandiserId` = `TargetMerchandiserId` — one `CrossReassignVisit` patch per visit (no de-duplication; each is a single-visit move). Then regenerate ALL affected route(s) via `IPlanGenerationService` (both sides for any `CrossReassignVisit` decisions — Task 34), and write ONE `decision_journal` entry (`Kind=OnarimRepair`, `Reason`/`Objective` from the request, `ErrorsJson` = the V14 codes resolved). Undecided visits are left untouched (stay flagged).
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 43: POST /onarim/disruptions/{id}/apply
 - Files: `backend/src/Evo.Api/Controllers/OnarimController.cs`
 - Do: `[HttpPost("disruptions/{id}/apply")]` — 422 if `Reason`/`Objective` missing (override-with-reason gate), else call `OnarimService.ApplyAsync` with the current user id; return the updated affected-visits list (decided rows now resolved). Supervisor only.
 - Verify: `dotnet build backend/Evo.sln`; endpoint present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 44: Register Onarım DI
 - Files: `backend/src/Evo.Api/Program.cs`
 - Do: register `IOnarimService`→`OnarimService`.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 45: Integration test — Onarım apply reflows the plan + clears V14
 - Files: `backend/tests/Evo.Tests/Onarim/OnarimApplyTests.cs` (new)
 - Do: seed a route + assignment + future visits + an `absence` colliding with 2 visits; call affected-visits (assert 2 rows with ranked candidates); apply `MoveDay` for one and `Skip` for the other (with reason/objective); assert patches were created (`SkipStore` + `MoveVisit`), the plan regenerated, a `decision_journal` `OnarimRepair` row exists, and re-validating the route no longer returns V14 for the two decided visits.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~OnarimApplyTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 46 [P]: Integration test — apply without reason/objective is 422
 - Files: `backend/tests/Evo.Tests/Onarim/OnarimApplyTests.cs` (same file, extra test)
 - Do: assert `POST .../apply` with empty `Reason` returns 422 and writes no patches/journal row.
 - Verify: same filter passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 47: Integration test — ReassignPerson applies a CrossReassignVisit and reflows both routes
 - Files: `backend/tests/Evo.Tests/Onarim/OnarimApplyTests.cs` (same file, extra test)
 - Do: seed TWO routes with active assignments + a future visit on route A whose merchandiser has a seeded absence; call affected-visits, confirm at least one candidate has a non-null `RouteId` (route B's merchandiser); apply `ReassignPerson` targeting that candidate; assert a `CrossReassignVisit` patch was created, route A's plan no longer has that visit for the date, route B's plan gains it (correct store/minutes/merchandiser), and re-validating route A no longer returns V14 for that visit.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~OnarimApplyTests` passes.
-- Status: [ ]
+- Status: [x]
 
 <!-- CHECKPOINT after Phase 3: build + tests green; commit; regenerate openapi.json; ask any ranking/weighting questions. -->
 
@@ -310,31 +310,31 @@
 - Files: `panel/src/api/generated/schema.ts` (generated)
 - Do: `cd panel && npm run generate-api-client` (backend must be built so `contracts/openapi.json` is current).
 - Verify: `git diff --stat panel/src/api/generated/schema.ts` shows the new analytics/onarim/absence endpoints.
-- Status: [ ]
+- Status: [x]
 
 ### Task 49: Analytics query hooks
 - Files: `panel/src/analytics/api/queries.ts` (new)
 - Do: TanStack Query hooks `usePlanHealth(region, from, to)` and `useStability(region)` calling the generated client (thin fetch wrappers like `panel/src/planner/api/queries.ts`).
 - Verify: `cd panel && npm run lint` passes; `npx tsc --noEmit` (or `npm run build`) type-checks.
-- Status: [ ]
+- Status: [x]
 
 ### Task 50: Plan-health metric formatting helpers
 - Files: `panel/src/analytics/format.ts` (new) + `panel/src/analytics/format.test.ts`
 - Do: pure helpers — pct formatting, utilization-band → color/label, variance sign formatting. Unit-test them.
 - Verify: `cd panel && npm test -- analytics/format` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 51: PlanHealthTable component
 - Files: `panel/src/analytics/components/PlanHealthTable.tsx` (new) + `.test.tsx`
 - Do: renders routes ranked by plan-health score with columns (completion %, variance, utilization band pill, task compliance, patch load, stability, turnover, override rate %). Reuse prototype CSS tokens (`panel/src/theme/tokens.ts`). Vitest asserts rows render sorted and the band pill maps correctly.
 - Verify: `cd panel && npm test -- PlanHealthTable` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 52: MobilityTable component
 - Files: `panel/src/analytics/components/MobilityTable.tsx` (new) + `.test.tsx`; query hook `useMobility(region, months)` in `panel/src/analytics/api/queries.ts`
 - Do: renders per-merchandiser distinct-routes-held + reshuffle count vs the regional median, with `Outlier` rows visually flagged (framed as "gözden geçir" — review — not punitive, per design §8's anti-mobbing intent). Vitest asserts outlier rows render distinctly.
 - Verify: `cd panel && npm test -- MobilityTable` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 53: AnalyticsPage + route + nav entry
 - Files: `panel/src/analytics/AnalyticsPage.tsx` (new); `panel/src/App.tsx` (add `/analytics` route, ProtectedRoute); add a nav link (topbar/gear per design §6.0)
