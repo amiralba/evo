@@ -30,14 +30,17 @@ function weekdayIndex(dateIso: string): number {
   return Math.min(4, Math.max(0, g - 1))
 }
 
-/** The planning week to load: this week's Mon–Fri, or next week's if today is the weekend
- * (the backend only regenerates the plan from today forward). */
+// How many weeks off the current planning week the ‹ › nav has moved (0 = current).
+let weekOffset = 0
+
+/** The planning week to load: this week's Mon–Fri (or next week's if today is the weekend, since
+ * the backend only regenerates the plan from today forward), shifted by `weekOffset` weeks. */
 function planningWeek(): { from: string; to: string } {
   const now = new Date()
   const g = now.getDay()
-  const offset = g === 0 ? 1 : g === 6 ? 2 : 1 - g // Sun→+1, Sat→+2, Mon–Fri→this Monday
+  const base = g === 0 ? 1 : g === 6 ? 2 : 1 - g // Sun→+1, Sat→+2, Mon–Fri→this Monday
   const mon = new Date(now)
-  mon.setDate(now.getDate() + offset)
+  mon.setDate(now.getDate() + base + weekOffset * 7)
   mon.setHours(0, 0, 0, 0)
   const fri = new Date(mon)
   fri.setDate(mon.getDate() + 4)
@@ -187,7 +190,22 @@ export function installProvinceControl(): void {
     idx = (idx + 1) % PROVINCES.length
     const province = PROVINCES[idx]
     btn.textContent = `${province} ▾`
+    weekOffset = 0 // switching region returns to the current week
     resetMapFit()
     void loadBackendIntoPrototype(province).catch((e) => console.error('[evo] province switch', e))
   })
+}
+
+/** Wire the prototype's ‹ › week arrows to refetch the backend plan for the adjacent week
+ * (the prototype's own setWeek only re-projects the in-memory baseline locally). */
+export function installWeekNav(): void {
+  const province = () => (window as unknown as { __evoProvince?: string }).__evoProvince ?? 'Ankara'
+  const go = (delta: number) => {
+    weekOffset += delta
+    void loadBackendIntoPrototype(province()).catch((e) => console.error('[evo] week nav', e))
+  }
+  const prev = document.getElementById('wkPrev')
+  const next = document.getElementById('wkNext')
+  if (prev) prev.onclick = () => go(-1) // replaces the engine's local setWeek handler
+  if (next) next.onclick = () => go(1)
 }
