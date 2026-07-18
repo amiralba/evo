@@ -46,6 +46,9 @@ type MapWindow = Window & {
   __evoMap?: maplibregl.Map
   __evoFocusStore?: (storeId: string) => void
   toggleRouteFilter?: (routeId: string, additive: boolean) => void
+  store?: (id: string) => unknown
+  showPopover?: (s: unknown, e: MouseEvent) => void
+  hidePopover?: () => void
 }
 
 let map: maplibregl.Map | null = null
@@ -183,10 +186,26 @@ function apply(): void {
 
   if (!wired && m.getLayer('stores-circles')) {
     wired = true
-    // Pin click -> focus that store in the detail panel (matches "click a store" intent).
+    // Pin click -> the prototype's store popover card (name / category / revenue / route +
+    // "Genişlet →" to expand into the panel). Deferred past this click's bubble so the prototype's
+    // document-click "hide popover" handler (which fires for the map canvas, not an SVG circle)
+    // doesn't remove it on the very same click.
     m.on('click', 'stores-circles', (e) => {
       const id = e.features?.[0]?.properties?.id as string | undefined
-      if (id) (window as MapWindow).__evoFocusStore?.(id)
+      if (!id) return
+      const ev = e.originalEvent
+      window.setTimeout(() => {
+        const w = window as MapWindow
+        // `store()` is a const in the engine (not on window); read the prototype store object
+        // straight from engine state instead, then hand it to the global showPopover().
+        const s = w.__evoState?.().stores.find((x) => x.id === id)
+        if (s) w.showPopover?.(s, ev)
+      }, 0)
+    })
+    // Hide the popover only on a USER pan/zoom (which carries originalEvent) — not on the
+    // programmatic resize()/easeTo() that apply() runs on idle, which otherwise closed it ~1s later.
+    m.on('movestart', (e) => {
+      if ((e as { originalEvent?: unknown }).originalEvent) (window as MapWindow).hidePopover?.()
     })
     // Route-line click -> filter the workspace to that route.
     m.on('click', 'route-sequence-line', () => {
