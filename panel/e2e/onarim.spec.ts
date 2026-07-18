@@ -17,7 +17,7 @@ test('Onarım flow: open workbench, decide a row, apply', async ({ page }) => {
 
   // Pick a disruption that still has affected visits — earlier test runs against this same seeded
   // dev DB may have already resolved some disruptions, so `.first()` isn't reliable across reruns.
-  const disruptionRow = page.getByTestId('disruption-row').filter({ hasNotText: '0 etkilenen ziyaret' }).first()
+  const disruptionRow = page.getByTestId('disruption-row').filter({ hasNotText: /(?<!\d)0 etkilenen ziyaret/ }).first()
   await expect(disruptionRow).toBeVisible({ timeout: 15_000 })
   await disruptionRow.click()
 

@@ -503,6 +503,35 @@
   gap: 8px;
 }
 
+.toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tx);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  z-index: 60;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.toast button {
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  color: #fff;
+  font-size: 12px;
+}
+.toast button:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.toast button.act {
+  background: var(--blue);
+}
+
 .pub-errbox {
   background: var(--red-l);
   border: 1px solid var(--red);

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as planner from '../../api/planner'
+import { toast } from '../state/toastStore'
 import type { components } from '../../api/generated/schema'
 
 type BulkAddStopsRequest = components['schemas']['BulkAddStopsRequest']
@@ -16,11 +17,17 @@ function invalidateRoute(queryClient: ReturnType<typeof useQueryClient>, routeId
   void queryClient.invalidateQueries({ queryKey: ['stores-geo', province] })
 }
 
+const GENERIC_ERROR = 'Bir şeyler ters gitti — tekrar deneyin.'
+
 export function useBulkAddStops(routeId: string, province: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: BulkAddStopsRequest) => planner.bulkAddStops(routeId, body),
-    onSuccess: () => invalidateRoute(queryClient, routeId, province),
+    onSuccess: (result) => {
+      invalidateRoute(queryClient, routeId, province)
+      toast(`${result.added?.length ?? 0} mağaza rotaya eklendi${result.rejected?.length ? ` — ${result.rejected.length} reddedildi` : ''}`)
+    },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -29,7 +36,11 @@ export function useUpdateStop(routeId: string, province: string) {
   return useMutation({
     mutationFn: ({ stopId, body }: { stopId: string; body: UpdateStopRequest }) =>
       planner.updateStop(routeId, stopId, body),
-    onSuccess: () => invalidateRoute(queryClient, routeId, province),
+    onSuccess: () => {
+      invalidateRoute(queryClient, routeId, province)
+      toast('Durak güncellendi')
+    },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -37,7 +48,11 @@ export function useReorderStops(routeId: string, province: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (stopIds: string[]) => planner.reorderStops(routeId, stopIds),
-    onSuccess: () => invalidateRoute(queryClient, routeId, province),
+    onSuccess: () => {
+      invalidateRoute(queryClient, routeId, province)
+      toast('Ziyaret sırası güncellendi — takvim saatleri yeniden dizildi')
+    },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -48,7 +63,9 @@ export function useMoveStop(sourceRouteId: string, province: string, targetRoute
     onSuccess: () => {
       invalidateRoute(queryClient, sourceRouteId, province)
       invalidateRoute(queryClient, targetRouteId, province)
+      toast('Mağaza taşındı')
     },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -75,7 +92,9 @@ export function useMoveStoreToRoute(targetRouteId: string, province: string) {
     onSuccess: ({ sourceRouteId }) => {
       invalidateRoute(queryClient, sourceRouteId, province)
       invalidateRoute(queryClient, targetRouteId, province)
+      toast('Mağaza taşındı')
     },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -83,7 +102,11 @@ export function useCreatePatch(routeId: string, province: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: CreatePatchRequest) => planner.createPatch(routeId, body),
-    onSuccess: () => invalidateRoute(queryClient, routeId, province),
+    onSuccess: () => {
+      invalidateRoute(queryClient, routeId, province)
+      toast('Yama uygulandı')
+    },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -92,6 +115,7 @@ export function usePublish(routeId: string, province: string) {
   return useMutation({
     mutationFn: (body: PublishRequest) => planner.publishRoute(routeId, body),
     onSuccess: () => invalidateRoute(queryClient, routeId, province),
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -105,7 +129,9 @@ export function useUpdateTaskInstanceScope(routeId: string, province: string, st
     onSuccess: () => {
       invalidateRoute(queryClient, routeId, province)
       void queryClient.invalidateQueries({ queryKey: ['store-task-plan', storeId, date] })
+      toast('Görev süresi güncellendi')
     },
+    onError: () => toast(GENERIC_ERROR),
   })
 }
 
@@ -116,5 +142,6 @@ export function useUpdateNoteStatus() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['notes'] })
     },
+    onError: () => toast(GENERIC_ERROR),
   })
 }

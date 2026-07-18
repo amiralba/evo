@@ -10,6 +10,7 @@ import { SchedulePane } from './components/schedule/SchedulePane'
 import { RouteDetailPanel } from './components/panel/RouteDetailPanel'
 import { SelectionListPane } from './components/editing/SelectionListPane'
 import { SelectionBar } from './components/editing/SelectionBar'
+import { Toast } from './components/Toast'
 import './planner.css'
 
 export function PlannerPage() {
@@ -56,6 +57,7 @@ export function PlannerPage() {
         </div>
       </div>
       <SelectionBar />
+      <Toast />
     </div>
   )
 }
