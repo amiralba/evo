@@ -1,0 +1,47 @@
+.analytics-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.analytics-page h1 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.analytics-page h2 {
+  font-size: 14px;
+  margin: 24px 0 8px;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.analytics-table th,
+.analytics-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border, #e3e1d9);
+  white-space: nowrap;
+}
+
+.analytics-table th {
+  font-weight: 600;
+  color: var(--text2, #6b6a64);
+  font-size: 11px;
+}
+
+.analytics-table tr.outlier-row {
+  background: var(--amber-l, #faeeda);
+}
+
+.band-pill {
+  font-size: 10px;
+  border-radius: 8px;
+  padding: 1px 7px;
+  font-weight: 600;
+  color: #fff;
+}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { useWorkspaceStore, type WorkspaceLayout } from '../state/workspaceStore'
 import { useRoutes, useNotes } from '../api/queries'
 import { NotesInbox } from './inbox/NotesInbox'
@@ -60,6 +61,10 @@ export function TopFilterBar() {
       </div>
 
       <div className="spacer" />
+
+      <Link to="/analytics" data-testid="analytics-link">
+        {t('analytics.navLabel', 'Analitik')}
+      </Link>
 
       <button type="button" data-testid="inbox-trigger" onClick={() => setShowInbox(true)}>
         {t('planner.notesInbox', 'Gelen Kutusu')}

@@ -8,6 +8,7 @@ import { HistoryTab } from './HistoryTab'
 import { TasksTab } from './TasksTab'
 import { PatchForm } from '../editing/PatchForm'
 import { PublishModal } from '../publish/PublishModal'
+import { EvidenceStrip } from './EvidenceStrip'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
 
@@ -88,6 +89,8 @@ export function RouteDetailPanel() {
             {showPatchForm && (
               <PatchForm routeId={focusedRouteId} stops={route.stops ?? []} onClose={() => setShowPatchForm(false)} />
             )}
+
+            <EvidenceStrip routeId={focusedRouteId} />
           </>
         )}
 

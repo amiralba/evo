@@ -340,19 +340,19 @@
 - Files: `panel/src/analytics/AnalyticsPage.tsx` (new); `panel/src/App.tsx` (add `/analytics` route, ProtectedRoute); add a nav link (topbar/gear per design §6.0)
 - Do: region picker + `PlanHealthTable` + `MobilityTable` + a few summary metric cards. Turkish strings via react-i18next (`panel/src/i18n`).
 - Verify: `cd panel && npm run build` succeeds; manual: `/analytics` loads and lists routes + mobility for a region.
-- Status: [ ]
+- Status: [x]
 
 ### Task 54: Evidence strip in the Bilgi tab
 - Files: `panel/src/planner/components/panel/RouteDetailPanel.tsx` (Bilgi tab) or a new `EvidenceStrip.tsx` in the same folder; query hook `useRouteEvidence(routeId, weeks)`
 - Do: render per-store planned/done/missed/skipped counts + variance for the focused route, with the explicit "Kanıt, nedensellik değil" (evidence, not causation) note. Small, read-only.
 - Verify: `cd panel && npm run build`; manual: opening a route's Bilgi tab shows the strip + disclaimer.
-- Status: [ ]
+- Status: [x]
 
 ### Task 55 [P]: i18n strings for analytics
 - Files: `panel/src/i18n/tr.json` (or wherever `tr` strings live — `grep -rn "tr.json\|resources" panel/src/i18n`)
 - Do: add Turkish labels for plan-health columns, utilization bands, and the evidence disclaimer.
 - Verify: no missing-key warnings when rendering `/analytics` and the Bilgi strip.
-- Status: [ ]
+- Status: [x]
 
 <!-- CHECKPOINT after Phase 4: build + Vitest green; commit; give the human a 1-min manual test script for /analytics + the Bilgi strip. -->
 

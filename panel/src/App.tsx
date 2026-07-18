@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { Dashboard } from './pages/Dashboard'
 import { Login } from './pages/Login'
 import { PlannerPage } from './planner/PlannerPage'
+import { AnalyticsPage } from './analytics/AnalyticsPage'
 import './App.css'
 
 function App() {
@@ -25,6 +26,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <PlannerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
               </ProtectedRoute>
             }
           />
