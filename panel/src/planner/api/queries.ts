@@ -63,6 +63,14 @@ export function useDecisionJournal(enabled: boolean) {
   })
 }
 
+export function useMerchandisers(enabled: boolean) {
+  return useQuery({
+    queryKey: ['merchandisers'],
+    queryFn: () => planner.getMerchandisers(),
+    enabled,
+  })
+}
+
 export function useStoreDetail(storeId: string | null) {
   return useQuery({
     queryKey: ['store-detail', storeId],

@@ -36,6 +36,35 @@ public class MerchandisersController : ControllerBase
         return Guid.TryParse(idClaim, out var currentUserId) && merchandiserUserId == currentUserId;
     }
 
+    /// <summary>List merchandisers for the "Kişi değiştir" reassign picker (gap-matrix §3 — backend
+    /// assignment API already existed, spec 005, there was simply no listing to pick FROM). Supervisor
+    /// only; additive/read-only, no schema change.</summary>
+    [HttpGet]
+    [Authorize(Roles = Roles.Supervisor)]
+    public async Task<ActionResult<IReadOnlyList<MerchandiserSummaryDto>>> List([FromQuery] bool activeOnly = true)
+    {
+        var query = _db.Merchandisers.AsQueryable();
+        if (activeOnly)
+        {
+            query = query.Where(m => m.Active);
+        }
+
+        var merchandisers = await query.ToListAsync();
+        var userIds = merchandisers.Select(m => m.UserId).ToList();
+        var names = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DisplayName);
+
+        var merchandiserIds = merchandisers.Select(m => m.Id).ToList();
+        var activeRoutes = await _db.Assignments
+            .Where(a => a.EndDate == null && merchandiserIds.Contains(a.MerchandiserId))
+            .Join(_db.Routes, a => a.RouteId, r => r.Id, (a, r) => new { a.MerchandiserId, r.RouteCode })
+            .ToDictionaryAsync(x => x.MerchandiserId, x => x.RouteCode);
+
+        return merchandisers
+            .Select(m => new MerchandiserSummaryDto(m.Id, names.GetValueOrDefault(m.UserId, "?"), m.Active, activeRoutes.GetValueOrDefault(m.Id)))
+            .OrderBy(m => m.Name)
+            .ToList();
+    }
+
     [HttpGet("{id:guid}/day")]
     public async Task<ActionResult<IReadOnlyList<PlannedVisitDto>>> GetDay(Guid id, [FromQuery] DateOnly date)
     {

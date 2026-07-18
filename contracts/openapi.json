@@ -445,6 +445,54 @@
         }
       }
     },
+    "/api/v1/merchandisers": {
+      "get": {
+        "tags": [
+          "Merchandisers"
+        ],
+        "parameters": [
+          {
+            "name": "activeOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchandiserSummaryDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchandiserSummaryDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchandiserSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/merchandisers/{id}/day": {
       "get": {
         "tags": [
@@ -3449,6 +3497,27 @@
           },
           "outlier": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MerchandiserSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "activeRouteCode": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

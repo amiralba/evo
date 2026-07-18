@@ -135,6 +135,18 @@ export function useUpdateTaskInstanceScope(routeId: string, province: string, st
   })
 }
 
+export function useReassignRoute(routeId: string, province: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: components['schemas']['ReassignRequest']) => planner.reassignRoute(routeId, body),
+    onSuccess: () => {
+      invalidateRoute(queryClient, routeId, province)
+      toast('Kişi değiştirildi')
+    },
+    onError: () => toast(GENERIC_ERROR),
+  })
+}
+
 export function useUpdateNoteStatus() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -10,6 +10,7 @@ import { PatchForm } from '../editing/PatchForm'
 import { PublishModal } from '../publish/PublishModal'
 import { EvidenceStrip } from './EvidenceStrip'
 import { StoreDetailPanel } from './StoreDetailPanel'
+import { ReassignPersonModal } from './ReassignPersonModal'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
 
@@ -22,6 +23,7 @@ export function RouteDetailPanel() {
   const { data: route, isLoading, isError } = useRoute(focusedRouteId)
   const [showPatchForm, setShowPatchForm] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
+  const [showReassign, setShowReassign] = useState(false)
   const [tab, setTab] = useState<PanelTab>('info')
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null)
 
@@ -66,7 +68,12 @@ export function RouteDetailPanel() {
           </button>
         </div>
         <div className="sub">{route.name}</div>
-        <div className="sub">{route.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}</div>
+        <div className="sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {route.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}
+          <button type="button" data-testid="reassign-trigger" onClick={() => setShowReassign(true)} style={{ fontSize: 10, padding: '1px 6px' }}>
+            {t('planner.reassignPerson', 'Kişi değiştir')}
+          </button>
+        </div>
       </div>
 
       <div className="panel-tabs">
@@ -132,6 +139,14 @@ export function RouteDetailPanel() {
 
       {showPublishModal && (
         <PublishModal routeId={focusedRouteId} onClose={() => setShowPublishModal(false)} />
+      )}
+      {showReassign && (
+        <ReassignPersonModal
+          routeId={focusedRouteId}
+          routeCode={route.routeCode ?? ''}
+          currentMerchandiserName={route.currentAssignment?.merchandiserName ?? null}
+          onClose={() => setShowReassign(false)}
+        />
       )}
     </>
   )

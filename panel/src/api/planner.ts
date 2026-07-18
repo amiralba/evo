@@ -18,6 +18,9 @@ type PublishRequest = components['schemas']['PublishRequest']
 type PublishResultDto = components['schemas']['PublishResultDto']
 type AuditLogEntryDtoPagedResult = components['schemas']['AuditLogEntryDtoPagedResult']
 type DecisionJournalEntryDtoPagedResult = components['schemas']['DecisionJournalEntryDtoPagedResult']
+type MerchandiserSummaryDto = components['schemas']['MerchandiserSummaryDto']
+type ReassignRequest = components['schemas']['ReassignRequest']
+type AssignmentDto = components['schemas']['AssignmentDto']
 type TaskPlanDto = components['schemas']['TaskPlanDto']
 type RuleImpactDto = components['schemas']['RuleImpactDto']
 type RuleScopeLevel = components['schemas']['RuleScopeLevel']
@@ -140,6 +143,20 @@ export async function getRouteAuditLog(): Promise<AuditLogEntryDtoPagedResult> {
 export async function getDecisionJournal(): Promise<DecisionJournalEntryDtoPagedResult> {
   const response = await authorizedFetch(`/api/v1/decision-journal?pageSize=200`)
   return json<DecisionJournalEntryDtoPagedResult>(response)
+}
+
+export async function getMerchandisers(): Promise<MerchandiserSummaryDto[]> {
+  const response = await authorizedFetch(`/api/v1/merchandisers`)
+  return json<MerchandiserSummaryDto[]>(response)
+}
+
+export async function reassignRoute(routeId: string, body: ReassignRequest): Promise<AssignmentDto> {
+  const response = await authorizedFetch(`/api/v1/routes/${routeId}/assignment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return json<AssignmentDto>(response)
 }
 
 export async function getStoreDetail(storeId: string): Promise<StoreDetailDto> {
