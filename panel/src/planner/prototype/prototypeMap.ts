@@ -44,6 +44,7 @@ type MapWindow = Window & {
   __evoState?: () => EvoState
   __evoRenderMap?: () => void
   __evoMap?: maplibregl.Map
+  __evoFocusStore?: (storeId: string) => void
   toggleRouteFilter?: (routeId: string, additive: boolean) => void
 }
 
@@ -121,12 +122,30 @@ function apply(): void {
       '#378ADD',
     ])
     m.setPaintProperty('stores-circles', 'circle-stroke-color', '#ffffff')
+    m.setPaintProperty('stores-circles', 'circle-stroke-width', 2)
+    // Bigger pins so they're actually clickable (the 5px default is a hard target); the focused
+    // route's stops are emphasised larger still.
+    m.setPaintProperty(
+      'stores-circles',
+      'circle-radius',
+      fr ? ['case', ['==', ['get', 'activeRouteId'], fr], 9, 7] : 7,
+    )
   }
 
   if (!wired && m.getLayer('stores-circles')) {
     wired = true
+    // Pin click -> focus that store in the detail panel (matches "click a store" intent).
     m.on('click', 'stores-circles', (e) => {
-      const rid = e.features?.[0]?.properties?.activeRouteId as string | undefined
+      const id = e.features?.[0]?.properties?.id as string | undefined
+      if (id) (window as MapWindow).__evoFocusStore?.(id)
+    })
+    // Route-line click -> filter the workspace to that route.
+    m.on('click', 'route-sequence-line', () => {
+      const s = state()
+      const fr = s ? focusedRouteId(s) : null
+      // the line only exists for the focused route; clicking it toggles the filter off/on
+      const anyRoute = s?.stores.find((x) => x.activeRouteId)?.activeRouteId
+      const rid = fr ?? anyRoute
       if (rid) (window as MapWindow).toggleRouteFilter?.(rid, false)
     })
     m.on('mouseenter', 'stores-circles', () => {

@@ -53,12 +53,24 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   if (typeof win.__evoLoadData !== 'function') return
 
   const week = planningWeek()
-  const [routesRes, merchandisers, geo] = await Promise.all([
+  const [routesRes, merchandisers, geo, notesRaw] = await Promise.all([
     planner.listRoutes(province),
     planner.getMerchandisers(),
     planner.getStoresGeo(province),
+    planner.getNotes({}).catch(() => []),
   ])
   const routeItems = routesRes.items ?? []
+
+  // Real field notes for the inbox (💬 Saha), mapped to the prototype's inbox-item shape.
+  // NoteStatus 3 = resolved -> done; NoteKind 1 = request, 2 = note.
+  const notes = notesRaw.map((n) => ({
+    id: n.id,
+    type: n.kind === 1 ? '📋 Talep' : '💬 Not',
+    who: n.authorName ?? 'Saha temsilcisi',
+    txt: n.body ?? '',
+    status: n.status === 3 ? 'done' : 'open',
+    anchor: n.anchorId ?? null,
+  }))
 
   const personByRouteCode = new Map(merchandisers.filter((m) => m.activeRouteCode).map((m) => [m.activeRouteCode, m.id]))
 
@@ -156,6 +168,7 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
     routes,
     stores,
     visits,
+    notes,
     weekFrom: week.from,
     weekTo: week.to,
     weekLabel: `${week.from.slice(5).replace('-', '/')} – ${week.to.slice(5).replace('-', '/')}`,

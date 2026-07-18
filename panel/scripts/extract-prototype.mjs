@@ -93,6 +93,14 @@ window.__evoLoadData = function (d) {
       weekFrom: d.weekFrom || null,
       weekTo: d.weekTo || null,
     };
+    // Clear the prototype's remaining mock seed data — there is no fake task/rule/inbox data left;
+    // the app shows only what the backend provides. (taskTemplates/typeRules have no list endpoint
+    // yet, so they go empty; inbox comes from d.notes = GET /notes.)
+    taskTemplates = [];
+    typeRules = {};
+    inboxData = Array.isArray(d.notes) ? d.notes : [];
+    var ic = document.getElementById('inboxCount');
+    if (ic) ic.textContent = String(inboxData.filter(function (x) { return x.status === 'open'; }).length);
     // Reset transient UI/edit state so a data (re)load starts clean.
     filter = null; focus = null; selection = new Set(); changes = []; expandedRoutes = new Set();
     if (typeof d.weekLabel === 'string') { window.__evoWeekLabelText = d.weekLabel; }
@@ -104,6 +112,17 @@ window.__evoLoadData = function (d) {
 // let-bindings for visits/stores/routes are captured, not stale copies).
 window.__evoState = function () {
   return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek, filter: filter, focus: focus, selection: selection };
+};
+
+// Focus a store in the detail panel (used by the MapLibre pin click — the prototype's own
+// SVG showPopover doesn't apply once the real map replaces the SVG).
+window.__evoFocusStore = function (id) {
+  try {
+    if (typeof store === 'function' && !store(id)) return;
+    focus = { type: 'store', id: id };
+    panelTab = 'info';
+    if (typeof renderAll === 'function') renderAll();
+  } catch (e) { console.error('[evo] focusStore', e); }
 };
 
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }
