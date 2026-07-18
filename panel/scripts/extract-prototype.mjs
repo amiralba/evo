@@ -25,7 +25,25 @@ const slice = (a, b) => lines.slice(a - 1, b).join('\n')
 
 let css = slice(68, 297)
 const body = slice(301, 436)
-const script = slice(438, 3593)
+let script = slice(438, 3593)
+
+// --- Backend publish hook (M3) ---
+// The prototype's confirmPub commits by clearing changes[] locally; splice in a call to the
+// React publishBridge (window.__evoPublish) FIRST, so Yayınla flushes the buffered edits to the
+// backend before the local buffer is cleared. Reproducible string-replace on the verbatim slice.
+// Keep the real (backend) week label across re-renders — renderHeader() otherwise recomputes it
+// from the prototype's fixed July-2026 calendar every paint, reverting our injected label.
+const WEEKLABEL_ANCHOR = 'function weekLabel(w){'
+if (!script.includes(WEEKLABEL_ANCHOR)) throw new Error('weekLabel anchor not found — prototype changed?')
+script = script.replace(WEEKLABEL_ANCHOR, WEEKLABEL_ANCHOR + 'if(window.__evoWeekLabelText)return window.__evoWeekLabelText;')
+
+const PUBLISH_ANCHOR = 'changes=[];bg.remove();renderAll();'
+if (!script.includes(PUBLISH_ANCHOR)) throw new Error('publish anchor not found — prototype changed?')
+script = script.replace(
+  PUBLISH_ANCHOR,
+  "if(window.__evoPublish){try{window.__evoPublish({reason:errs.length?ra.value.trim():null,objective:$('#pubObjective').value});}catch(e){console.error('[evo] publish',e);}}" +
+    PUBLISH_ANCHOR,
+)
 
 // The prototype lays out on body{...}; we mount into a .evo-proto-root container inside the
 // React tree, so retarget that one rule and pin it to the viewport. Everything else verbatim.
@@ -55,11 +73,24 @@ window.__evoLoadData = function (d) {
       weekData = {}; weekData[currentWeek] = visits;
     }
     if (typeof d.quota === 'number') QUOTA = d.quota;
+    // Snapshot the loaded plan so the publish bridge can diff current-vs-loaded and emit the
+    // matching backend mutations on Yayınla (resize -> UpdateStop, move -> Patch).
+    window.__evoSnapshot = {
+      visits: JSON.parse(JSON.stringify(d.visits || [])),
+      weekFrom: d.weekFrom || null,
+      weekTo: d.weekTo || null,
+    };
     // Reset transient UI/edit state so a data (re)load starts clean.
     filter = null; focus = null; selection = new Set(); changes = []; expandedRoutes = new Set();
+    if (typeof d.weekLabel === 'string') { window.__evoWeekLabelText = d.weekLabel; }
     if (typeof renderAll === 'function') renderAll();
-    if (typeof d.weekLabel === 'string') { var wl = document.getElementById('wkLabel'); if (wl) wl.textContent = d.weekLabel; }
   } catch (e) { console.error('[evo] __evoLoadData', e); }
+};
+
+// Read-only view of engine state for the publish bridge (runs in engine scope, so the live
+// let-bindings for visits/stores/routes are captured, not stale copies).
+window.__evoState = function () {
+  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek };
 };
 
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }

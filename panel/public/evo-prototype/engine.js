@@ -98,7 +98,7 @@ function setWeek(w){
   renderAll();
   if(isRO())toast('Geçmiş hafta — salt okunur (plan vs gerçekleşen burada raporlanır)',[]);
 }
-function weekLabel(w){
+function weekLabel(w){if(window.__evoWeekLabelText)return window.__evoWeekLabelText;
   const mon=new Date(2026,6,6+(w-28)*7),fri=new Date(mon);fri.setDate(mon.getDate()+4);
   const ay=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   return `Hafta ${w} · ${mon.getDate()}–${fri.getDate()} ${ay[fri.getMonth()]}`;
@@ -2007,7 +2007,7 @@ $('#publishBtn').onclick=()=>{
       objective:$('#pubObjective').value,
       reason:errs.length?ra.value.trim():null,
       errors:errs.map(e=>e.msg)});
-    changes=[];bg.remove();renderAll();
+    if(window.__evoPublish){try{window.__evoPublish({reason:errs.length?ra.value.trim():null,objective:$('#pubObjective').value});}catch(e){console.error('[evo] publish',e);}}changes=[];bg.remove();renderAll();
     toast(`Yayınlandı ✓ ${affected.size?[...affected].join(', ')+' bilgilendirildi (toplu bildirim)':''}${errs.length?' · gerekçe günlüğe yazıldı':''}`,[]);
   };
 };
@@ -3174,11 +3174,24 @@ window.__evoLoadData = function (d) {
       weekData = {}; weekData[currentWeek] = visits;
     }
     if (typeof d.quota === 'number') QUOTA = d.quota;
+    // Snapshot the loaded plan so the publish bridge can diff current-vs-loaded and emit the
+    // matching backend mutations on Yayınla (resize -> UpdateStop, move -> Patch).
+    window.__evoSnapshot = {
+      visits: JSON.parse(JSON.stringify(d.visits || [])),
+      weekFrom: d.weekFrom || null,
+      weekTo: d.weekTo || null,
+    };
     // Reset transient UI/edit state so a data (re)load starts clean.
     filter = null; focus = null; selection = new Set(); changes = []; expandedRoutes = new Set();
+    if (typeof d.weekLabel === 'string') { window.__evoWeekLabelText = d.weekLabel; }
     if (typeof renderAll === 'function') renderAll();
-    if (typeof d.weekLabel === 'string') { var wl = document.getElementById('wkLabel'); if (wl) wl.textContent = d.weekLabel; }
   } catch (e) { console.error('[evo] __evoLoadData', e); }
+};
+
+// Read-only view of engine state for the publish bridge (runs in engine scope, so the live
+// let-bindings for visits/stores/routes are captured, not stale copies).
+window.__evoState = function () {
+  return { visits: visits, baseVisits: baseVisits, stores: stores, routes: routes, people: people, currentWeek: currentWeek };
 };
 
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { loadBackendIntoPrototype } from './backendBridge'
+import { installPublishBridge } from './publishBridge'
 
 /**
  * Hosts the v0.5 planner prototype VERBATIM inside the React panel.
@@ -69,6 +70,7 @@ export function PrototypeHost() {
     const host = hostRef.current
     if (!host) return
     ensureCss()
+    installPublishBridge()
     void ensureBooted(host).then(() => {
       // Replace the prototype's mock seeds with live backend data once the engine is up.
       void loadBackendIntoPrototype('Ankara').catch((e) => console.error('[evo] backend load', e))

@@ -142,11 +142,16 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
     }
   }
 
+  // Remember what the publish bridge needs: which province/week to re-load and diff against.
+  ;(win as unknown as { __evoProvince?: string }).__evoProvince = province
+
   win.__evoLoadData({
     people,
     routes,
     stores,
     visits,
+    weekFrom: week.from,
+    weekTo: week.to,
     weekLabel: `${week.from.slice(5).replace('-', '/')} – ${week.to.slice(5).replace('-', '/')}`,
   })
 }
