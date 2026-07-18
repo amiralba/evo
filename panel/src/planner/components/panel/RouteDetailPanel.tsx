@@ -9,6 +9,7 @@ import { TasksTab } from './TasksTab'
 import { PatchForm } from '../editing/PatchForm'
 import { PublishModal } from '../publish/PublishModal'
 import { EvidenceStrip } from './EvidenceStrip'
+import { StoreDetailPanel } from './StoreDetailPanel'
 
 const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
 
@@ -17,11 +18,16 @@ type PanelTab = 'info' | 'tasks' | 'history'
 export function RouteDetailPanel() {
   const { t } = useTranslation()
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
+  const focusedStoreId = useWorkspaceStore((s) => s.focusedStoreId)
   const { data: route, isLoading, isError } = useRoute(focusedRouteId)
   const [showPatchForm, setShowPatchForm] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [tab, setTab] = useState<PanelTab>('info')
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null)
+
+  if (focusedStoreId) {
+    return <StoreDetailPanel storeId={focusedStoreId} />
+  }
 
   if (!focusedRouteId) {
     return (

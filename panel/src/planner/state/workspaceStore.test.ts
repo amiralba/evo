@@ -6,6 +6,7 @@ describe('workspaceStore', () => {
     useWorkspaceStore.setState({
       province: 'Adana',
       focusedRouteId: null,
+      focusedStoreId: null,
       selection: new Set(),
       layout: 'split',
     })
@@ -20,6 +21,28 @@ describe('workspaceStore', () => {
     useWorkspaceStore.getState().focusRoute('route-1')
     useWorkspaceStore.getState().clearFocus()
     expect(useWorkspaceStore.getState().focusedRouteId).toBeNull()
+  })
+
+  it('focusRoute clears any store focus (prototype: focus is a single discriminated union)', () => {
+    useWorkspaceStore.getState().focusStore('store-1')
+    useWorkspaceStore.getState().focusRoute('route-1')
+    expect(useWorkspaceStore.getState().focusedRouteId).toBe('route-1')
+    expect(useWorkspaceStore.getState().focusedStoreId).toBeNull()
+  })
+
+  it('focusStore sets focusedStoreId WITHOUT clearing focusedRouteId — the schedule pane must stay put', () => {
+    useWorkspaceStore.getState().focusRoute('route-1')
+    useWorkspaceStore.getState().focusStore('store-1')
+    expect(useWorkspaceStore.getState().focusedRouteId).toBe('route-1')
+    expect(useWorkspaceStore.getState().focusedStoreId).toBe('store-1')
+  })
+
+  it('clearFocus nulls both focusedRouteId and focusedStoreId', () => {
+    useWorkspaceStore.getState().focusRoute('route-1')
+    useWorkspaceStore.getState().focusStore('store-1')
+    useWorkspaceStore.getState().clearFocus()
+    expect(useWorkspaceStore.getState().focusedRouteId).toBeNull()
+    expect(useWorkspaceStore.getState().focusedStoreId).toBeNull()
   })
 
   it('toggleSelect adds then removes an id', () => {

@@ -21,6 +21,7 @@ export function TopFilterBar() {
   const setProvince = useWorkspaceStore((s) => s.setProvince)
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
   const focusRoute = useWorkspaceStore((s) => s.focusRoute)
+  const clearFocus = useWorkspaceStore((s) => s.clearFocus)
   const layout = useWorkspaceStore((s) => s.layout)
   const setLayout = useWorkspaceStore((s) => s.setLayout)
   const { data: routesPage } = useRoutes(province)
@@ -64,6 +65,15 @@ export function TopFilterBar() {
           </button>
         ))}
       </div>
+
+      {focusedRouteId && (
+        <span className="chip">
+          ◉ {routesPage?.items?.find((r) => r.id === focusedRouteId)?.routeCode} · {t('planner.filter', 'filtre')}{' '}
+          <span className="x" style={{ cursor: 'pointer' }} onClick={clearFocus}>
+            ✕
+          </span>
+        </span>
+      )}
 
       <div className="spacer" />
 

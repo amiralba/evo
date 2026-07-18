@@ -42,13 +42,22 @@ test('planner core flow: login -> open workspace -> filter -> bulk-add -> health
   const modal = page.getByText('Yayın öncesi inceleme')
   await expect(modal).toBeVisible()
 
+  // Findings load async — wait for the modal to settle (either the reason field or the
+  // no-findings message) before deciding which publish path this run takes.
+  const submitButton = page.getByTestId('publish-modal-submit')
   const reasonBox = page.getByLabel(/Neden/)
+  await expect(async () => {
+    const settled = (await reasonBox.isVisible().catch(() => false)) || !(await submitButton.isDisabled())
+    expect(settled).toBe(true)
+  }).toPass({ timeout: 15_000 })
+
   if (await reasonBox.isVisible().catch(() => false)) {
     await reasonBox.fill('E2E test override reason')
     await page.getByLabel(/Amaç/).fill('E2E test override objective')
   }
 
-  await page.getByTestId('publish-modal-submit').click()
+  await expect(submitButton).toBeEnabled({ timeout: 5_000 })
+  await submitButton.click()
   await expect(page.getByText(/Oluşturulan ziyaret sayısı/)).toBeVisible({ timeout: 15_000 })
 
   await page.screenshot({ path: 'e2e/artifacts/planner-core.png' })

@@ -11,10 +11,11 @@ interface StorePopoverProps {
   canAct: boolean
   onAddToRoute?: () => void
   onMoveHere?: () => void
+  onExpand: () => void
   onClose: () => void
 }
 
-export function StorePopover({ store, x, y, canAct, onAddToRoute, onMoveHere, onClose }: StorePopoverProps) {
+export function StorePopover({ store, x, y, canAct, onAddToRoute, onMoveHere, onExpand, onClose }: StorePopoverProps) {
   const { t } = useTranslation()
 
   return (
@@ -27,7 +28,9 @@ export function StorePopover({ store, x, y, canAct, onAddToRoute, onMoveHere, on
       >
         ×
       </button>
-      <div className="nm">{store.name}</div>
+      <div className="nm" style={{ cursor: 'pointer' }} onClick={onExpand} title={t('planner.expandToPanel', 'Panele genişlet')}>
+        {store.name}
+      </div>
       <div className="row">{store.chainName ?? '—'}</div>
       <div className="row">{formatTRY(store.sixMonthRevenue ?? 0)}</div>
       <div className="row">{store.activeRouteCode ?? t('planner.pool', 'Havuz')}</div>

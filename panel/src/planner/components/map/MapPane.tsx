@@ -22,6 +22,7 @@ export function MapPane() {
   const map = useMapLibre(containerRef)
   const province = useWorkspaceStore((s) => s.province)
   const focusedRouteId = useWorkspaceStore((s) => s.focusedRouteId)
+  const focusStore = useWorkspaceStore((s) => s.focusStore)
   const { data: stores } = useStoresGeo(province)
   const { data: focusedRoute } = useRoute(focusedRouteId)
   const [popover, setPopover] = useState<PopoverState | null>(null)
@@ -149,6 +150,10 @@ export function MapPane() {
                 }
               : undefined
           }
+          onExpand={() => {
+            if (popover.store.id) focusStore(popover.store.id)
+            setPopover(null)
+          }}
         />
         )}
       </div>

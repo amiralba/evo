@@ -22,6 +22,7 @@ interface RailStopRowProps {
 
 function RailStopRow({ stop, index, routeColor }: RailStopRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id ?? '' })
+  const focusStore = useWorkspaceStore((s) => s.focusStore)
 
   return (
     <div
@@ -57,7 +58,14 @@ function RailStopRow({ stop, index, routeColor }: RailStopRowProps) {
       >
         {index + 1}
       </span>
-      {stop.storeName}
+      <span
+        onClick={(e) => {
+          e.stopPropagation()
+          if (stop.storeId) focusStore(stop.storeId)
+        }}
+      >
+        {stop.storeName}
+      </span>
     </div>
   )
 }
