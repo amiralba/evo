@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
 import { useWorkspaceStore, type WorkspaceLayout } from '../state/workspaceStore'
 import { useRoutes, useNotes } from '../api/queries'
 import { NotesInbox } from './inbox/NotesInbox'
 import { DecisionJournalModal } from './DecisionJournalModal'
-import { useDisruptions } from '../../onarim/api/queries'
 import { OnarimWorkbench } from '../../onarim/OnarimWorkbench'
 import { formatWeekRange } from '../schedule/week'
 import { HelpModal } from './HelpModal'
+import { TopSearch } from './TopSearch'
+import { PublishModal } from './publish/PublishModal'
 
 const PROVINCES = ['Adana', 'Ankara', 'İstanbul', 'İzmir', 'Bursa']
 const LAYOUTS: { key: WorkspaceLayout; label: string }[] = [
@@ -33,11 +33,10 @@ export function TopFilterBar() {
   const { data: routesPage } = useRoutes(province)
   const { data: openNotes } = useNotes({ status: 1 })
   const [showInbox, setShowInbox] = useState(false)
-  const { data: disruptions } = useDisruptions()
-  const [showOnarim, setShowOnarim] = useState(false)
+  const [openDisruptionId, setOpenDisruptionId] = useState<string | null>(null)
   const [showJournal, setShowJournal] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const affectedVisitTotal = (disruptions ?? []).reduce((sum, d) => sum + (d.affectedVisitCount ?? 0), 0)
+  const [showPublish, setShowPublish] = useState(false)
 
   return (
     <div className="topbar">
@@ -95,16 +94,17 @@ export function TopFilterBar() {
 
       <div className="spacer" />
 
-      <Link to="/analytics" data-testid="analytics-link">
-        {t('analytics.navLabel', 'Analitik')}
-      </Link>
+      <TopSearch />
 
-      {affectedVisitTotal > 0 && (
-        <button type="button" data-testid="onarim-trigger" onClick={() => setShowOnarim(true)}>
-          ✨ {t('onarim.navLabel', 'Onarım')}
-          <span className="pill">{affectedVisitTotal}</span>
-        </button>
-      )}
+      <button
+        type="button"
+        className="primary"
+        data-testid="publish-trigger"
+        disabled={!focusedRouteId}
+        onClick={() => setShowPublish(true)}
+      >
+        {t('common.publish', 'Yayınla')}
+      </button>
 
       <button type="button" title={t('planner.helpTitle', 'Kullanım kılavuzu')} data-testid="help-trigger" style={{ fontWeight: 800 }} onClick={() => setShowHelp(true)}>
         ?
@@ -118,10 +118,13 @@ export function TopFilterBar() {
         🔔 {openNotes?.length ?? 0}
       </button>
 
-      <NotesInbox open={showInbox} onClose={() => setShowInbox(false)} />
-      {showOnarim && <OnarimWorkbench onClose={() => setShowOnarim(false)} />}
+      <NotesInbox open={showInbox} onClose={() => setShowInbox(false)} onOpenDisruption={(id) => setOpenDisruptionId(id)} />
+      {openDisruptionId && (
+        <OnarimWorkbench initialDisruptionId={openDisruptionId} onClose={() => setOpenDisruptionId(null)} />
+      )}
       {showJournal && <DecisionJournalModal onClose={() => setShowJournal(false)} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showPublish && focusedRouteId && <PublishModal routeId={focusedRouteId} onClose={() => setShowPublish(false)} />}
     </div>
   )
 }

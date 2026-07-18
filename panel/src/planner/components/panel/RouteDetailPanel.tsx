@@ -7,7 +7,6 @@ import { HealthCard } from './HealthCard'
 import { HistoryTab } from './HistoryTab'
 import { TasksTab } from './TasksTab'
 import { PatchForm } from '../editing/PatchForm'
-import { PublishModal } from '../publish/PublishModal'
 import { EvidenceStrip } from './EvidenceStrip'
 import { StoreDetailPanel } from './StoreDetailPanel'
 import { ReassignPersonModal } from './ReassignPersonModal'
@@ -22,7 +21,6 @@ export function RouteDetailPanel() {
   const focusedStoreId = useWorkspaceStore((s) => s.focusedStoreId)
   const { data: route, isLoading, isError } = useRoute(focusedRouteId)
   const [showPatchForm, setShowPatchForm] = useState(false)
-  const [showPublishModal, setShowPublishModal] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
   const [tab, setTab] = useState<PanelTab>('info')
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null)
@@ -57,15 +55,6 @@ export function RouteDetailPanel() {
         <div className="ttl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {route.routeCode}
           <span className="pill">{route.status !== undefined ? (STATUS_LABEL[route.status] ?? route.status) : '—'}</span>
-          <button
-            type="button"
-            className="primary"
-            data-testid="publish-trigger"
-            onClick={() => setShowPublishModal(true)}
-            style={{ marginLeft: 'auto' }}
-          >
-            {t('common.publish', 'Yayınla')}
-          </button>
         </div>
         <div className="sub">{route.name}</div>
         <div className="sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -137,9 +126,6 @@ export function RouteDetailPanel() {
         {tab === 'history' && <HistoryTab routeId={focusedRouteId} />}
       </div>
 
-      {showPublishModal && (
-        <PublishModal routeId={focusedRouteId} onClose={() => setShowPublishModal(false)} />
-      )}
       {showReassign && (
         <ReassignPersonModal
           routeId={focusedRouteId}

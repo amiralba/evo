@@ -70,9 +70,19 @@
   background: var(--card);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.topbar > * {
+  flex-shrink: 0;
+}
+.topbar > .spacer {
+  flex-shrink: 1;
 }
 .topbar .logo {
   font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 15px;
   margin-right: 6px;
 }
