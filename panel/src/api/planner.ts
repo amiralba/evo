@@ -125,6 +125,11 @@ export async function createPatch(id: string, body: CreatePatchRequest): Promise
   return json<PatchDto>(response)
 }
 
+export async function cancelPatch(id: string, patchId: string): Promise<PatchDto> {
+  const response = await authorizedFetch(`/api/v1/routes/${id}/patches/${patchId}/cancel`, { method: 'POST' })
+  return json<PatchDto>(response)
+}
+
 export async function publishRoute(id: string, body: PublishRequest): Promise<PublishResultDto> {
   const response = await authorizedFetch(`/api/v1/routes/${id}/publish`, {
     method: 'POST',

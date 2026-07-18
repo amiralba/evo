@@ -110,6 +110,18 @@ export function useCreatePatch(routeId: string, province: string) {
   })
 }
 
+export function useCancelPatch(routeId: string, province: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patchId: string) => planner.cancelPatch(routeId, patchId),
+    onSuccess: () => {
+      invalidateRoute(queryClient, routeId, province)
+      toast('Yama geri alındı')
+    },
+    onError: () => toast(GENERIC_ERROR),
+  })
+}
+
 export function usePublish(routeId: string, province: string) {
   const queryClient = useQueryClient()
   return useMutation({

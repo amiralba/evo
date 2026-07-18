@@ -6,6 +6,7 @@ using Evo.Api.Stores.Dtos;
 using Evo.Domain.Auth;
 using Evo.Domain.Scheduling;
 using Evo.Infrastructure;
+using Evo.Infrastructure.Routing;
 using Evo.Tests.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -146,6 +147,43 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
             new CreatePatchRequest(PatchType.MoveVisit, storeId, null, today, tomorrow, paramsJson, "test"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelPatch_PendingPatch_SetsStatusCancelled()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var client = await SupervisorClientAsync(suffix);
+        var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var createResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
+            new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, """{"startMinutes":600}""", "test"));
+        var created = await createResponse.Content.ReadFromJsonAsync<PatchDto>();
+
+        var cancelResponse = await client.PostAsync($"/api/v1/routes/{route.Id}/patches/{created!.Id}/cancel", content: null);
+        var cancelled = await cancelResponse.Content.ReadFromJsonAsync<PatchDto>();
+
+        Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
+        Assert.Equal(PatchStatus.Cancelled, cancelled!.Status);
+    }
+
+    [Fact]
+    public async Task CancelPatch_AlreadyCancelled_Returns422()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var client = await SupervisorClientAsync(suffix);
+        var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var createResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
+            new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, """{"startMinutes":600}""", "test"));
+        var created = await createResponse.Content.ReadFromJsonAsync<PatchDto>();
+        await client.PostAsync($"/api/v1/routes/{route.Id}/patches/{created!.Id}/cancel", content: null);
+
+        var secondCancel = await client.PostAsync($"/api/v1/routes/{route.Id}/patches/{created.Id}/cancel", content: null);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, secondCancel.StatusCode);
     }
 
     [Fact]

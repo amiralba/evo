@@ -10,11 +10,16 @@ export interface ReflowResult {
   endMin: number
 }
 
-/** Client mirror of the backend's DayScheduler.ScheduleDay: places the changed visit at
- * max(newStartMin, previous visit's end), then packs every later visit sequentially, pushing
- * each past any statutory break it would otherwise overlap. Used for the live rubber-band
- * reflow preview while dragging/resizing — the server-side regeneration on drop is the actual
- * source of truth (this only has to be visually close during the drag). */
+/** Client mirror of the prototype's reflow(pid,day) (evo-planner-prototype-v0.5.html:569-576):
+ * each visit keeps ITS OWN start time unless it would overlap the one before it, in which case
+ * it's pushed just past that visit's end — never force-packed back-to-back. Used for the live
+ * rubber-band reflow preview while dragging/resizing — the server-side regeneration on drop is
+ * the actual source of truth (this only has to be visually close during the drag).
+ *
+ * A previous version always set `start = cursor` for every visit at/after changedIndex, which
+ * collapsed every later visit's gap to zero — moving or resizing ONE visit made every visit
+ * after it visually jump to a new, tightly-packed position even though nothing about them had
+ * actually changed. */
 export function reflowDay(
   visits: ReflowInputVisit[],
   changedIndex: number,
@@ -26,17 +31,13 @@ export function reflowDay(
   let cursor = 0
 
   for (let i = 0; i < visits.length; i++) {
-    if (i < changedIndex) {
-      // Untouched visits before the change keep their original position.
-      const { startMin, durationMin } = visits[i]
-      results.push({ startMin, endMin: startMin + durationMin })
-      cursor = startMin + durationMin
-      continue
-    }
-
     const isChanged = i === changedIndex
     const duration = isChanged ? newDurationMin : visits[i].durationMin
-    let start = isChanged ? Math.max(newStartMin, cursor) : cursor
+    const naturalStart = isChanged ? newStartMin : visits[i].startMin
+
+    // Visits before the changed one are never pushed by it. Visits at/after it keep their own
+    // start unless the changed visit's new end (or a prior push) now overlaps them.
+    let start = i < changedIndex ? naturalStart : Math.max(naturalStart, cursor)
     let end = start + duration
 
     for (const brk of breaks) {

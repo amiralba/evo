@@ -36,4 +36,33 @@ describe('reflowDay', () => {
 
     expect(result[1]).toEqual({ startMin: 10 * 60, endMin: 10 * 60 + 30 })
   })
+
+  it('visits with real gaps between them keep their own position when a different visit changes', () => {
+    // Regression test: an earlier version always packed every visit at/after the changed one
+    // back-to-back with zero gap, so moving/resizing ONE visit made every later visit jump to a
+    // new position even when nothing about them had changed and there was no actual overlap.
+    const visits = [
+      { startMin: 9 * 60, durationMin: 30 }, // 09:00-09:30
+      { startMin: 11 * 60, durationMin: 30 }, // 11:00-11:30 — big gap after visit 0
+      { startMin: 14 * 60, durationMin: 30 }, // 14:00-14:30 — big gap after visit 1
+    ]
+
+    const result = reflowDay(visits, 0, 9 * 60 + 15, 30, [])
+
+    expect(result[0]).toEqual({ startMin: 9 * 60 + 15, endMin: 9 * 60 + 45 })
+    expect(result[1]).toEqual({ startMin: 11 * 60, endMin: 11 * 60 + 30 })
+    expect(result[2]).toEqual({ startMin: 14 * 60, endMin: 14 * 60 + 30 })
+  })
+
+  it('a resize that grows into a later gapped visit pushes only that visit', () => {
+    const visits = [
+      { startMin: 9 * 60, durationMin: 30 }, // 09:00-09:30, resized to 09:00-10:15
+      { startMin: 11 * 60, durationMin: 30 }, // 11:00-11:30 — untouched, no overlap
+    ]
+
+    const result = reflowDay(visits, 0, 9 * 60, 75, [])
+
+    expect(result[0]).toEqual({ startMin: 9 * 60, endMin: 10 * 60 + 15 })
+    expect(result[1]).toEqual({ startMin: 11 * 60, endMin: 11 * 60 + 30 })
+  })
 })

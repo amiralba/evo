@@ -44,7 +44,6 @@ export function PlannerPage() {
             focusedRouteId ? (
               <SchedulePane
                 routeId={focusedRouteId}
-                stops={focusedRoute?.stops ?? []}
                 routeCode={focusedRoute?.routeCode ?? ''}
                 merchandiserName={focusedRoute?.currentAssignment?.merchandiserName ?? t('planner.unassigned', 'Atanmamış')}
               />

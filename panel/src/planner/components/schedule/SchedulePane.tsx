@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../../state/workspaceStore'
 import { usePlan } from '../../api/queries'
-import { useUpdateStop } from '../../api/mutations'
+import { useUpdateStop, useCreatePatch, useCancelPatch } from '../../api/mutations'
+import { toast } from '../../state/toastStore'
 import { currentWeek, weekdayDates } from '../../schedule/week'
 import { VisitBlock } from './VisitBlock'
 import { BREAK_BLOCKS } from '../../schedule/breaks'
@@ -12,11 +13,9 @@ import { reflowDay, type ReflowResult } from '../../schedule/reflow'
 import { decideDrop } from '../../schedule/dropDecision'
 import { spacing, radius, severityColors, colors } from '../../../theme/tokens'
 import { formatMinutes } from '../../format'
-import { PatchForm, type PatchFormPrefill } from '../editing/PatchForm'
 import type { components } from '../../../api/generated/schema'
 
 type PlanDayDto = components['schemas']['PlanDayDto']
-type RouteStopDto = components['schemas']['RouteStopDto']
 
 const GRID_HEIGHT = (DAY_END_MINUTES - DAY_START_MINUTES) * PX_PER_MINUTE
 const WEEKDAY_LABEL = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum']
@@ -84,12 +83,11 @@ interface DragState {
 
 interface SchedulePaneProps {
   routeId: string
-  stops: RouteStopDto[]
   routeCode: string
   merchandiserName: string
 }
 
-export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: SchedulePaneProps) {
+export function SchedulePane({ routeId, routeCode, merchandiserName }: SchedulePaneProps) {
   const { t } = useTranslation()
   const province = useWorkspaceStore((s) => s.province)
   const week = useWorkspaceStore((s) => s.week)
@@ -98,9 +96,10 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
   const focusStore = useWorkspaceStore((s) => s.focusStore)
   const { data: days, isLoading, isError } = usePlan(routeId, week.from, week.to)
   const updateStop = useUpdateStop(routeId, province)
+  const createPatch = useCreatePatch(routeId, province)
+  const cancelPatch = useCancelPatch(routeId, province)
 
   const [drag, setDrag] = useState<DragState | null>(null)
-  const [patchPrefill, setPatchPrefill] = useState<PatchFormPrefill | null>(null)
   const dayRefs = useRef<(HTMLDivElement | null)[]>([])
   const dragRef = useRef<DragState | null>(null)
 
@@ -198,17 +197,32 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
     const decision = decideDrop({
       kind: current.kind,
       storeId: visit.storeId,
+      storeName: visit.storeName,
       originalStartMin: visit.startMin,
       durationMin: visit.durationMin,
       deltaPx: current.currentY - current.pointerStartY,
       sourceDate,
       targetDate,
+      weekEndsOn: week.to,
     })
 
     if (decision.action === 'resize') {
       updateStop.mutate({ stopId: visit.routeStopId, body: decision.update })
     } else if (decision.action === 'patch') {
-      setPatchPrefill(decision.prefill)
+      // Drag applies immediately as a this-week-only patch (design §10: "Drag = patch-for-
+      // this-week by default") — matches the prototype's startMove()/startResizeTop(), which
+      // commit the change on drop and offer a toast to undo, rather than blocking on a modal
+      // asking the user to type an expiry date before anything visibly happens.
+      createPatch.mutate(decision.request, {
+        onSuccess: (created) => {
+          toast(`${decision.summary} — sadece ${week.from}–${week.to}`, [
+            {
+              label: t('common.undo', 'Geri al'),
+              onClick: () => created.id && cancelPatch.mutate(created.id),
+            },
+          ])
+        },
+      })
     }
   }
 
@@ -424,10 +438,6 @@ export function SchedulePane({ routeId, stops, routeCode, merchandiserName }: Sc
             })}
           </div>
         </div>
-      )}
-
-      {patchPrefill && (
-        <PatchForm routeId={routeId} stops={stops} prefill={patchPrefill} onClose={() => setPatchPrefill(null)} />
       )}
     </div>
   )

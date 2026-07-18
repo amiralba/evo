@@ -539,6 +539,29 @@ public class RoutesController : ControllerBase
         return new PatchDto(patch.Id, patch.Type, patch.StoreId, patch.StartsOn, patch.EndsOn, patch.Status);
     }
 
+    /// <summary>Cancels a Pending/Active patch early (the drag-and-drop "Geri al" undo — the schedule
+    /// pane applies a same-week patch immediately on drop, so undoing it means cancelling that patch
+    /// rather than deleting it: patches are never hard-deleted, only expire or get cancelled, same as
+    /// the existing PatchStatusAdvancer's Expired transition).</summary>
+    [HttpPost("{id:guid}/patches/{patchId:guid}/cancel")]
+    public async Task<ActionResult<PatchDto>> CancelPatch(Guid id, Guid patchId)
+    {
+        var patch = await _db.Patches.FirstOrDefaultAsync(p => p.Id == patchId && p.RouteId == id) ?? throw new NotFoundException("Patch");
+        if (patch.Status is not (PatchStatus.Pending or PatchStatus.Active))
+        {
+            throw new EvoValidationException(new Dictionary<string, string[]> { ["status"] = ["Only a pending or active patch can be cancelled."] });
+        }
+
+        patch.Status = PatchStatus.Cancelled;
+        await _changeLog.WriteAsync(id, RouteChangeEvent.Patched, null, new { patch.Id, patch.Type, Cancelled = true });
+        await _db.SaveChangesAsync();
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+
+        return new PatchDto(patch.Id, patch.Type, patch.StoreId, patch.StartsOn, patch.EndsOn, patch.Status);
+    }
+
     [HttpGet("{id:guid}/plan")]
     public async Task<ActionResult<IReadOnlyList<PlanDayDto>>> GetPlan(Guid id, [FromQuery] DateOnly from, [FromQuery] DateOnly to)
     {
