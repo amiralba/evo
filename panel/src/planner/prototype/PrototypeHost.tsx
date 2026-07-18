@@ -27,10 +27,21 @@ import { installMapBridge } from './prototypeMap'
 
 let protoRoot: HTMLDivElement | null = null
 let bootPromise: Promise<void> | null = null
+let revealed = false
+
+/** The engine paints its MOCK seed data the instant it boots, then the backend load replaces it —
+ * a visible flash on every refresh. So the prototype root starts hidden and is revealed only once
+ * the first backend load has finished (or failed); the host div shows a plain loading bg until then. */
+function reveal(): void {
+  revealed = true
+  if (protoRoot) protoRoot.style.opacity = '1'
+}
 
 async function bootOnce(host: HTMLElement): Promise<void> {
   const root = document.createElement('div')
   root.className = 'evo-proto-root'
+  root.style.opacity = revealed ? '1' : '0'
+  root.style.transition = 'opacity .18s ease'
   root.innerHTML = await fetch('/evo-prototype/body.html').then((r) => r.text())
   host.appendChild(root)
   protoRoot = root
@@ -73,11 +84,14 @@ export function PrototypeHost() {
     ensureCss()
     installPublishBridge()
     installMapBridge()
-    void ensureBooted(host).then(() => {
-      // Replace the prototype's mock seeds with live backend data once the engine is up.
-      installProvinceControl()
-      void loadBackendIntoPrototype('Ankara').catch((e) => console.error('[evo] backend load', e))
-    })
+    void ensureBooted(host)
+      .then(() => {
+        // Replace the prototype's mock seeds with live backend data once the engine is up.
+        installProvinceControl()
+        return loadBackendIntoPrototype('Ankara')
+      })
+      .catch((e) => console.error('[evo] backend load', e))
+      .finally(reveal) // reveal only after real data is in (or on failure, so we never hang hidden)
 
     return () => {
       // Detach the prototype node (keep the module-level reference so it re-attaches intact
@@ -87,5 +101,22 @@ export function PrototypeHost() {
     }
   }, [])
 
-  return <div ref={hostRef} style={{ position: 'fixed', inset: 0 }} />
+  return (
+    <div ref={hostRef} style={{ position: 'fixed', inset: 0, background: '#FAFAF7' }}>
+      {/* Sits behind the prototype root; shows only while it's hidden (during first load). */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#98968D',
+          font: "13px -apple-system,'Segoe UI',Roboto,sans-serif",
+        }}
+      >
+        Yükleniyor…
+      </div>
+    </div>
+  )
 }

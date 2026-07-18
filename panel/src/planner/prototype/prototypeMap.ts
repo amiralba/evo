@@ -109,6 +109,20 @@ function apply(): void {
   upsertStoreLayer(m, geo, fr)
   upsertRouteLine(m, routeCoords(s, fr))
 
+  // Match the prototype's category-COLORED pins (P teal / V amber / S gray) rather than the shared
+  // React layer's blue fill + category ring (whose P/V ring mapping is also swapped vs the design).
+  if (m.getLayer('stores-circles')) {
+    m.setPaintProperty('stores-circles', 'circle-color', [
+      'match',
+      ['coalesce', ['get', 'category'], 0],
+      1, '#1D9E75', // P — Potansiyel (teal)
+      2, '#EF9F27', // V — Değerli (amber)
+      3, '#B4B2A9', // S — Servis (gray)
+      '#378ADD',
+    ])
+    m.setPaintProperty('stores-circles', 'circle-stroke-color', '#ffffff')
+  }
+
   if (!wired && m.getLayer('stores-circles')) {
     wired = true
     m.on('click', 'stores-circles', (e) => {
