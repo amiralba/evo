@@ -1,6 +1,7 @@
 import * as planner from '../../api/planner'
 import { buildTimeShiftPatch, buildMoveVisitPatch, buildResizeUpdate } from '../schedule/patchPayload'
 import { loadBackendIntoPrototype } from './backendBridge'
+import type { components } from '../../api/generated/schema'
 
 /**
  * The backend write-path for the hosted prototype (M3). Draft-until-publish: the prototype
@@ -33,14 +34,22 @@ interface EvoState {
     code?: string | null
     name?: string | null
     target?: number | null
+    active?: boolean
     draft?: boolean
   }>
+}
+
+interface RouteMeta {
+  name?: string | null
+  target?: number | null
+  active?: boolean
 }
 
 interface EvoSnapshot {
   visits: ProtoVisit[]
   storeRoute: Record<string, string | null>
   routePerson: Record<string, string | null>
+  routeMeta: Record<string, RouteMeta>
   weekFrom: string | null
   weekTo: string | null
 }
@@ -137,14 +146,27 @@ async function flush(opts: PublishOpts): Promise<void> {
     if (r.person && prevP && r.person !== prevP) reassignOps.push({ routeId: r.id, merchandiserId: r.person })
   }
 
+  // Ad / Hedef (rename or revenue target) and Pasifleştir/Aktifleştir (status) — both via updateRoute.
+  const metaOps: Array<{ routeId: string; body: components['schemas']['UpdateRouteRequest'] }> = []
+  for (const r of state.routes) {
+    const prev = snap.routeMeta[r.id]
+    if (!prev) continue // new routes are handled by the create flow
+    const body: components['schemas']['UpdateRouteRequest'] = {}
+    if (r.name != null && r.name !== prev.name) body.name = r.name
+    if (r.target != null && r.target !== prev.target) body.revenueTarget = r.target * 1000
+    const nowActive = r.active !== false
+    if (nowActive !== prev.active) body.status = nowActive ? 2 : 3
+    if (Object.keys(body).length) metaOps.push({ routeId: r.id, body })
+  }
+
   const affected = new Set<string>([
     ...resizeOps.map((o) => o.routeId),
     ...patchOps.map((o) => o.routeId),
     ...addOps.map((o) => o.routeId),
     ...reassignOps.map((o) => o.routeId),
   ])
-  if (affected.size === 0 && newRoutes.length === 0) {
-    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi)')
+  if (affected.size === 0 && newRoutes.length === 0 && metaOps.length === 0) {
+    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi · ad/hedef · pasifleştir)')
     return
   }
 
@@ -178,12 +200,13 @@ async function flush(opts: PublishOpts): Promise<void> {
     await planner.bulkAddStops(op.routeId, { storeIds: [op.storeId], frequency: 2, weekdayMask: 0, serviceMinutes: null })
   for (const op of reassignOps)
     await planner.reassignRoute(op.routeId, { merchandiserId: op.merchandiserId, startDate: today, reason: 1 })
+  for (const op of metaOps) await planner.updateRoute(op.routeId, op.body)
   for (const routeId of new Set([...affected, ...createdRouteIds])) {
     await planner.publishRoute(routeId, { reason: opts.reason ?? null, objective: opts.objective ?? null })
   }
 
   engineToast(
-    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi`,
+    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi · ${metaOps.length} ad/hedef·durum`,
   )
   await loadBackendIntoPrototype(province)
 }

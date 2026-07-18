@@ -101,6 +101,7 @@ window.__evoLoadData = function (d) {
       visits: JSON.parse(JSON.stringify(d.visits || [])),
       storeRoute: (d.stores || []).reduce(function (m, s) { m[s.id] = s.route || null; return m; }, {}),
       routePerson: (d.routes || []).reduce(function (m, r) { m[r.id] = r.person || null; return m; }, {}),
+      routeMeta: (d.routes || []).reduce(function (m, r) { m[r.id] = { name: r.name, target: r.target, active: r.active !== false }; return m; }, {}),
       weekFrom: d.weekFrom || null,
       weekTo: d.weekTo || null,
     };
