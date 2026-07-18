@@ -181,3 +181,8 @@ function update(): void {
 export function installMapBridge(): void {
   ;(window as MapWindow).__evoRenderMap = update
 }
+
+/** Let the next apply() refit — used when the loaded store set changes (province switch). */
+export function resetMapFit(): void {
+  fitted = false
+}

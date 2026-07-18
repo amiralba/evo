@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { loadBackendIntoPrototype } from './backendBridge'
+import { loadBackendIntoPrototype, installProvinceControl } from './backendBridge'
 import { installPublishBridge } from './publishBridge'
 import { installMapBridge } from './prototypeMap'
 
@@ -75,6 +75,7 @@ export function PrototypeHost() {
     installMapBridge()
     void ensureBooted(host).then(() => {
       // Replace the prototype's mock seeds with live backend data once the engine is up.
+      installProvinceControl()
       void loadBackendIntoPrototype('Ankara').catch((e) => console.error('[evo] backend load', e))
     })
 

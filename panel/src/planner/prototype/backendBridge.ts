@@ -1,4 +1,5 @@
 import * as planner from '../../api/planner'
+import { resetMapFit } from './prototypeMap'
 
 /**
  * Fetches real backend data and pushes it into the hosted prototype via window.__evoLoadData
@@ -158,5 +159,22 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
     weekFrom: week.from,
     weekTo: week.to,
     weekLabel: `${week.from.slice(5).replace('-', '/')} – ${week.to.slice(5).replace('-', '/')}`,
+  })
+}
+
+const PROVINCES = ['Ankara', 'İstanbul', 'İzmir', 'Bursa', 'Adana']
+
+/** Wire the prototype's region button (a static mock) to cycle provinces and reload backend data,
+ * refitting the map to the new province's stores. */
+export function installProvinceControl(): void {
+  const btn = document.getElementById('evoRegionBtn')
+  if (!btn) return
+  let idx = 0
+  btn.addEventListener('click', () => {
+    idx = (idx + 1) % PROVINCES.length
+    const province = PROVINCES[idx]
+    btn.textContent = `${province} ▾`
+    resetMapFit()
+    void loadBackendIntoPrototype(province).catch((e) => console.error('[evo] province switch', e))
   })
 }

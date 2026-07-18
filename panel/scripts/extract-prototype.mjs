@@ -24,8 +24,11 @@ const lines = readFileSync(SRC, 'utf8').split('\n')
 const slice = (a, b) => lines.slice(a - 1, b).join('\n')
 
 let css = slice(68, 297)
-const body = slice(301, 436)
+let body = slice(301, 436)
 let script = slice(438, 3593)
+
+// Give the region button an id so the province control can wire it (it's a static mock otherwise).
+body = body.replace('<button>Ankara ▾</button>', '<button id="evoRegionBtn">Ankara ▾</button>')
 
 // --- Map delegation (M4) ---
 // Let the React MapLibre controller (window.__evoRenderMap) take over map rendering; the
