@@ -27,6 +27,9 @@ interface ProtoStore {
   lat?: number | null
   lng?: number | null
   catInt?: number | null
+  // `route` is the prototype's LIVE membership (assignStore updates it); activeRouteId is only the
+  // snapshot from backend load, so it goes stale for stores added/moved in-session. Use `route`.
+  route?: string | null
   activeRouteId?: string | null
 }
 interface ProtoVisit {
@@ -80,6 +83,11 @@ function focusedRouteId(s: EvoState): string | null {
   return null
 }
 
+/** Live route membership — the prototype updates `route`; activeRouteId is only the load snapshot. */
+function storeRoute(s: ProtoStore): string | null {
+  return s.route ?? s.activeRouteId ?? null
+}
+
 function toGeo(stores: ProtoStore[]): StoreGeoDto[] {
   return stores
     .filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
@@ -91,7 +99,7 @@ function toGeo(stores: ProtoStore[]): StoreGeoDto[] {
       category: (s.catInt ?? 1) as StoreGeoDto['category'],
       latitude: s.lat as number,
       longitude: s.lng as number,
-      activeRouteId: s.activeRouteId ?? null,
+      activeRouteId: storeRoute(s),
       activeRouteCode: null,
       sixMonthRevenue: (s.rev ?? 0) * 1000,
     }))
@@ -106,7 +114,7 @@ function orderedRouteStores(s: EvoState, routeId: string | null): ProtoStore[] {
     if (!earliest.has(v.storeId) || k < earliest.get(v.storeId)!) earliest.set(v.storeId, k)
   }
   return s.stores
-    .filter((x) => x.activeRouteId === routeId && typeof x.lng === 'number' && earliest.has(x.id))
+    .filter((x) => storeRoute(x) === routeId && typeof x.lng === 'number' && earliest.has(x.id))
     .sort((a, b) => earliest.get(a.id)! - earliest.get(b.id)!)
 }
 
