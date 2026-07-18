@@ -32,7 +32,8 @@ public static class PatchResolver
         IReadOnlyList<ProjectedVisit> baseline,
         IReadOnlyList<PatchInput> patches,
         DateOnly date,
-        IReadOnlyDictionary<Guid, StopMeta>? stopMetaByStoreId = null)
+        IReadOnlyDictionary<Guid, StopMeta>? stopMetaByStoreId = null,
+        Guid? currentRouteId = null)
     {
         stopMetaByStoreId ??= new Dictionary<Guid, StopMeta>();
         var applicable = patches.Where(p => p.StartsOn <= date && date <= p.EndsOn).ToList();
@@ -54,6 +55,21 @@ public static class PatchResolver
             if (PatchParams.TryParse<PatchParams.MoveVisitParams>(patch.ParamsJson, out var mp) && mp is not null && mp.FromDate == date)
             {
                 result.RemoveAll(v => v.StoreId == patch.StoreId);
+            }
+        }
+
+        if (currentRouteId is { } currentRoute)
+        {
+            foreach (var patch in applicable.Where(p => p.Type == PatchType.CrossReassignVisit))
+            {
+                if (!PatchParams.TryParse<PatchParams.CrossReassignVisitParams>(patch.ParamsJson, out var crp) || crp is null)
+                {
+                    continue;
+                }
+                if (crp.SourceRouteId == currentRoute)
+                {
+                    result.RemoveAll(v => v.StoreId == crp.StoreId);
+                }
             }
         }
 
@@ -110,6 +126,28 @@ public static class PatchResolver
                 Source: PlannedVisitSource.Patch,
                 PatchId: patch.Id,
                 PinnedStart: pinned));
+        }
+
+        if (currentRouteId is { } targetCandidateRoute)
+        {
+            foreach (var patch in applicable.Where(p => p.Type == PatchType.CrossReassignVisit))
+            {
+                if (!PatchParams.TryParse<PatchParams.CrossReassignVisitParams>(patch.ParamsJson, out var crp) || crp is null)
+                {
+                    continue;
+                }
+                if (crp.TargetRouteId == targetCandidateRoute)
+                {
+                    result.Add(new ProjectedVisit(
+                        RouteStopId: Guid.Empty,
+                        StoreId: crp.StoreId,
+                        Date: date,
+                        Minutes: crp.Minutes,
+                        MerchandiserId: crp.TargetMerchandiserId,
+                        Source: PlannedVisitSource.Patch,
+                        PatchId: patch.Id));
+                }
+            }
         }
 
         foreach (var patch in applicable.Where(p => p.Type == PatchType.ReassignTemp))

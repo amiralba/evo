@@ -61,7 +61,19 @@ public class PlanGenerationService : IPlanGenerationService
         var activePatches = await _db.Patches
             .Where(p => p.RouteId == routeId && p.Status != PatchStatus.Cancelled)
             .ToListAsync(ct);
-        var patchInputs = activePatches
+
+        // CrossReassignVisit patches are stored with RouteId = sourceRouteId only (design mirrors
+        // MoveVisit: one patch row, one expiry, one audit trail). When regenerating the TARGET route,
+        // those rows aren't found by the RouteId filter above, so pull all active CrossReassignVisit
+        // patches and keep the ones whose ParamsJson names this route as the target (spec 010 Task 34).
+        var crossReassignTargeting = await _db.Patches
+            .Where(p => p.Type == PatchType.CrossReassignVisit && p.Status != PatchStatus.Cancelled && p.RouteId != routeId)
+            .ToListAsync(ct);
+        var targetingThisRoute = crossReassignTargeting
+            .Where(p => PatchParams.TryParse<PatchParams.CrossReassignVisitParams>(p.ParamsJson, out var crp) && crp is not null && crp.TargetRouteId == routeId)
+            .ToList();
+
+        var patchInputs = activePatches.Concat(targetingThisRoute)
             .Select(p => new PatchInput(p.Id, p.Type, p.StoreId, p.CoverMerchandiserId, p.StartsOn, p.EndsOn, p.ParamsJson))
             .ToList();
 
@@ -113,7 +125,7 @@ public class PlanGenerationService : IPlanGenerationService
                     stop.Id, stop.StoreId, date, minutes, defaultMerchandiserId, PlannedVisitSource.Baseline, null));
             }
 
-            var resolved = PatchResolver.Apply(baselineForDate, patchInputs, date, stopMetaByStoreId);
+            var resolved = PatchResolver.Apply(baselineForDate, patchInputs, date, stopMetaByStoreId, currentRouteId: routeId);
             if (resolved.Count == 0)
             {
                 continue;

@@ -9,4 +9,10 @@ public enum PatchType : byte
     ReassignTemp = 4,
     TimeShift = 5,
     MoveVisit = 6,
+
+    /// <summary>Spec 010 (Onarım "reassign this one visit to a different person's route") —
+    /// structurally analogous to MoveVisit (paired skip-source/add-target off one patch row) but
+    /// crosses ROUTES on the same date instead of crossing DATES on the same route. See
+    /// PatchParams.CrossReassignVisitParams and PatchResolver's currentRouteId parameter.</summary>
+    CrossReassignVisit = 7,
 }

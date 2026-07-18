@@ -203,25 +203,26 @@
 - Files: `backend/src/Evo.Domain/Scheduling/PatchType.cs` (locate via `grep -rn "enum PatchType" backend/src`)
 - Do: add `CrossReassignVisit = 7` to the existing `PatchType` enum (current values: SkipStore/SkipDay/SkipRange/AddStore/ReassignTemp/TimeShift/MoveVisit — confirm exact numbering before adding, never renumber existing values). `params_json` shape: `{"sourceRouteId":"...","targetRouteId":"...","plannedVisitId":"...","targetMerchandiserId":"..."}`. Document alongside `MoveVisit`'s params shape (same file/region) since they're structurally analogous (one crosses dates, this one crosses routes).
 - Verify: `dotnet build backend/Evo.sln`; existing `PatchType` values unchanged (`grep -n "SkipStore = \|MoveVisit = " backend/src/Evo.Domain/Scheduling/PatchType.cs` shows unchanged numbers).
-- Status: [ ]
+- Status: [x]
 
 ### Task 32: PatchResolver — resolve CrossReassignVisit (paired skip-source/add-target across two routes)
 - Files: `backend/src/Evo.Infrastructure/Routing/PatchResolver.cs` (locate via `grep -rn "class PatchResolver" backend/src`)
 - Do: `PatchResolver.Apply` is invoked once per route per date (single-route, per-date signature — confirmed unchanged from spec 007). For `CrossReassignVisit`: when resolving the SOURCE route on the patch's active date, treat it as a SKIP effect for that one `plannedVisitId`'s store (remove it from that route's projected visits for the date). When resolving the TARGET route on the same date, treat it as an ADD effect — inject a `ProjectedVisit` for the source visit's store/minutes, assigned to `targetMerchandiserId`, sourced from the original `TaskInstance` set (reuse the same resolved-task lookup `MoveVisit`'s ADD path already does — `grep -n "case PatchType.MoveVisit" backend/src/Evo.Infrastructure/Routing/PatchResolver.cs` to find the precedent). Both halves read from the SAME patch row (one `Id`, one `EndsOn`, one audit trail) — the resolver just applies a different half depending on which route it's currently resolving, exactly like `MoveVisit` applies a different half depending on which DATE it's currently resolving.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 33 [P]: PatchResolver CrossReassignVisit unit tests
 - Files: `backend/tests/Evo.Tests/Routing/PatchResolverTests.cs` (existing file — `grep -rn "class PatchResolverTests" backend/tests`, add tests) or a new `CrossReassignVisitPatchTests.cs` if the existing file is large
 - Do: three cases — resolving the SOURCE route on the active date omits the reassigned visit; resolving the TARGET route on the active date includes it (correct store/minutes/merchandiser); resolving either route OUTSIDE the patch window (before start / after `EndsOn`) shows neither effect (auto-revert). Mirror the existing `MoveVisit` test structure exactly (same file/pattern, just routes instead of dates).
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~CrossReassignVisit` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 34: Dual-route regeneration for CrossReassignVisit
 - Files: `backend/src/Evo.Infrastructure/Routing/PlanGenerationService.cs` (or wherever `CrossReassignVisit` patches get created — likely `OnarimService`, Task 42)
 - Do: when a `CrossReassignVisit` patch is created, call `IPlanGenerationService.RegenerateFutureAsync` for BOTH `sourceRouteId` and `targetRouteId` — mirror the existing dual-regeneration already present in `POST /routes/{id}/stops/{sid}:move` (`grep -n "RegenerateFutureAsync" backend/src/Evo.Api/Controllers/RoutesController.cs` to find that precedent and copy the pattern).
+- Progress: `PlanGenerationService.GenerateAsync` now loads target-side `CrossReassignVisit` patches (those whose `RouteId` column points at the source but whose parsed `ParamsJson.TargetRouteId` names this route) and passes `currentRouteId` into `PatchResolver.Apply`, so regenerating either the source OR the target route independently now resolves the correct half. The remaining piece — actually calling `RegenerateFutureAsync` for both route ids at the moment a `CrossReassignVisit` patch is created — belongs in `OnarimService.ApplyAsync` (Task 42), since that's where the patch row is written.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [ ] (plumbing done; call-site pairing lands with Task 42)
 
 ### Task 35: Disruption identity helper
 - Files: `backend/src/Evo.Api/Onarim/DisruptionSource.cs` (new)

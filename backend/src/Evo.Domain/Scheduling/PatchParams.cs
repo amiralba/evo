@@ -13,6 +13,11 @@ public static class PatchParams
 
     public record MoveVisitParams(DateOnly FromDate, DateOnly ToDate, int? StartMinutes);
 
+    /// <summary>Spec 010 — StoreId/Minutes are frozen at Onarım-apply time (the visit's resolved
+    /// minutes then) rather than re-resolved from the target route's stops, since the source store
+    /// is not necessarily a stop on the target route.</summary>
+    public record CrossReassignVisitParams(Guid SourceRouteId, Guid TargetRouteId, Guid PlannedVisitId, Guid TargetMerchandiserId, Guid StoreId, int Minutes);
+
     public static bool TryParse<T>(string? json, out T? value)
     {
         value = default;
