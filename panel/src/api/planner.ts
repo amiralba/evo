@@ -2,6 +2,7 @@ import { authorizedFetch } from './client'
 import type { components } from './generated/schema'
 
 type RouteSummaryDtoPagedResult = components['schemas']['RouteSummaryDtoPagedResult']
+type RouteSummaryDto = components['schemas']['RouteSummaryDto']
 type RouteDetailDto = components['schemas']['RouteDetailDto']
 type RouteStatus = components['schemas']['RouteStatus']
 type StoreGeoDto = components['schemas']['StoreGeoDto']
@@ -19,6 +20,7 @@ type PublishResultDto = components['schemas']['PublishResultDto']
 type AuditLogEntryDtoPagedResult = components['schemas']['AuditLogEntryDtoPagedResult']
 type DecisionJournalEntryDtoPagedResult = components['schemas']['DecisionJournalEntryDtoPagedResult']
 type MerchandiserSummaryDto = components['schemas']['MerchandiserSummaryDto']
+type CreateRouteRequest = components['schemas']['CreateRouteRequest']
 type ReassignRequest = components['schemas']['ReassignRequest']
 type AssignmentDto = components['schemas']['AssignmentDto']
 type TaskPlanDto = components['schemas']['TaskPlanDto']
@@ -143,6 +145,15 @@ export async function getRouteAuditLog(): Promise<AuditLogEntryDtoPagedResult> {
 export async function getDecisionJournal(): Promise<DecisionJournalEntryDtoPagedResult> {
   const response = await authorizedFetch(`/api/v1/decision-journal?pageSize=200`)
   return json<DecisionJournalEntryDtoPagedResult>(response)
+}
+
+export async function createRoute(body: CreateRouteRequest): Promise<RouteSummaryDto> {
+  const response = await authorizedFetch(`/api/v1/routes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return json<RouteSummaryDto>(response)
 }
 
 export async function getMerchandisers(): Promise<MerchandiserSummaryDto[]> {

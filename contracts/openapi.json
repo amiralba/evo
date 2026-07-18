@@ -4246,6 +4246,14 @@
           "revenueTarget": {
             "type": "number",
             "format": "double"
+          },
+          "merchandiserName": {
+            "type": "string",
+            "nullable": true
+          },
+          "sixMonthRevenue": {
+            "type": "number",
+            "format": "double"
           }
         },
         "additionalProperties": false

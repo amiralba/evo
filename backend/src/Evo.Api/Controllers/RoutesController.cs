@@ -112,13 +112,34 @@ public class RoutesController : ControllerBase
             .Take(pageSize)
             .ToListAsync();
 
+        var ids = routeIds.Select(r => r.Id).ToList();
+
         var stopCounts = await _db.RouteStops
-            .Where(rs => rs.EffectiveTo == null && routeIds.Select(r => r.Id).Contains(rs.RouteId))
+            .Where(rs => rs.EffectiveTo == null && ids.Contains(rs.RouteId))
             .GroupBy(rs => rs.RouteId)
             .Select(g => new { RouteId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.RouteId, g => g.Count);
 
-        var items = routeIds.Select(r => ToSummaryDto(r, stopCounts.GetValueOrDefault(r.Id, 0))).ToList();
+        // Rail parity (evo-planner-prototype-v0.5.html:1101-1112) shows the assignee + accrued
+        // 6-month revenue on each rail card, not just the stop count — batch both across the page
+        // rather than N+1-ing per route.
+        var merchandiserNames = await _db.Assignments
+            .Where(a => a.EndDate == null && ids.Contains(a.RouteId))
+            .Join(_db.Merchandisers, a => a.MerchandiserId, m => m.Id, (a, m) => new { a.RouteId, m.UserId })
+            .Join(_db.Users, x => x.UserId, u => u.Id, (x, u) => new { x.RouteId, u.DisplayName })
+            .ToDictionaryAsync(x => x.RouteId, x => x.DisplayName);
+
+        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+        var revenueByRoute = await _db.RouteStops
+            .Where(rs => rs.EffectiveTo == null && ids.Contains(rs.RouteId))
+            .Join(_db.StoreRevenues.Where(r => r.Month >= sixMonthsAgo), rs => rs.StoreId, r => r.StoreId, (rs, r) => new { rs.RouteId, r.Revenue })
+            .GroupBy(x => x.RouteId)
+            .Select(g => new { RouteId = g.Key, Total = g.Sum(x => x.Revenue) })
+            .ToDictionaryAsync(g => g.RouteId, g => g.Total);
+
+        var items = routeIds
+            .Select(r => ToSummaryDto(r, stopCounts.GetValueOrDefault(r.Id, 0), merchandiserNames.GetValueOrDefault(r.Id), revenueByRoute.GetValueOrDefault(r.Id, 0)))
+            .ToList();
         return new Audit.Dtos.PagedResult<RouteSummaryDto>(items, page, pageSize, total);
     }
 
@@ -841,6 +862,6 @@ public class RoutesController : ControllerBase
         return new Evo.Api.Analytics.Dtos.RouteEvidenceDto(id, weeks, storeEvidence, CausalityDisclaimer: true);
     }
 
-    private static RouteSummaryDto ToSummaryDto(Route route, int stopCount) =>
-        new(route.Id, route.RouteCode, route.Name, route.Province, route.Status, route.Version, stopCount, route.RevenueTarget);
+    private static RouteSummaryDto ToSummaryDto(Route route, int stopCount, string? merchandiserName = null, decimal sixMonthRevenue = 0) =>
+        new(route.Id, route.RouteCode, route.Name, route.Province, route.Status, route.Version, stopCount, route.RevenueTarget, merchandiserName, sixMonthRevenue);
 }

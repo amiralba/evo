@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useWorkspaceStore } from '../state/workspaceStore'
 import { useRoutes, useStoresGeo } from '../api/queries'
 import { RailExpandedStops } from './RailExpandedStops'
+import { NewRouteModal } from './NewRouteModal'
 import { categoryColors } from '../../theme/tokens'
 
-const STATUS_LABEL: Record<number, string> = { 1: 'Taslak', 2: 'Aktif', 3: 'Pasif' }
 const CATEGORY_CODE: Record<number, keyof typeof categoryColors> = { 1: 'P', 2: 'V', 3: 'S' }
 const ROUTE_COLORS = ['#378ADD', '#1D9E75', '#EF9F27', '#E24B4A', '#639922', '#8B5CF6']
 
@@ -15,13 +15,16 @@ function routeColor(routeId: string): string {
   return ROUTE_COLORS[hash % ROUTE_COLORS.length]
 }
 
+function formatK(value: number): string {
+  return `${Math.round(value / 1000)}K`
+}
+
 type RailTab = 'routes' | 'pool'
 
 /** Left rail — prototype parity (evo-planner-prototype-v0.5.html:93-107, 1095-1145): Rutlar/Havuz
- * tabs, route items expand to their ordered stores (drag-reorder), Havuz lists stores with no
- * active route. "+ Yeni rut" (route creation) is intentionally NOT built here — it needs a real
- * draft-mode/new-route flow that doesn't exist in the panel yet (gap-matrix §3, no create-route API
- * wiring); a decorative no-op button would violate the "don't build fake buttons" rule. */
+ * tabs, each route item's subtitle is assignee + accrued revenue + target-met icon + point count
+ * (NOT route name/status), expand-to-ordered-stores (drag-reorder), Havuz lists stores with no
+ * active route, + Yeni rut opens a real create-route form (backend POST /routes already existed). */
 export function RouteRail() {
   const { t } = useTranslation()
   const province = useWorkspaceStore((s) => s.province)
@@ -32,6 +35,7 @@ export function RouteRail() {
   const [tab, setTab] = useState<RailTab>('routes')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const { data: poolStores } = useStoresGeo(province, false)
+  const [showNewRoute, setShowNewRoute] = useState(false)
 
   function toggleExpand(routeId: string) {
     setExpanded((prev) => {
@@ -80,13 +84,19 @@ export function RouteRail() {
                     </span>
                   </div>
                   <div className="sub">
-                    {r.name} · {r.status !== undefined ? (STATUS_LABEL[r.status] ?? r.status) : '—'} · {r.stopCount}{' '}
-                    {t('planner.railStops', 'nokta')}
+                    {r.merchandiserName ?? t('planner.railNoPerson', 'kişi yok')} · {formatK(r.sixMonthRevenue ?? 0)}{' '}
+                    {(r.sixMonthRevenue ?? 0) >= (r.revenueTarget ?? 0) ? '✅' : '⚠️'} · {r.stopCount} {t('planner.railStops', 'nokta')}
                   </div>
                   {isExpanded && <RailExpandedStops routeId={routeId} routeColor={color} />}
                 </div>
               )
             })}
+
+        {tab === 'routes' && (
+          <div className="pool-item" data-testid="new-route-trigger" style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setShowNewRoute(true)}>
+            <span style={{ color: 'var(--tx2)' }}>{t('planner.newRoute', '+ Yeni rut')}</span>
+          </div>
+        )}
 
         {tab === 'pool' &&
           (poolStores ?? []).map((s) => (
@@ -115,6 +125,16 @@ export function RouteRail() {
 
         {tab === 'pool' && (poolStores ?? []).length === 0 && <div className="empty">{t('planner.railPoolEmpty', 'Tüm mağazalar rutlarda')}</div>}
       </div>
+
+      {showNewRoute && (
+        <NewRouteModal
+          onClose={() => setShowNewRoute(false)}
+          onCreated={(routeId) => {
+            focusRoute(routeId)
+            setTab('routes')
+          }}
+        />
+      )}
     </div>
   )
 }

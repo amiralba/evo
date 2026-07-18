@@ -135,6 +135,18 @@ export function useUpdateTaskInstanceScope(routeId: string, province: string, st
   })
 }
 
+export function useCreateRoute(province: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: components['schemas']['CreateRouteRequest']) => planner.createRoute(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['routes', province] })
+      toast('Yeni rut oluşturuldu')
+    },
+    onError: () => toast(GENERIC_ERROR),
+  })
+}
+
 export function useReassignRoute(routeId: string, province: string) {
   const queryClient = useQueryClient()
   return useMutation({
