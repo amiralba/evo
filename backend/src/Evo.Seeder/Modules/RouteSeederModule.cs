@@ -43,6 +43,9 @@ public class RouteSeederModule : ISeederModule
         var routesCreated = 0;
         var routeIdsToMaterialize = new List<Guid>();
         var usedStoreIdsThisRun = new HashSet<Guid>();
+        // A merchandiser can hold only one active assignment (unique index IX_assignment_MerchandiserId),
+        // so never hand the same one to two routes — track those already assigned (in DB or this run).
+        var usedMerchandiserIds = (await db.Assignments.Where(a => a.EndDate == null).Select(a => a.MerchandiserId).ToListAsync(ct)).ToHashSet();
 
         for (var i = 1; i <= routeCount; i++)
         {
@@ -103,10 +106,10 @@ public class RouteSeederModule : ISeederModule
                 });
             }
 
-            var merchandiser = merchandisers[(i - 1) % merchandisers.Count];
-            var alreadyAssigned = await db.Assignments.AnyAsync(a => a.MerchandiserId == merchandiser.Id && a.EndDate == null, ct);
-            if (!alreadyAssigned)
+            var merchandiser = merchandisers.FirstOrDefault(m => !usedMerchandiserIds.Contains(m.Id));
+            if (merchandiser is not null)
             {
+                usedMerchandiserIds.Add(merchandiser.Id);
                 db.Assignments.Add(new Assignment
                 {
                     Id = Guid.NewGuid(),
@@ -117,6 +120,8 @@ public class RouteSeederModule : ISeederModule
                     Reason = AssignmentReason.NewHire,
                 });
             }
+            // else: more routes than available merchandisers — leave this route unassigned rather
+            // than crash; it still materializes a plan and can be assigned later in the UI.
 
             routeIdsToMaterialize.Add(route.Id);
             routesCreated++;

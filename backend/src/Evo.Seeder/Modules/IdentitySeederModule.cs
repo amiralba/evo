@@ -60,11 +60,16 @@ public class IdentitySeederModule : ISeederModule
 
         if (profile == SeedProfile.Demo)
         {
+            // One field agent per demo route (RouteSeederModule seeds 5 routes and assigns a
+            // distinct merchandiser to each) — fewer agents than routes collides on the
+            // one-assignment-per-merchandiser unique index.
             var demoAgents = new[]
             {
                 ("ayse.demir@evo.local", "Ayşe Demir"),
                 ("mehmet.kaya@evo.local", "Mehmet Kaya"),
                 ("fatma.sahin@evo.local", "Fatma Şahin"),
+                ("ali.yildiz@evo.local", "Ali Yıldız"),
+                ("zeynep.arslan@evo.local", "Zeynep Arslan"),
             };
 
             foreach (var (email, displayName) in demoAgents)
