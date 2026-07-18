@@ -106,7 +106,26 @@
     "publish": "Yayınla",
     "loading": "Yükleniyor…",
     "loadError": "Yüklenemedi. Tekrar deneyin.",
-    "close": "Kapat"
+    "close": "Kapat",
+    "apply": "Uygula"
+  },
+  "onarim": {
+    "navLabel": "Onarım",
+    "title": "Onarım",
+    "noDisruptions": "Açık aksaklık yok.",
+    "kindAbsence": "İzin",
+    "kindClosure": "Mağaza Kapalı",
+    "affectedVisits": "{{count}} etkilenen ziyaret",
+    "noAffectedVisits": "Etkilenen ziyaret yok.",
+    "chooseAction": "Eylem seçin",
+    "chooseCandidate": "Aday seçin",
+    "applied": "Onarım uygulandı.",
+    "action": {
+      "skip": "Atla",
+      "moveDay": "Gün değiştir",
+      "reassignRoute": "Rotayı devret",
+      "reassignPerson": "Kişiye devret"
+    }
   },
   "analytics": {
     "navLabel": "Analitik",

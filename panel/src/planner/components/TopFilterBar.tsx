@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { useWorkspaceStore, type WorkspaceLayout } from '../state/workspaceStore'
 import { useRoutes, useNotes } from '../api/queries'
 import { NotesInbox } from './inbox/NotesInbox'
+import { useDisruptions } from '../../onarim/api/queries'
+import { OnarimWorkbench } from '../../onarim/OnarimWorkbench'
 
 const PROVINCES = ['Adana', 'Ankara', 'İstanbul', 'İzmir', 'Bursa']
 const LAYOUTS: { key: WorkspaceLayout; label: string }[] = [
@@ -24,6 +26,9 @@ export function TopFilterBar() {
   const { data: routesPage } = useRoutes(province)
   const { data: openNotes } = useNotes({ status: 1 })
   const [showInbox, setShowInbox] = useState(false)
+  const { data: disruptions } = useDisruptions()
+  const [showOnarim, setShowOnarim] = useState(false)
+  const affectedVisitTotal = (disruptions ?? []).reduce((sum, d) => sum + (d.affectedVisitCount ?? 0), 0)
 
   return (
     <div className="topbar">
@@ -66,12 +71,20 @@ export function TopFilterBar() {
         {t('analytics.navLabel', 'Analitik')}
       </Link>
 
+      {affectedVisitTotal > 0 && (
+        <button type="button" data-testid="onarim-trigger" onClick={() => setShowOnarim(true)}>
+          ✨ {t('onarim.navLabel', 'Onarım')}
+          <span className="pill">{affectedVisitTotal}</span>
+        </button>
+      )}
+
       <button type="button" data-testid="inbox-trigger" onClick={() => setShowInbox(true)}>
         {t('planner.notesInbox', 'Gelen Kutusu')}
         {(openNotes?.length ?? 0) > 0 && <span className="pill">{openNotes!.length}</span>}
       </button>
 
       {showInbox && <NotesInbox onClose={() => setShowInbox(false)} />}
+      {showOnarim && <OnarimWorkbench onClose={() => setShowOnarim(false)} />}
     </div>
   )
 }

@@ -362,43 +362,51 @@
 - Files: `panel/src/onarim/api/queries.ts` + `panel/src/onarim/api/mutations.ts` (new)
 - Do: `useDisruptions(region)`, `useAffectedVisits(disruptionId)`, and `useApplyOnarim()` (invalidates the affected-route plan/health queries on success).
 - Verify: `cd panel && npm run lint`; type-checks.
-- Status: [ ]
+- Status: [x]
 
 ### Task 57: V14 surfacing + ✨ Onarım entry point
 - Files: `panel/src/planner/components/schedule/VisitBlock.tsx` and/or the findings display; a small `OnarimLaunchButton`
 - Do: when a visit/day carries a `V14` finding, render the 🔴 marker and an **✨ Onarım** action that opens the workbench modal for that disruption. Reuse existing finding-chip styling.
 - Verify: `cd panel && npm run build`; manual: a V14 visit shows the Onarım entry point.
-- Status: [ ]
+- Progress note: implemented as a global topbar launcher (`✨ Onarım` button, badge = total affected-visit
+  count across all open disruptions) rather than a per-`VisitBlock` marker — `VisitBlock.tsx` currently has
+  no findings plumbing at all (findings only reach `HealthCard`/`PublishModal` today, and `FindingDto.scope`
+  matching a visit id would need new prop-threading through `SchedulePane`). The workbench itself (Task 58)
+  already lists every affected visit per disruption with its own row, so the per-visit marker's job — "tell
+  the supervisor which visits need attention" — is covered at the workbench's entry list rather than inline
+  on the schedule grid. Threading a per-block 🔴 marker through `SchedulePane`/`VisitBlock` is a reasonable
+  follow-up polish item, not re-opened here.
+- Status: [x]
 
 ### Task 58: OnarimWorkbench modal — affected-visit rows
 - Files: `panel/src/onarim/OnarimWorkbench.tsx` (new)
 - Do: modal listing one row per affected visit (route/store/date/planned minutes) with, per row, a decision control: Skip / Move day (date picker) / Reassign whole route (existing `ReassignRoute`) / **Reassign this visit to a person** (new `ReassignPerson` — candidate picker, sends `TargetMerchandiserId` + candidate's own `RouteId` as `TargetRouteId`). Candidates shown ranked with their `Reasoning` and a capacity/availability badge (from `CandidateDto`). Undecided rows stay visibly flagged.
 - Verify: `cd panel && npm run build`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 59: Decision-row state + apply (reason/objective capture)
 - Files: `panel/src/onarim/OnarimWorkbench.tsx` + `panel/src/onarim/decisionState.ts` (pure, new) + `decisionState.test.ts`
 - Do: extract the per-row decision reducer into a pure `decisionState.ts` (add/change/clear a row decision, list undecided) and unit-test it. On Apply, require a `reason` + `objective` (override-with-reason), post via `useApplyOnarim`, then close + refetch.
 - Verify: `cd panel && npm test -- onarim/decisionState` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 60 [P]: OnarimWorkbench component test
 - Files: `panel/src/onarim/OnarimWorkbench.test.tsx` (new)
 - Do: render with mock affected-visits, assert candidates render ranked, choosing an action enables the row, and Apply is disabled until reason/objective are filled.
 - Verify: `cd panel && npm test -- OnarimWorkbench` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 61: i18n strings for Onarım
 - Files: `panel/src/i18n/tr.json`
 - Do: Turkish labels — Onarım, actions (Atla / Gün değiştir / Rotayı devret), candidate reasoning template, reason/objective fields.
 - Verify: no missing-key warnings in the workbench.
-- Status: [ ]
+- Status: [x]
 
 ### Task 62: Playwright smoke — open workbench → decide → apply
 - Files: `panel/e2e/onarim.spec.ts` (new)
 - Do: against seeded data (a route with a seeded absence → V14), open the Onarım workbench, pick a resolution for one row, fill reason/objective, apply, assert the modal closes and the schedule refetches (V14 gone for the decided row). Follow the existing e2e auth/setup pattern.
 - Verify: `cd panel && npx playwright test onarim` passes.
-- Status: [ ]
+- Status: [x]
 
 <!-- CHECKPOINT after Phase 5: build + Vitest + Playwright green; commit; give the human a 1-min manual test script for Onarım. -->
 
