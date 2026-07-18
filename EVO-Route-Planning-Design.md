@@ -114,7 +114,17 @@ Every patch has a mandatory expiry. Types:
 | `TIME_SHIFT` | Store renovating, visit after 14:00 this week | Visit window moved |
 | `MOVE_VISIT` *(build note, spec 007, 2026-07-17)* | Drag a visit to a different weekday in the planner grid | Skip on the source date + add on the target date, one patch row |
 
+| `CROSS_REASSIGN_VISIT` *(build note, spec 010, 2026-07-18)* | Onarım "reassign this visit to a person on another route" | Skip on the source route + add on a different target route, one patch row, same date |
+
 Lifecycle: `PENDING → ACTIVE → EXPIRED` (auto) or `CANCELLED` (manual). Patches never modify baseline rows — they are applied at plan-generation time.
+
+> **Build note (spec 010, 2026-07-18):** `CROSS_REASSIGN_VISIT` was added for Onarım's v1
+> `ReassignPerson` action — a per-visit reassignment to a specific person on a specific other route,
+> beyond the original per-visit Skip/MoveDay/whole-route-ReassignRoute set. Structurally mirrors
+> `MOVE_VISIT` (crosses two DATES on one route off one patch row) but crosses two ROUTES on one date
+> instead — same `PatchResolver.Apply` per-route/per-date invariant, just resolving a different half
+> depending on which ROUTE it's currently resolving rather than which date. See `docs/DECISIONS.md`
+> (2026-07-18) for rationale and rejected alternatives.
 
 > **Build note (spec 007):** `MOVE_VISIT` was added during implementation — `PatchResolver.Apply` only
 > ever evaluates one date at a time, so a cross-day move (inherently two-date) doesn't fit any of the
@@ -298,6 +308,13 @@ Biweekly anchoring: `BIWEEKLY` stops carry an anchor date; visit occurs when `we
 | V14 *(v0.5)* | Visit planned while assignee on leave / store temporarily closed | Error — links to ✨ Onarım |
 | V15 *(v0.5)* | Excess idle gap between visits (> ~90dk beyond travel) | Warning |
 | V16 *(v0.5)* | High patch churn on one person in one week (≥5) | Warning — field-trust signal |
+
+> **Build note (spec 010, 2026-07-18):** V8 (utilization band) and V14 (leave/store-closure collision)
+> are now implemented — pure `Evo.Domain.Scheduling.UtilizationValidator`/`AbsenceValidator`, wired
+> into `GET /routes/{id}/plan` and `POST /routes/{id}/validate`. V14's collision source is a new
+> `absence` table (windowed leave, not in design §5) plus the existing `store_flag` ClosedTemp window
+> — not a dedicated leave-management module, since none was planned separately from Onarım. Still
+> deferred: V13/V15 (travel-time/OSRM), V16 (patch churn).
 
 > **v0.5 severity model (supersedes the informal Warning/Block column).** Every rule has a severity with uniform UI behavior: 🔴 **Error**, 🟡 **Warning**, 🔵 **Info**. **Nothing hard-blocks publish.** Errors gate it behind a mandatory written justification + business objective, recorded to the Decision Journal ("override-with-reason") — this resolved Open Question #2 and replaced every "Block" above except pure data-integrity cases (V3/V4 stay structural blocks in the real build since they'd corrupt data, not merely degrade the plan). Scope-based placement: one status dot per visit card, counts in day headers, full list in Gelen kutusu › ⚠ Sorunlar (jump-to-visit, ⚡ same-person auto-fix, ✨ Onarım links). Live validation revalidates only the affected person+day.
 
@@ -613,6 +630,16 @@ Select route → "Add exception" → pick type (skip store / skip days / temp co
 
 Agent calls in sick / store closes → the disruption appears as 🔴 errors in Sorunlar; its ✨ Onarım link opens a **decision workbench**: one row per affected visit, planner picks the new day + person (or skips the visit) per row. **No auto-plans** — the deliberate v0.5 decision (Parham): with thousands of agents, "the system found a suitable person" fails on trust and on data the system can't see; instead the system only **narrows and ranks** candidates (available that day · quota after move · region proximity, with the reasoning shown per candidate) and the human chooses. Undecided rows stay flagged. Applied decisions land in the draft as windowed patches (`izin · 7–9 Tem` etc., auto-revert on expiry) plus one Decision Journal entry. Cross-person drag in the grid still works for one-off cases. ⚡ "Otomatik düzelt" exists only for same-person/same-day time-shifts (opening overlap/travel gaps) — it never chooses an agent or a day.
 
+> **Build note (spec 010, 2026-07-18):** implemented as `OnarimController`/`OnarimService`
+> (`GET /onarim/disruptions`, `GET .../affected-visits`, `POST .../apply`) with candidates ranked by
+> a pure `Evo.Domain.Onarim.CandidateRanker` (availability · capacity-after-move · region proximity,
+> per-candidate reasoning, deterministic tie-break) — matches the "narrows and ranks, human chooses"
+> design intent exactly. **v1 adds a fourth per-visit action beyond the three described above:
+> `ReassignPerson`** (reassign just this one visit to a specific person on a specific other route),
+> backed by a new `CROSS_REASSIGN_VISIT` patch type (§2.5) — a user override of the planner's
+> recommendation to reuse the existing three types; see `docs/DECISIONS.md` (2026-07-18). ⚡ "Otomatik
+> düzelt" was not built in v1 — out of scope for spec 010, no target spec assigned yet.
+
 ### 7.4 Reassign a merchandiser
 
 Route panel → "Change merchandiser" → pick person + start date + **reason (required)** → old assignment closed, new opened → future PlannedVisits repointed → change logged. If the leaver has no immediate replacement, offer `REASSIGN_TEMP` patches to spread coverage instead of leaving a hole.
@@ -640,6 +667,15 @@ All computed from `route_change_log`, `assignment`, and dated `route_stop` rows 
 
 Dashboard: region → route drill-down; routes ranked by composite health (stability × revenue attainment × utilization); person-level mobility view restricted to senior management.
 
+> **Build note (spec 010, 2026-07-18):** all 8 metrics above landed as **on-read aggregation**
+> (`GET /analytics/plan-health`, `/analytics/stability`, `/analytics/mobility`,
+> `GET /routes/{id}/evidence`) — no materialized views, no nightly refresh (deviates from §9's
+> sketch, see build note there and `docs/DECISIONS.md`, 2026-07-18). Mobility-per-person and
+> override-rate ship **Supervisor-scoped**, not restricted to a "senior management" role — EVO's
+> role model has only Supervisor/FieldAgent (§10 "Roles: Two only"), so no such tier exists; framed
+> as outlier-surfacing for review, not a punitive report withheld from the supervisor — an explicit
+> user override of the planner's narrower recommendation.
+
 ---
 
 ## 9. Backend Architecture & API Sketch
@@ -651,6 +687,8 @@ Modular monolith inside EVO (not microservices — the module is deeply joined t
 - **Validation service** — same rule set exposed to the UI (live feedback) and enforced at write.
 - **Geo service** — PostGIS queries: in-scope stores, lasso point-in-polygon, overlap detection, home-to-route distance.
 - **Analytics reader** — materialized views over change log / assignments, refreshed nightly.
+  > **Build note (spec 010, 2026-07-18):** landed as on-read aggregation instead — no materialized
+  > views/refresh job. See §8 build note and `docs/DECISIONS.md` (2026-07-18).
 
 Representative endpoints:
 

@@ -32,7 +32,8 @@
 | note, notification | ☑ | 009-field-execution-sim |
 | visit_realization, merchandiser_location_ping (not in design §5 — M3 additions, see below) | ☑ | 009-field-execution-sim |
 | settings | ☑ (minimal — no admin/draft-confirm UI yet, see below) | 005-route-planning-core |
-| agent_location (read-only reuse) | ☐ (superseded by `merchandiser_location_ping`, pulled forward from M4 — see below) | M4 |
+| absence (not in design §5 — M4 addition, see below) | ☑ | 010-analytics-onarim |
+| agent_location (read-only reuse) | ☐ (superseded by `merchandiser_location_ping`, landed 009 — see above) | — |
 
 ## audit_log (spec 003 — generic table, replaces route_change_log/admin_audit_log for now)
 Design §5 specifies two append-only audit tables, both needing owning entities (Route, Setting)
@@ -77,8 +78,9 @@ for why MoveVisit is a new type rather than an overloaded TimeShift.
 
 M1-core validation subset implemented: V1/V2 (450-min rule, `DayScheduler`), V3 (geo-scope),
 V5 (revenue target), V6 (SERVICE-category mix cap), V7 (time-window/ban), V9 (mandatory patch
-expiry), V12 (merchandiser visit overlap). Deferred: V8, V13/V15 (travel/OSRM), V14
-(leave/Onarım → M4), V16. **Superseded in M2 (spec 008):** visit duration is no longer
+expiry), V12 (merchandiser visit overlap). **V8 (weekly utilization band) and V14 (absence/store-closure
+collision) landed in M4 (spec 010) — see the `absence` section below.** Still deferred: V13/V15
+(travel/OSRM), V16. **Superseded in M2 (spec 008):** visit duration is no longer
 `route_stop.service_minutes ?? store.default_service_minutes ?? settings.default_service_minutes`
 as the primary path — it is now Σ resolved task minutes via `TaskResolver`, with
 `route_stop.service_minutes` retained only as an explicit manual override. See the
@@ -138,6 +140,32 @@ each template's `ProofRequired` — Photo results are **seeded object keys + fak
 upload (mobile capture deferred). No new validation codes; `PlanGenerationService` gained a
 seeder-only `MaterializeHistoryAsync` (bypasses `RegenerateFutureAsync`'s today-clamp) so past history
 routes through the same real engine rather than being hand-inserted.
+
+## absence, V8/V14, on-read analytics (spec 010-analytics-onarim, M4)
+`absence` (`id`, `merchandiser_id` FK→`merchandiser`, `start_date`/`end_date` `DateOnly` **inclusive**,
+`reason` `AbsenceReason` tinyint (SickLeave/AnnualLeave/Unpaid/Other), `note` nullable, `created_by`
+nullable FK→`AspNetUsers`, `created_at`) — no delete, windowed leave as a historical fact. Indexed on
+`(merchandiser_id, start_date, end_date)` (the V14/Onarım hot path). Minimal manual surface: `POST`/`GET
+/merchandisers/{id}/absences` (Supervisor only), no admin UI. Not in design §5 — see
+`EVO-Route-Planning-Design.md` §3.2 build note. Seeded + has ≥2 rows colliding with future visits
+(`AbsenceSeederModule`).
+
+Two new pure validators wired into `GET /routes/{id}/plan` and `POST /routes/{id}/validate`:
+`AbsenceValidator` (V14 — Error, visit collides with an absence window or a `store_flag` ClosedTemp
+window) and `UtilizationValidator` (V8 — Warning, weekly planned/capacity ratio outside the
+`utilization_band_lower`/`upper` settings, default 0.90–1.05). Both never hard-block (findings only).
+
+**Analytics is entirely on-read aggregation — no new materialized tables, no refresh jobs.** This is a
+deliberate deviation from design §9's "Analytics reader — materialized views... refreshed nightly"
+sketch; see `docs/DECISIONS.md` (2026-07-18) for the Why/Alternatives. `GET /analytics/plan-health`,
+`GET /analytics/stability`, `GET /analytics/mobility`, and `GET /routes/{id}/evidence` all compute
+live from `planned_visit`, `visit_realization`, `task_instance`, `patch`, `assignment`, and the
+`audit_log`-backed `route_change_log` facade — no schema footprint of their own.
+
+Onarım (`OnarimController`/`OnarimService`) also adds no new tables — it reuses the existing `patch`
+engine (one new `PatchType.CrossReassignVisit = 7`, see `EVO-Route-Planning-Design.md` §2.5 build note)
+and writes one `decision_journal` (`Kind=OnarimRepair`) entry per apply, same append-only pattern as
+every other override-with-reason flow.
 
 ## store, chain, store_type, store_revenue, store_flag (spec 004)
 Store master data is ingested, not hand-entered — see `docs/API.md` and `docs/DECISIONS.md` for

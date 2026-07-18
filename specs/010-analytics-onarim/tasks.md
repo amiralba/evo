@@ -416,46 +416,46 @@
 - Files: `docs/DATABASE.md`
 - Do: flip the schema-status `agent_location` row note and add an `absence` row (M4, spec 010); add a section documenting `absence` (windowed leave, seeded + minimal manual endpoint) and note V8/V14 are now implemented; note analytics are on-read (no analytics table) — a deliberate deviation from design §9's materialized-views sketch.
 - Verify: the new table + V8/V14 + on-read-analytics note are present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 64: Update docs/API.md
 - Files: `docs/API.md`
 - Do: replace the placeholder `Analytics | GET /analytics/stability | M4` row with the real M4 inventory: `/analytics/plan-health` (incl. `overrideRatePct`), `/analytics/stability`, `/analytics/mobility`, `/routes/{id}/evidence`, `/merchandisers/{id}/absences` (GET/POST), and the `/onarim/*` endpoints (disruptions, affected-visits, apply — including the `ReassignPerson` action and `CrossReassignVisit` patch type) with their request/response shapes and Supervisor scoping. Note the `/analytics/mobility` Supervisor-scoping divergence from design §8's senior-management-only framing.
 - Verify: all M4 endpoints listed; spec column reads 010.
-- Status: [ ]
+- Status: [x]
 
 ### Task 65: Update docs/ARCHITECTURE.md
 - Files: `docs/ARCHITECTURE.md`
 - Do: fill the "Analytics reader" component row (now LANDED, on-read aggregation in `Evo.Api/Analytics`, no materialized views); update the Validation service row (V8/V14 now implemented via `UtilizationValidator`/`AbsenceValidator`); add an Onarım row (decision workbench, ranks-not-decides, writes existing patches + one journal entry); add the M4 spec-010 cross-cutting summary line.
 - Verify: V8/V14/analytics/Onarım all reflected.
-- Status: [ ]
+- Status: [x]
 
 ### Task 66: Update docs/DECISIONS.md
 - Files: `docs/DECISIONS.md`
 - Do: add a newest-first entry for spec 010 — the on-read-vs-materialized analytics decision (Q9); shipping ALL 8 §8 metrics including mobility-per-person/override-rate Supervisor-scoped despite the design's senior-management-only framing (Q1/Q8 — user override of the planner's narrower recommendation, with rationale: EVO's 2-role model has no senior-management tier, framed as outlier-surfacing not punitive); Onarım's new `CrossReassignVisit` patch type enabling per-visit cross-person distribution (Q5 — also a user override, reusing `MoveVisit`'s date-pairing pattern but across routes instead); V8/V14 landing; the live-location layer staying deferred (Q10). Include Why / Alternatives rejected / Consequences.
 - Verify: entry present at top with the standard structure.
-- Status: [ ]
+- Status: [x]
 
 ### Task 67: Flag divergences in EVO-Route-Planning-Design.md
 - Files: `EVO-Route-Planning-Design.md`
 - Do: add build-notes (never contradict §10 silently, CLAUDE.md rule 5) at §8 (analytics on-read not materialized; mobility-per-person Supervisor-scoped, not senior-management-gated — no such role exists), §7.3b (Onarım v1 adds per-visit `ReassignPerson`/`CrossReassignVisit` beyond the original three patch types), §2.5/Patch types (document `CrossReassignVisit` alongside `MoveVisit`), and §3.2 (V8/V14 now implemented; V14 collision source = seeded `absence` + `store_flag` ClosedTemp).
 - Verify: the four build-notes are present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 68: Update docs/ROADMAP.md + docs/TODO.md
 - Files: `docs/ROADMAP.md`, `docs/TODO.md`
 - Do: check the two M4 bullets `[x]` with the spec reference `010-analytics-onarim` + a one-line summary covering all 8 metrics + the CrossReassignVisit Onarım capability; move materialized analytics views, ⚡ Otomatik düzelt, and the live-location map layer into the post-M4 backlog (not silently dropped) — mobility/override-rate and per-visit cross-person Onarım are DONE, not deferred, so remove them from the backlog list. Tick the M4 TODO line.
 - Verify: M4 shows done; only the still-deferred items are listed in the backlog.
-- Status: [ ]
+- Status: [x]
 
 ### Task 69: Update CLAUDE.md "Current focus"
 - Files: `CLAUDE.md`
 - Do: update the Current focus block — M4 complete, all milestones done; list the post-M4 backlog. Keep the deferred-items list accurate.
 - Verify: reflects M4 done.
-- Status: [ ]
+- Status: [x]
 
 ### Task 70: Full-suite verification + seeder round-trip
 - Files: none (verification)
 - Do: `dotnet test backend/Evo.sln` (all green), `cd panel && npm test` + `npx playwright test` (all green), `dotnet run --project backend/src/Evo.Seeder -- --profile demo` twice (idempotent). Confirm `git diff contracts/openapi.json` is committed (CI drift check).
 - Verify: backend + panel + e2e all green; seeder idempotent; openapi committed. Run `/end-session` (final phase of the spec) instead of a normal checkpoint.
-- Status: [ ]
+- Status: [x]

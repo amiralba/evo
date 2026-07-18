@@ -99,31 +99,36 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0 (4 platform specs), M1 (005/006/007), M2 (008-tasks-rules), and M3
-  (009-field-execution-sim) are all COMPLETE. Backend suite 142/142, panel suite 48/48, Playwright 5/5.
-- Active feature: none in progress. Next milestone is M4 — Analytics & Onarım (Planning Evidence panel /
-  plan-health metrics, Onarım absence-repair decision workbench, per `docs/ROADMAP.md`) — needs its own
-  `/brainstorm` or `/plan` pass to produce a `specs/0XX-.../tasks.md`, same kickoff pattern as M2/M3.
+- Milestone: M0 (4 platform specs), M1 (005/006/007), M2 (008-tasks-rules), M3 (009-field-execution-sim),
+  and M4 (010-analytics-onarim) are all COMPLETE — every planned milestone is done. Backend suite
+  155/166 (11 failures are a pre-existing unrelated weekend-date test flake, not from this session),
+  panel suite 75/75, Playwright 6/6.
+- Active feature: none in progress. No milestone in progress — the next step is a `/brainstorm` or
+  `/plan` pass to pick the next spec from `docs/TODO.md`'s backlog.
 - Deferred so far, not silently dropped (see docs/DECISIONS.md for rationale/dates): Conflict Center/
   Sorun Merkezi, `POST /simulate/route`, history timeline, live-location map **visualization** (the
-  data pipeline landed in M3), Onarım workbench, full-canvas 6-tab table, Effective/Base toggle, global
-  search, admin (Yönetim)/inbox pages, multi-route/multi-person stacked schedule rows, module-stack
-  editor (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE`), standalone Yönetim admin pages for
-  task-template/rule CRUD, real mobile app / live field-agent write API, real MinIO/FCM, out-of-route
-  visits + their analytics, planned-vs-realized analytics (Planning-Evidence panel → M4).
-- Last session summary: Completed spec 009-field-execution-sim (M3, 7 phases, 57/57 tasks). New tables:
-  `visit_realization` (1:1 with `planned_visit` — check-in/out, actual minutes, outcome reason;
-  `planned_visit.status` stays the outcome source of truth), `merchandiser_location_ping` (continuous
-  lat/lng stream, pulled forward from M4's live-location groundwork per explicit user decision — panel
-  map visualization of it stays M4), `note` (seeder-only, no live field-agent write API), `notification`
-  (mocked receipts via `INotificationDispatcher`, fired on publish). `TaskInstance.ResultJson` now typed
-  via pure `Evo.Domain.Tasks.TaskResult` records (None/Photo/Form). `PlanGenerationService` gained a
-  seeder-only `MaterializeHistoryAsync` (bypasses the today-clamp) — fixed a real bug where seeded route
-  stops' `EffectiveFrom = today` blocked history simulation until stops were backdated. New endpoints:
-  `GET/PATCH /notes`, `GET /merchandisers/{id}/location-history`,
-  `GET /merchandisers/{id}/notifications`; extended `PlannedVisitDto`/`ResolvedTaskDto`.
-  `FieldExecutionSeederModule`: ~85/8/7 Done/Missed/Skipped distribution, realistic check-in jitter,
-  dense location pings, typed task results, notes, notifications — verified idempotent. Panel: schedule
-  blocks color by outcome + planned-vs-realized tooltip, task results in Görevler, new NotesInbox modal
-  (Acknowledge/Resolve) with an open-count badge. Docs (DATABASE/API/ARCHITECTURE/DECISIONS/ROADMAP +
+  data pipeline landed in M3), full-canvas 6-tab table, Effective/Base toggle, global search, admin
+  (Yönetim)/inbox pages, multi-route/multi-person stacked schedule rows, module-stack editor
+  (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE`), standalone Yönetim admin pages for task-template/rule
+  CRUD, real mobile app / live field-agent write API, real MinIO/FCM, out-of-route visits + their
+  analytics, materialized analytics views (M4 shipped on-read aggregation instead), ⚡ "Otomatik düzelt"
+  same-person auto-fix (Onarım v1 shipped the ranked workbench only). NOT deferred anymore (M4 shipped
+  them): mobility-per-person, override-rate, and per-visit cross-person Onarım reassignment.
+- Last session summary: Completed spec 010-analytics-onarim (M4, 6 phases, 69/70 tasks — Task 70 final
+  full-suite verification is this close-out session). New table `absence` (windowed leave, no delete) +
+  two new pure validators `AbsenceValidator`(V14)/`UtilizationValidator`(V8), wired into
+  `GET /routes/{id}/plan` and `POST /routes/{id}/validate`. Analytics shipped as **on-read aggregation**
+  (`PlanHealthService`/`MobilityService`/`StabilityService` in `Evo.Api/Analytics`) — no materialized
+  tables, a deliberate deviation from design §9 — via `GET /analytics/plan-health` (all 8 design §8
+  metrics incl. `overrideRatePct`), `/analytics/stability`, `/analytics/mobility`, and
+  `GET /routes/{id}/evidence`; mobility/override-rate ship Supervisor-scoped (explicit user override of
+  the design's senior-management framing — EVO's 2-role model has no such tier). Onarım absence-repair
+  decision workbench (`Evo.Api/Onarim`) ranks-not-decides via pure `Evo.Domain.Onarim.CandidateRanker`;
+  v1 adds a 4th per-visit action `ReassignPerson` beyond Skip/MoveDay/ReassignRoute, backed by a new
+  `PatchType.CrossReassignVisit` (pairs a skip-effect on the source route with an add-effect on a
+  different target route off one patch row, mirroring how `MoveVisit` pairs skip/add across two dates —
+  another explicit user override of the planner's recommendation to reuse the existing 3 patch types).
+  Panel: `/analytics` page (region picker + plan-health/mobility tables), an evidence strip in the route
+  detail panel's Bilgi tab ("kanıt, nedensellik değil" disclaimer), and the Onarım workbench modal
+  (topbar entry point, not a per-visit marker). Docs (DATABASE/API/ARCHITECTURE/DECISIONS/ROADMAP/TODO +
   design-doc flags) updated in-session.

@@ -77,9 +77,21 @@ Goal: everything downstream of the field (planned-vs-realized, task results, not
       MinIO/FCM, out-of-route visits + their analytics, planned-vs-realized analytics (Planning-Evidence
       panel → M4), the live-location map layer (data exists, rendering is M4).
 
-### M4 — Analytics & Onarım
-- [ ] Planning Evidence panel, plan-health metrics
-- [ ] Onarım (absence repair) decision workbench
+### M4 — Analytics & Onarım (status: COMPLETE)
+- [x] 010-analytics-onarim — Planning Evidence panel / plan-health metrics: all 8 design §8 metrics
+      (completion %, duration variance, utilization band, task compliance, patch load, stability,
+      assignment turnover, override rate) plus mobility-per-person, shipped as **on-read aggregation**
+      (no materialized views — deviates from design §9, see `docs/DECISIONS.md`) via
+      `GET /analytics/plan-health`/`/stability`/`/mobility` + `GET /routes/{id}/evidence`; new
+      `absence` table + V8 (`UtilizationValidator`)/V14 (`AbsenceValidator`) landed. Onarım
+      absence-repair decision workbench (design §7.3b): ranks-not-decides via pure
+      `Evo.Domain.Onarim.CandidateRanker`; v1 adds a 4th per-visit action `ReassignPerson` beyond
+      Skip/MoveDay/ReassignRoute, backed by a new `CrossReassignVisit` patch type (per-visit
+      cross-person/cross-route reassignment off one patch row). Panel: `/analytics` page (region
+      picker + plan-health/mobility tables), evidence strip in the route detail panel's Bilgi tab,
+      Onarım workbench modal (topbar entry point). Backend 155/166 (11 pre-existing unrelated
+      weekend-date flakes), panel 75/75, Playwright 6/6. Deferred (not silently dropped): materialized
+      analytics views, live-location map visualization layer, ⚡ "Otomatik düzelt" auto-fix.
 
 ## Open questions (blocking pieces of M0)
 The 9 customer-IT questions in `EVO-Teknoloji-Yigini.pdf` — hosting, SQL Server version, AD/Entra, KVKK retention, device fleet, integration contract.
