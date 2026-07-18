@@ -27,6 +27,11 @@ export function currentWeek(reference: Date = new Date()): WeekRange {
   return weekFromMonday(mondayOfUtc(reference))
 }
 
+/** Today's date as an ISO "YYYY-MM-DD", same UTC convention as every other date in this module. */
+export function todayIso(reference: Date = new Date()): string {
+  return toIso(reference)
+}
+
 export function nextWeek(from: string): WeekRange {
   const monday = mondayOfUtc(new Date(`${from}T00:00:00Z`))
   monday.setUTCDate(monday.getUTCDate() + 7)

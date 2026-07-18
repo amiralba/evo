@@ -4,7 +4,7 @@ import { useWorkspaceStore } from '../../state/workspaceStore'
 import { usePlan } from '../../api/queries'
 import { useUpdateStop, useCreatePatch, useCancelPatch } from '../../api/mutations'
 import { toast } from '../../state/toastStore'
-import { currentWeek, weekdayDates } from '../../schedule/week'
+import { weekdayDates, todayIso } from '../../schedule/week'
 import { VisitBlock } from './VisitBlock'
 import { BREAK_BLOCKS } from '../../schedule/breaks'
 import { PX_PER_MINUTE, DAY_START_MINUTES, DAY_END_MINUTES, minutesOfDay } from '../../schedule/position'
@@ -103,7 +103,15 @@ export function SchedulePane({ routeId, routeCode, merchandiserName }: ScheduleP
   const dayRefs = useRef<(HTMLDivElement | null)[]>([])
   const dragRef = useRef<DragState | null>(null)
 
-  const isPastWeek = week.from < currentWeek().from
+  // Comparing Mondays (week.from < currentWeek().from) is wrong whenever "today" falls on a
+  // weekend: the displayed Mon-Fri grid can be entirely elapsed (e.g. today is Saturday) while
+  // still sharing the same Monday as "this ISO week", so it was never flagged read-only. That
+  // let drags create patches whose StartsOn was already in the past — the backend only
+  // regenerates the plan from today forward (RoutesController.CreatePatch), so those patches
+  // could never resolve into the (already-materialized) displayed plan and every change looked
+  // like it silently reverted on release. Comparing against the grid's LAST day (Friday) fixes
+  // this: the week is read-only iff it has already fully elapsed.
+  const isPastWeek = week.to < todayIso()
 
   // Always render all 5 weekdays, even ones with no materialized visits yet (GetPlan only
   // returns dates that have at least one planned_visit row) -- otherwise a week where only
