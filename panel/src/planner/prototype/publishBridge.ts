@@ -27,7 +27,14 @@ interface ProtoVisit {
 interface EvoState {
   visits: ProtoVisit[]
   stores: Array<{ id: string; route: string | null }>
-  routes: Array<{ id: string; person: string | null }>
+  routes: Array<{
+    id: string
+    person: string | null
+    code?: string | null
+    name?: string | null
+    target?: number | null
+    draft?: boolean
+  }>
 }
 
 interface EvoSnapshot {
@@ -107,13 +114,20 @@ async function flush(opts: PublishOpts): Promise<void> {
     }
   }
 
-  // Add store (pool -> route): a store that had no route now belongs to one. (Route->route moves
-  // and route->pool removals need a stop id / a remove endpoint and are left for a follow-up.)
+  // New routes: an activated draft (+ Yeni rut → Aktifleştir) — a route not in the load snapshot
+  // and no longer flagged draft. Created below via createRoute, then its stores/person attached.
+  const snapRouteIds = new Set(Object.keys(snap.routePerson))
+  const newRoutes = state.routes.filter((r) => !snapRouteIds.has(r.id) && !r.draft)
+  const newRouteIds = new Set(newRoutes.map((r) => r.id))
+
+  // Add store (pool -> route): a store that had no route now belongs to one. Skip stores that
+  // belong to a NEW route (their add happens in the create-route flow). Route->route moves and
+  // route->pool removals need a stop id / remove endpoint and are left for a follow-up.
   const addOps: Array<{ routeId: string; storeId: string }> = []
   for (const s of state.stores) {
     const prevRoute = snap.storeRoute[s.id] ?? null
     const nowRoute = s.route ?? null
-    if (!prevRoute && nowRoute) addOps.push({ routeId: nowRoute, storeId: s.id })
+    if (!prevRoute && nowRoute && !newRouteIds.has(nowRoute)) addOps.push({ routeId: nowRoute, storeId: s.id })
   }
 
   // Reassign merchandiser (Kişi değiştir): a route's person changed.
@@ -129,24 +143,44 @@ async function flush(opts: PublishOpts): Promise<void> {
     ...addOps.map((o) => o.routeId),
     ...reassignOps.map((o) => o.routeId),
   ])
-  if (affected.size === 0) {
-    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: süre · taşıma · havuzdan ekleme · kişi)')
+  if (affected.size === 0 && newRoutes.length === 0) {
+    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi)')
     return
   }
 
   const today = dateForDay(snap.weekFrom, 0) // Monday of the loaded week — a safe start date
+
+  // Create the new routes first (createRoute -> add its stores -> assign its person), so their
+  // real ids exist before anything else that references a route. The prototype's revenue target
+  // is in thousands of ₺; the backend wants raw ₺.
+  const createdRouteIds: string[] = []
+  for (const nr of newRoutes) {
+    const storeIds = state.stores.filter((s) => s.route === nr.id).map((s) => s.id)
+    if (!storeIds.length) continue
+    const created = await planner.createRoute({
+      name: nr.name ?? nr.code ?? 'Yeni rut',
+      province,
+      routeCode: nr.code ?? undefined,
+      revenueTarget: (nr.target ?? 0) * 1000,
+    })
+    if (!created.id) continue
+    await planner.bulkAddStops(created.id, { storeIds, frequency: 1, weekdayMask: 0, serviceMinutes: null })
+    if (nr.person) await planner.reassignRoute(created.id, { merchandiserId: nr.person, startDate: today, reason: 1 })
+    createdRouteIds.push(created.id)
+  }
+
   for (const op of resizeOps) await planner.updateStop(op.routeId, op.stopId, buildResizeUpdate(op.minutes))
   for (const op of patchOps) await planner.createPatch(op.routeId, op.req)
   for (const op of addOps)
     await planner.bulkAddStops(op.routeId, { storeIds: [op.storeId], frequency: 2, weekdayMask: 0, serviceMinutes: null })
   for (const op of reassignOps)
     await planner.reassignRoute(op.routeId, { merchandiserId: op.merchandiserId, startDate: today, reason: 1 })
-  for (const routeId of affected) {
+  for (const routeId of new Set([...affected, ...createdRouteIds])) {
     await planner.publishRoute(routeId, { reason: opts.reason ?? null, objective: opts.objective ?? null })
   }
 
   engineToast(
-    `Backend’e yazıldı ✓ ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi · ${affected.size} rut`,
+    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi`,
   )
   await loadBackendIntoPrototype(province)
 }
