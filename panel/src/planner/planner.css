@@ -509,7 +509,10 @@
   padding: 10px;
   font-size: 12px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.13);
-  z-index: 10;
+  /* Prototype uses z-index:10, but here the popover sits alongside MapLibre's own
+     marker DOM nodes (added imperatively via maplibregl.Marker, outside React's
+     stacking order) which otherwise paint on top of it — needs to clear those. */
+  z-index: 100;
   width: 220px;
 }
 .popover .nm {
