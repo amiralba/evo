@@ -5,6 +5,163 @@
     "version": "1.0"
   },
   "paths": {
+    "/api/v1/analytics/plan-health": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanHealthReportDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanHealthReportDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanHealthReportDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/stability": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteStabilityDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteStabilityDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteStabilityDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/mobility": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchandiserMobilityDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchandiserMobilityDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchandiserMobilityDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit-log": {
       "get": {
         "tags": [
@@ -1436,6 +1593,55 @@
         }
       }
     },
+    "/api/v1/routes/{id}/evidence": {
+      "get": {
+        "tags": [
+          "Routes"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 4
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteEvidenceDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteEvidenceDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteEvidenceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/rules": {
       "get": {
         "tags": [
@@ -2830,6 +3036,35 @@
         },
         "additionalProperties": false
       },
+      "MerchandiserMobilityDto": {
+        "type": "object",
+        "properties": {
+          "merchandiserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "distinctRoutesHeld": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "intraRouteReshuffles": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "regionalMedianRoutesHeld": {
+            "type": "number",
+            "format": "double"
+          },
+          "outlier": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "MoveStopRequest": {
         "type": "object",
         "properties": {
@@ -3022,6 +3257,31 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FindingDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanHealthReportDto": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutePlanHealthDto"
             },
             "nullable": true
           }
@@ -3285,6 +3545,122 @@
               "$ref": "#/components/schemas/PatchDto"
             },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RouteEvidenceDto": {
+        "type": "object",
+        "properties": {
+          "routeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "weeks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoreEvidenceDto"
+            },
+            "nullable": true
+          },
+          "causalityDisclaimer": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RoutePlanHealthDto": {
+        "type": "object",
+        "properties": {
+          "routeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "routeCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "routeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "province": {
+            "type": "string",
+            "nullable": true
+          },
+          "completionPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "plannedMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "realizedMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationVariancePct": {
+            "type": "number",
+            "format": "double"
+          },
+          "utilizationPct": {
+            "type": "number",
+            "format": "double"
+          },
+          "utilizationBand": {
+            "type": "string",
+            "nullable": true
+          },
+          "taskCompliancePct": {
+            "type": "number",
+            "format": "double"
+          },
+          "patchLoad": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "stabilityScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "assignmentTurnover": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "overrideRatePct": {
+            "type": "number",
+            "format": "double"
+          },
+          "planHealthScore": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RouteStabilityDto": {
+        "type": "object",
+        "properties": {
+          "routeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "routeCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "stabilityScore": {
+            "type": "number",
+            "format": "double"
           }
         },
         "additionalProperties": false
@@ -3638,6 +4014,40 @@
               "$ref": "#/components/schemas/StoreFlagDto"
             },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StoreEvidenceDto": {
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "storeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "planned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "done": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationVariancePct": {
+            "type": "number",
+            "format": "double"
           }
         },
         "additionalProperties": false
@@ -4035,6 +4445,9 @@
     }
   },
   "tags": [
+    {
+      "name": "Analytics"
+    },
     {
       "name": "AuditLog"
     },

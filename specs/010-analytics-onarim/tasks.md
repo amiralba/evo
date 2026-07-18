@@ -103,91 +103,91 @@
 - Files: `backend/src/Evo.Api/Analytics/Dtos/PlanHealthDtos.cs` (new)
 - Do: `public record RoutePlanHealthDto(Guid RouteId, string RouteCode, string RouteName, string Province, double CompletionPct, int PlannedMinutes, int RealizedMinutes, double DurationVariancePct, double UtilizationPct, string UtilizationBand, double TaskCompliancePct, IReadOnlyDictionary<string,int> PatchLoad, double StabilityScore, int AssignmentTurnover, double OverrideRatePct, double PlanHealthScore);` and a wrapper `public record PlanHealthReportDto(string? Region, DateOnly From, DateOnly To, IReadOnlyList<RoutePlanHealthDto> Routes);`.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 16: PlanHealthService — completion % + duration variance (planned-vs-realized)
 - Files: `backend/src/Evo.Api/Analytics/PlanHealthService.cs` (new); interface `IPlanHealthService`
 - Do: for a route + date window, join `planned_visit` → `visit_realization`; `completionPct = Done / (Done+Missed+Skipped)` from `planned_visit.status`; `plannedMinutes = Σ (PlannedEnd−PlannedStart)`; `realizedMinutes = Σ visit_realization.ActualMinutes`; `durationVariancePct = (realized−planned)/planned`. Pure LINQ aggregation over existing tables (Q9 on-read).
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 17: PlanHealthService — utilization band + task compliance
 - Files: `backend/src/Evo.Api/Analytics/PlanHealthService.cs`
 - Do: `utilizationPct = weekly planned minutes / weekly capacity`; `utilizationBand` via `UtilizationValidator` bounds (under/ok/over). `taskCompliancePct = Done / (Done+Overdue+Missed)` from `task_instance.status` for the route's visits in-window.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 18: PlanHealthService — patch load + assignment turnover
 - Files: `backend/src/Evo.Api/Analytics/PlanHealthService.cs`
 - Do: `patchLoad` = count of `patch` rows for the route in-window grouped by `PatchType` (string keys). `assignmentTurnover` = count of `assignment` rows for the route with `EndDate` inside a trailing 12-month window.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 19: PlanHealthService — override rate
 - Files: `backend/src/Evo.Api/Analytics/PlanHealthService.cs`
 - Do: `overrideRatePct` = `task_instance` rows for the route's visits in-window with `OverrideScope=INSTANCE` (an instance override, per spec 008) divided by total `task_instance` rows in-window. Design §8: "high rate → the rule's default is wrong; suggest promoting the common override to the rule" — the ratio only, no auto-promotion suggestion in v1.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 20: MobilityDto + MobilityService (per-person route/reshuffle count vs regional median)
 - Files: `backend/src/Evo.Api/Analytics/Dtos/MobilityDtos.cs` (new); `backend/src/Evo.Api/Analytics/MobilityService.cs` (new); interface `IMobilityService`
 - Do: `public record MerchandiserMobilityDto(Guid MerchandiserId, string Name, int DistinctRoutesHeld, int IntraRouteReshuffles, double RegionalMedianRoutesHeld, bool Outlier);`. For a region + trailing-months window: `DistinctRoutesHeld` = count of distinct `assignment.RouteId` for that merchandiser in-window; `IntraRouteReshuffles` = count of `route_change_log`-facade `STOP_MOVED`/reorder events on routes they held in-window (best-effort — reuse the same `audit_log` query pattern as `StabilityService`). `RegionalMedianRoutesHeld` = median `DistinctRoutesHeld` across all merchandisers in the region. `Outlier` = true when a merchandiser's combined routes-held + reshuffles sits meaningfully above the regional median (e.g. > median × 1.5) — design §8: "Outlier → possible mobbing; surfaced to upper management, not the supervisor being measured". Since EVO has no senior-management role, this endpoint is Supervisor-scoped like every other analytics endpoint here (Q8 divergence — flagged in DECISIONS.md, not silently role-gated).
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 21 [P]: MobilityService unit/integration test
 - Files: `backend/tests/Evo.Tests/Analytics/MobilityServiceTests.cs` (new)
 - Do: seed 3 merchandisers in a region with 1, 1, and 4 distinct route-holds respectively in the window; assert the 4-route merchandiser is flagged `Outlier=true` and the regional median is computed correctly (median of [1,1,4] = 1).
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~MobilityServiceTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 22: GET /analytics/mobility endpoint
 - Files: `backend/src/Evo.Api/Controllers/AnalyticsController.cs`; register `IMobilityService` DI in `Program.cs`
 - Do: `[HttpGet("mobility")]` with `region`, `months` (default 12); returns `IReadOnlyList<MerchandiserMobilityDto>` via `IMobilityService`. Supervisor only.
 - Verify: `dotnet build backend/Evo.sln`; endpoint present in `contracts/openapi.json`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 23: StabilityService — stability score from the route_change_log facade
 - Files: `backend/src/Evo.Api/Analytics/StabilityService.cs` (new); interface `IStabilityService`
 - Do: query the `route_change_log` facade over `audit_log` (`IRouteChangeLog` / `audit_log` where `EntityType="Route"` and `EntityKey=routeId`) for structural events (stop add/remove/move, frequency change — NOT patches, which are healthy flexibility) in a trailing 12-month window; `stabilityScore = 100 − Σ weighted changes` (clamp ≥0). Encode per-event weights as named constants (documented, not magic literals). Reuse this in PlanHealthService for the `StabilityScore` field.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 24: PlanHealthService — composite planHealthScore
 - Files: `backend/src/Evo.Api/Analytics/PlanHealthService.cs`
 - Do: `planHealthScore` = equal-weighted normalized product of `stabilityScore/100`, `completionPct`, and an in-band utilization factor (1.0 in band, penalized outside) — per spec Open question default; keep the weighting in one clearly-named helper so it is easy to retune.
 - Verify: `dotnet build backend/Evo.sln`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 25: GET /analytics/plan-health endpoint
 - Files: `backend/src/Evo.Api/Controllers/AnalyticsController.cs` (new); register DI for `IPlanHealthService`/`IStabilityService` in `Program.cs`
 - Do: `[Authorize(Roles = "Supervisor")]` `[HttpGet("plan-health")]` with `region` (province), `from`, `to` query params (default: last 4 weeks); returns `PlanHealthReportDto` with routes ranked by `PlanHealthScore` descending.
 - Verify: `dotnet build backend/Evo.sln`; endpoint in `contracts/openapi.json`.
-- Status: [ ]
+- Status: [x]
 
 ### Task 26: GET /analytics/stability endpoint
 - Files: `backend/src/Evo.Api/Controllers/AnalyticsController.cs`
 - Do: `[HttpGet("stability")]` with `region`; returns per-route `{routeId, routeCode, stabilityScore}` via `IStabilityService` (design §9 endpoint). Supervisor only.
 - Verify: `dotnet build backend/Evo.sln`; endpoint present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 27: GET /routes/{id}/evidence endpoint (store-level evidence chain)
 - Files: `backend/src/Evo.Api/Controllers/RoutesController.cs`; DTO in `backend/src/Evo.Api/Analytics/Dtos/PlanHealthDtos.cs`
 - Do: `public record RouteEvidenceDto(Guid RouteId, int Weeks, IReadOnlyList<StoreEvidenceDto> Stores, bool CausalityDisclaimer);` and `public record StoreEvidenceDto(Guid StoreId, string StoreName, int Planned, int Done, int Missed, int Skipped, double DurationVariancePct);`. `[HttpGet("{id:guid}/evidence")]` with `weeks` (default 4); per store on the route, aggregate `planned_visit.status` counts + minutes variance over the trailing window; `CausalityDisclaimer=true` always (UI renders the "kanıt, nedensellik değil" note). Supervisor only.
 - Verify: `dotnet build backend/Evo.sln`; endpoint present.
-- Status: [ ]
+- Status: [x]
 
 ### Task 28: Integration test — plan-health over a known seeded fixture
 - Files: `backend/tests/Evo.Tests/Analytics/PlanHealthEndpointTests.cs` (new)
 - Do: with `EvoApiTestFactory`, seed a route with a known planned/realized mix (e.g. 8 Done / 1 Missed / 1 Skipped, actual minutes set, at least one `TaskInstance` with `OverrideScope=INSTANCE`) and assert `GET /analytics/plan-health` returns `completionPct=0.8`, a sane `durationVariancePct`, non-null stability/utilization/task-compliance, and `overrideRatePct` > 0. Also assert routes come back ranked by `planHealthScore`.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~PlanHealthEndpointTests` passes.
-- Status: [ ]
+- Status: [x]
 
 ### Task 29 [P]: Integration test — stability + evidence
 - Files: `backend/tests/Evo.Tests/Analytics/StabilityEvidenceTests.cs` (new)
 - Do: seed a route, write a couple of structural `audit_log` Route events, assert `GET /analytics/stability` reflects the deduction; assert `GET /routes/{id}/evidence` returns per-store counts and `CausalityDisclaimer=true`.
 - Verify: `dotnet test backend/Evo.sln --filter FullyQualifiedName~StabilityEvidenceTests` passes.
-- Status: [ ]
+- Status: [x]
 
 <!-- CHECKPOINT after Phase 2: build + tests green; commit; ask any weighting/band confirmations. -->
 

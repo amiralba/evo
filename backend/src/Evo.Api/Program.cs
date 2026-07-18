@@ -48,6 +48,9 @@ builder.Services.AddScoped<ISettingsProvider, SettingsProvider>();
 builder.Services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 builder.Services.AddScoped<IPlanGenerationService, PlanGenerationService>();
 builder.Services.AddScoped<INotificationDispatcher, MockNotificationDispatcher>();
+builder.Services.AddScoped<Evo.Api.Analytics.IStabilityService, Evo.Api.Analytics.StabilityService>();
+builder.Services.AddScoped<Evo.Api.Analytics.IPlanHealthService, Evo.Api.Analytics.PlanHealthService>();
+builder.Services.AddScoped<Evo.Api.Analytics.IMobilityService, Evo.Api.Analytics.MobilityService>();
 builder.Services.AddHostedService<PlanHorizonBackgroundService>();
 
 // AddIdentityCore (not AddIdentity) — avoids registering the default cookie auth schemes,

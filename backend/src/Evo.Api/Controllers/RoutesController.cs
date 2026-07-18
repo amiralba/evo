@@ -803,6 +803,44 @@ public class RoutesController : ControllerBase
         return new PublishResultDto(visitsMaterialized, errors.Count > 0, decisionJournalId);
     }
 
+    /// <summary>Design §11.2 "Planlama Kanıtı" — plan → execution only, no shelf/sales causality
+    /// claim (spec 010). CausalityDisclaimer is always true so the panel renders the disclaimer.</summary>
+    [HttpGet("{id:guid}/evidence")]
+    public async Task<ActionResult<Evo.Api.Analytics.Dtos.RouteEvidenceDto>> GetEvidence(Guid id, [FromQuery] int weeks = 4)
+    {
+        var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
+        var since = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-weeks * 7);
+
+        var visits = await _db.PlannedVisits
+            .Where(v => v.RouteId == id && v.VisitDate >= since)
+            .ToListAsync();
+        var storeIds = visits.Select(v => v.StoreId).Distinct().ToList();
+        var storeNames = await _db.Stores.Where(s => storeIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, s => s.Name);
+
+        var visitIds = visits.Select(v => v.Id).ToList();
+        var realizationByVisitId = (await _db.VisitRealizations.Where(r => visitIds.Contains(r.PlannedVisitId)).ToListAsync())
+            .ToDictionary(r => r.PlannedVisitId, r => r);
+
+        var storeEvidence = visits.GroupBy(v => v.StoreId).Select(group =>
+        {
+            var planned = group.Count();
+            var done = group.Count(v => v.Status == PlannedVisitStatus.Done);
+            var missed = group.Count(v => v.Status == PlannedVisitStatus.Missed);
+            var skipped = group.Count(v => v.Status == PlannedVisitStatus.Skipped);
+
+            var plannedMinutes = group.Where(v => v.PlannedStart.HasValue && v.PlannedEnd.HasValue)
+                .Sum(v => (int)(v.PlannedEnd!.Value - v.PlannedStart!.Value).TotalMinutes);
+            var realizedMinutes = group.Select(v => realizationByVisitId.GetValueOrDefault(v.Id))
+                .Where(r => r?.ActualMinutes is not null).Sum(r => r!.ActualMinutes!.Value);
+            var variancePct = plannedMinutes == 0 ? 0.0 : (double)(realizedMinutes - plannedMinutes) / plannedMinutes;
+
+            return new Evo.Api.Analytics.Dtos.StoreEvidenceDto(
+                group.Key, storeNames.GetValueOrDefault(group.Key, "?"), planned, done, missed, skipped, variancePct);
+        }).ToList();
+
+        return new Evo.Api.Analytics.Dtos.RouteEvidenceDto(id, weeks, storeEvidence, CausalityDisclaimer: true);
+    }
+
     private static RouteSummaryDto ToSummaryDto(Route route, int stopCount) =>
         new(route.Id, route.RouteCode, route.Name, route.Province, route.Status, route.Version, stopCount, route.RevenueTarget);
 }
