@@ -428,6 +428,26 @@ public class RoutesController : ControllerBase
         return new RouteStopDto(newStop.Id, newStop.StoreId, store.Name, newStop.Frequency, newStop.WeekdayMask, newStop.ServiceMinutes, newStop.Sequence, newStop.EffectiveFrom, newStop.EffectiveTo);
     }
 
+    // L3: remove a stop from the route → its store returns to the pool. Per the "no delete" rule the
+    // RouteStop row is soft-closed (EffectiveTo = today), keeping history attached; future visits are
+    // regenerated so the store drops off the schedule from today onward.
+    [HttpDelete("{id:guid}/stops/{stopId:guid}")]
+    public async Task<IActionResult> RemoveStop(Guid id, Guid stopId)
+    {
+        var stop = await _db.RouteStops.FirstOrDefaultAsync(rs => rs.Id == stopId && rs.RouteId == id && rs.EffectiveTo == null)
+            ?? throw new NotFoundException("RouteStop");
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        stop.EffectiveTo = today;
+
+        await _changeLog.WriteAsync(id, RouteChangeEvent.StopRemoved, new { stop.Id, stop.StoreId }, null);
+        await _db.SaveChangesAsync();
+
+        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/assignment")]
     public async Task<ActionResult<AssignmentDto>> Reassign(Guid id, [FromBody] ReassignRequest request)
     {
