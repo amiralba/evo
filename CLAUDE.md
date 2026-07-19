@@ -102,12 +102,15 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 - Milestone: M0–M4 backend work is COMPLETE. The panel pivoted on 2026-07-18 to hosting the v0.5
   prototype VERBATIM at `/planner` with backend bridges (`panel/src/planner/prototype/` — see
   ARCHITECTURE.md "Panel" row + DECISIONS.md 2026-07-19 retroactive pivot entry); the pre-pivot React
-  workspace was deleted (audit decision D1a). Suites: backend 161/171 (the 9–10 failures are the
-  KNOWN weekend-date defect — deterministic on weekends, root-caused in audit §E.1, fix = TimeProvider,
-  still open), panel Vitest 40/40, Playwright 5/5 (serial, live-backend, prototype-DOM specs).
-- Active feature: none. The 2026-07-19 audit cleanup (docs/audit/TODO-from-audit.md) sessions C1–C5
-  are DONE on branch `cleanup/c1-safe-deletions`; next up from that backlog: P0 trust/safety
-  (TimeProvider, CI SQL container, XSS/CSP), the D2b engine.js→TS adoption session, then P2/P3/P4.
+  workspace was deleted (audit decision D1a). Suites: backend **171/171** (the weekend-date defect
+  is FIXED — `PlanningClock` + pinned `FakeTimeProvider`, see DECISIONS.md 2026-07-19), panel
+  Vitest 40/40, Playwright 5/5 (serial, live-backend, prototype-DOM specs).
+- Active feature: none. The 2026-07-19 audit backlog (docs/audit/TODO-from-audit.md): C1–C5, P0,
+  P3 and the contained half of P2 are DONE on `cleanup/c1-safe-deletions` (not yet merged to
+  prototype-parity-rebuild). Next up: the **D2b engine.js→TS adoption session** (also clears the
+  standing eslint parse error + inline-handler CSP exception), the deferred P2 items (batch plan
+  endpoint, 202 regen queue, analytics GROUP BY rewrite), and P4 KVKK (blocked on customer
+  retention-policy answers).
 - Backend-complete but panel-dark (lost their UI in the pivot; backends tested + in contract):
   Onarım workbench (no bridge — wire or formally re-defer, audit §A3.2 decision OPEN), outcome
   coloring/planned-vs-realized (no realization data path since D3b), evidence strip, audit-log/
