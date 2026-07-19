@@ -103,6 +103,15 @@ export async function removeStop(id: string, stopId: string): Promise<void> {
   if (!response.ok) throw new Error(`removeStop failed: ${response.status}`)
 }
 
+export async function updateStoreStatus(storeId: string, active: boolean): Promise<void> {
+  const response = await authorizedFetch(`/api/v1/stores/${storeId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active }),
+  })
+  if (!response.ok) throw new Error(`updateStoreStatus failed: ${response.status}`)
+}
+
 export async function reorderStops(id: string, stopIds: string[]): Promise<RouteDetailDto> {
   const response = await authorizedFetch(`/api/v1/routes/${id}/stops:reorder`, {
     method: 'POST',

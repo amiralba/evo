@@ -2349,6 +2349,65 @@
         }
       }
     },
+    "/api/v1/stores/{id}/status": {
+      "patch": {
+        "tags": [
+          "Stores"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStoreStatusRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStoreStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStoreStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDetailDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDetailDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stores/{id}/task-plan": {
       "get": {
         "tags": [
@@ -4707,6 +4766,9 @@
           "sixMonthRevenue": {
             "type": "number",
             "format": "double"
+          },
+          "active": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -4976,6 +5038,15 @@
             "type": "integer",
             "format": "int32",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateStoreStatusRequest": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

@@ -2,6 +2,8 @@ using Evo.Infrastructure.Stores;
 
 namespace Evo.Api.Stores.Dtos;
 
+public record UpdateStoreStatusRequest(bool Active);
+
 public record StoreSummaryDto(
     Guid Id,
     string EvoStoreId,
@@ -28,7 +30,8 @@ public record StoreGeoDto(
     double Longitude,
     Guid? ActiveRouteId,
     string? ActiveRouteCode,
-    decimal SixMonthRevenue);
+    decimal SixMonthRevenue,
+    bool Active);
 
 public record StoreDetailDto(
     Guid Id,
