@@ -24,3 +24,7 @@ panel/src/api/generated/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local snapshots / scratch (never commit)
+.claude/*.tar.gz
+.claude/evo-snapshot.tar.gz
