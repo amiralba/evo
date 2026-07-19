@@ -317,10 +317,15 @@ public class RoutesController : ControllerBase
         var stop = await _db.RouteStops.FirstOrDefaultAsync(rs => rs.Id == stopId && rs.RouteId == id && rs.EffectiveTo == null)
             ?? throw new NotFoundException("RouteStop");
 
-        var freqChanged = request.Frequency is { } freq && freq != stop.Frequency;
+        var freqChanged = (request.Frequency is { } freq && freq != stop.Frequency)
+            || (request.WeekdayMask is { } wm && wm != stop.WeekdayMask);
         if (request.Frequency is { } newFreq)
         {
             stop.Frequency = newFreq;
+        }
+        if (request.WeekdayMask is { } newMask)
+        {
+            stop.WeekdayMask = newMask;
         }
         if (request.ServiceMinutes is { } minutes)
         {
@@ -333,7 +338,7 @@ public class RoutesController : ControllerBase
 
         if (freqChanged)
         {
-            await _changeLog.WriteAsync(id, RouteChangeEvent.FreqChanged, null, new { stop.Id, stop.Frequency });
+            await _changeLog.WriteAsync(id, RouteChangeEvent.FreqChanged, null, new { stop.Id, stop.Frequency, stop.WeekdayMask });
         }
         await _db.SaveChangesAsync();
 

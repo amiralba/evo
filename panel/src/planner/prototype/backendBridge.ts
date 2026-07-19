@@ -88,6 +88,19 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   }))
   const personByRouteId = new Map(routes.map((r) => [r.id, r.person]))
 
+  // Per-stop schedule fields (stop id + frequency + weekday mask) for the L4 schedule-days editor.
+  const routeStops = await Promise.all(
+    routes.filter((r) => r.active && r.id).map((r) => planner.getRoute(r.id!).then((d) => d.stops ?? []).catch(() => [])),
+  )
+  const stopByStore = new Map<string, { stopId: string; freqNum: number; weekdayMask: number }>()
+  for (const stops of routeStops) {
+    for (const st of stops) {
+      if (st.storeId && st.id) {
+        stopByStore.set(st.storeId, { stopId: st.id, freqNum: (st.frequency as number) ?? 2, weekdayMask: st.weekdayMask ?? 0 })
+      }
+    }
+  }
+
   // Inject the merchandisers the panel needs: those on a route in THIS province (calendar rows +
   // detail) plus every UNASSIGNED one (activeRouteCode null) as candidates for the reassign/new-
   // route pickers. Exclude merchandisers tied to other provinces' routes (can't be picked here).
@@ -127,6 +140,10 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
     lng: s.longitude ?? null,
     catInt: (s.category as number) ?? null,
     activeRouteId: s.activeRouteId ?? null,
+    // L4 schedule fields (routed stores): backend RouteStop id/frequency/weekday-mask.
+    stopId: stopByStore.get(s.id)?.stopId ?? null,
+    freqNum: stopByStore.get(s.id)?.freqNum ?? null,
+    weekdayMask: stopByStore.get(s.id)?.weekdayMask ?? null,
   }))
 
   const plans = await Promise.all(
