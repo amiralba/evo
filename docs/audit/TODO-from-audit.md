@@ -75,9 +75,18 @@ Mark exactly one option per decision. Sessions must log the chosen option in `do
   status/reassign/schedule/meta diffs, ₺×1000 scaling, snapshot-less-store guards. Panel suite
   40/40.)
 
-### Session C5 — Docs truth pass (§F)
-- [ ] Log the prototype-verbatim pivot in `docs/DECISIONS.md`; describe `PrototypeHost`/bridges in `docs/ARCHITECTURE.md`
-- [ ] Fix ARCHITECTURE.md:71 (generated client IS tracked), stale seeder claims (if not done in C3), CLAUDE.md test counts + Onarım "shipped" claims
+### Session C5 — Docs truth pass (§F) — DONE 2026-07-19
+- [x] Log the prototype-verbatim pivot in `docs/DECISIONS.md`; describe `PrototypeHost`/bridges in `docs/ARCHITECTURE.md`
+  (Retroactive pivot entry added; ARCHITECTURE.md Panel row rewritten around PrototypeHost + the 6
+  bridges + extract-prototype pipeline; Analytics/Field-execution rows get "panel truth post-pivot"
+  corrections; folder tree updated; §F.5 engine-dead-code note included in the Panel row)
+- [x] Fix ARCHITECTURE.md:71 (generated client IS tracked), stale seeder claims (if not done in C3), CLAUDE.md test counts + Onarım "shipped" claims
+  (Audit item stale on the first point: `panel/src/api/generated/` is in .gitignore and `git ls-files`
+  shows nothing tracked — the doc's "gitignored" claim is CORRECT today, no edit needed. Seeder claims
+  were fixed in C3. CLAUDE.md "Current focus" fully rewritten: real counts (backend 161/171 w/ the
+  §E.1 weekend defect, panel 40/40, Playwright 5/5), pivot + C1–C5 state, and a "backend-complete but
+  panel-dark" list replacing the false Onarım/evidence-strip "shipped" claims; `/analytics` re-verified
+  live in a browser — works, URL-only, no nav entry.)
 
 ---
 

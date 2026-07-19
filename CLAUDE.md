@@ -99,12 +99,21 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0 (4 platform specs), M1 (005/006/007), M2 (008-tasks-rules), M3 (009-field-execution-sim),
-  and M4 (010-analytics-onarim) are all COMPLETE — every planned milestone is done. Backend suite
-  155/166 (11 failures are a pre-existing unrelated weekend-date test flake, not from this session),
-  panel suite 75/75, Playwright 6/6.
-- Active feature: none in progress. No milestone in progress — the next step is a `/brainstorm` or
-  `/plan` pass to pick the next spec from `docs/TODO.md`'s backlog.
+- Milestone: M0–M4 backend work is COMPLETE. The panel pivoted on 2026-07-18 to hosting the v0.5
+  prototype VERBATIM at `/planner` with backend bridges (`panel/src/planner/prototype/` — see
+  ARCHITECTURE.md "Panel" row + DECISIONS.md 2026-07-19 retroactive pivot entry); the pre-pivot React
+  workspace was deleted (audit decision D1a). Suites: backend 161/171 (the 9–10 failures are the
+  KNOWN weekend-date defect — deterministic on weekends, root-caused in audit §E.1, fix = TimeProvider,
+  still open), panel Vitest 40/40, Playwright 5/5 (serial, live-backend, prototype-DOM specs).
+- Active feature: none. The 2026-07-19 audit cleanup (docs/audit/TODO-from-audit.md) sessions C1–C5
+  are DONE on branch `cleanup/c1-safe-deletions`; next up from that backlog: P0 trust/safety
+  (TimeProvider, CI SQL container, XSS/CSP), the D2b engine.js→TS adoption session, then P2/P3/P4.
+- Backend-complete but panel-dark (lost their UI in the pivot; backends tested + in contract):
+  Onarım workbench (no bridge — wire or formally re-defer, audit §A3.2 decision OPEN), outcome
+  coloring/planned-vs-realized (no realization data path since D3b), evidence strip, audit-log/
+  decision-journal/history views, route health card. `/analytics` (plan-health + mobility tables)
+  works but is URL-only — no nav entry. Routes/visits/absences are NOT seeded (D3b): the planner
+  builds routes in the panel; e2e creates its own.
 - Deferred so far, not silently dropped (see docs/DECISIONS.md for rationale/dates): Conflict Center/
   Sorun Merkezi, `POST /simulate/route`, history timeline, live-location map **visualization** (the
   data pipeline landed in M3), full-canvas 6-tab table, Effective/Base toggle, global search, admin
@@ -112,23 +121,15 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
   (`SET_FREQUENCY`/`SET_MODULES`/`PATCH_MODULE`), standalone Yönetim admin pages for task-template/rule
   CRUD, real mobile app / live field-agent write API, real MinIO/FCM, out-of-route visits + their
   analytics, materialized analytics views (M4 shipped on-read aggregation instead), ⚡ "Otomatik düzelt"
-  same-person auto-fix (Onarım v1 shipped the ranked workbench only). NOT deferred anymore (M4 shipped
-  them): mobility-per-person, override-rate, and per-visit cross-person Onarım reassignment.
-- Last session summary: Completed spec 010-analytics-onarim (M4, 6 phases, 69/70 tasks — Task 70 final
-  full-suite verification is this close-out session). New table `absence` (windowed leave, no delete) +
-  two new pure validators `AbsenceValidator`(V14)/`UtilizationValidator`(V8), wired into
-  `GET /routes/{id}/plan` and `POST /routes/{id}/validate`. Analytics shipped as **on-read aggregation**
-  (`PlanHealthService`/`MobilityService`/`StabilityService` in `Evo.Api/Analytics`) — no materialized
-  tables, a deliberate deviation from design §9 — via `GET /analytics/plan-health` (all 8 design §8
-  metrics incl. `overrideRatePct`), `/analytics/stability`, `/analytics/mobility`, and
-  `GET /routes/{id}/evidence`; mobility/override-rate ship Supervisor-scoped (explicit user override of
-  the design's senior-management framing — EVO's 2-role model has no such tier). Onarım absence-repair
-  decision workbench (`Evo.Api/Onarim`) ranks-not-decides via pure `Evo.Domain.Onarim.CandidateRanker`;
-  v1 adds a 4th per-visit action `ReassignPerson` beyond Skip/MoveDay/ReassignRoute, backed by a new
-  `PatchType.CrossReassignVisit` (pairs a skip-effect on the source route with an add-effect on a
-  different target route off one patch row, mirroring how `MoveVisit` pairs skip/add across two dates —
-  another explicit user override of the planner's recommendation to reuse the existing 3 patch types).
-  Panel: `/analytics` page (region picker + plan-health/mobility tables), an evidence strip in the route
-  detail panel's Bilgi tab ("kanıt, nedensellik değil" disclaimer), and the Onarım workbench modal
-  (topbar entry point, not a per-visit marker). Docs (DATABASE/API/ARCHITECTURE/DECISIONS/ROADMAP/TODO +
-  design-doc flags) updated in-session.
+  same-person auto-fix.
+- Last session summary (2026-07-19, audit cleanup C1–C5): C1 safe deletions (template stubs, dead
+  client fns, unused theme exports/assets). C2 executed D1a — deleted the ~4.5k-LOC dead React tree,
+  ~20 dead test files, 6 dead npm deps, 10 dead client fns, dead i18n keys (`getRoute`/`removeStop`/
+  `updateStoreStatus` kept — live via bridges). C3 executed D3b — deleted the never-registered
+  Route/FieldExecution/Absence seeder modules + `MaterializeHistoryAsync`; `--wipe` now rejects
+  instead of silently no-opping. C4 — e2e rebuilt against the prototype DOM (5 specs, serial,
+  boot-gated on the host reveal; `planner-core` = full create→publish→backend-round-trip→cleanup
+  loop) + `publishBridge` diff extracted to pure `computePublishOps` with 14 unit tests. C5 — this
+  docs truth pass (pivot logged retroactively, ARCHITECTURE.md Panel/Analytics/tree rewritten,
+  CLAUDE.md counts fixed). Audit finding "generated client is tracked" is stale — `panel/src/api/
+  generated/` is gitignored and untracked; run `npm run generate-api-client` after cloning.
