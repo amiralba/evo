@@ -161,14 +161,14 @@ function routeStoreOrder(rid){
 let draftMode=null, draftSeqC=0;
 function storeDur(s){return storeTaskList(s).reduce((a,t)=>a+resolveTaskMin(s,t).m,0);}
 window.openNewRouteModal=function(){
-  const code='ANK-'+String(routes.length+1).padStart(2,'0');
+  const code=(window.__evoCityPrefix?window.__evoCityPrefix():'RUT')+'-'+String(routes.length+1).padStart(2,'0');
   const bg=document.createElement('div');bg.className='modal-bg';bg.id='nrModal';
   bg.innerHTML=`<div class="modal" style="width:360px;">
     <div class="modal-head">Yeni rut</div>
     <div class="modal-body">
       <div class="frow"><label>Rut kodu</label><b>${code}</b> <span style="font-size:10px;color:var(--tx3);">(otomatik)</span></div>
       <div class="frow"><label>Ad</label><input type="text" id="nrName" value="Sincan Hattı" style="width:170px;"></div>
-      <div class="frow"><label>Coğrafi kapsam</label><span>Ankara ▾ · <span style="color:var(--tx3);">ilçe seç (prototipte tümü)</span></span></div>
+      <div class="frow"><label>Coğrafi kapsam</label><span>${window.__evoProvince||'Ankara'} ▾ · <span style="color:var(--tx3);">ilçe seç (prototipte tümü)</span></span></div>
       <div class="frow"><label>Ciro hedefi (bin ₺)</label><input type="number" id="nrTarget" value="${settingsData.target}" step="50" style="width:80px;"></div>
     </div>
     <div class="modal-foot">

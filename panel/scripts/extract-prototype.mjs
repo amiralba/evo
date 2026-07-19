@@ -51,6 +51,17 @@ script = script.replace(
   'function visiblePeople(){\n  if(!filter)return people.filter(function(p){return routes.some(function(r){return r.person===p.id;})||visits.some(function(v){return v.personId===p.id;});});',
 )
 
+// --- Yeni rut modal: route code + geo scope follow the selected city ---
+const NRCODE_ANCHOR = "const code='ANK-'+String(routes.length+1).padStart(2,'0');"
+if (!script.includes(NRCODE_ANCHOR)) throw new Error('new-route code anchor not found — prototype changed?')
+script = script.replace(
+  NRCODE_ANCHOR,
+  "const code=(window.__evoCityPrefix?window.__evoCityPrefix():'RUT')+'-'+String(routes.length+1).padStart(2,'0');",
+)
+const NRGEO_ANCHOR = '<span>Ankara ▾ · <span style="color:var(--tx3);">ilçe seç'
+if (!script.includes(NRGEO_ANCHOR)) throw new Error('new-route geo anchor not found — prototype changed?')
+script = script.replace(NRGEO_ANCHOR, "<span>${window.__evoProvince||'Ankara'} ▾ · <span style=\"color:var(--tx3);\">ilçe seç")
+
 // --- Map delegation (M4) ---
 // Let the React MapLibre controller (window.__evoRenderMap) take over map rendering; the
 // prototype's SVG map is skipped when the hook is present. #mapSvg stays in the DOM (empty) so

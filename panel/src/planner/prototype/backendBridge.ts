@@ -163,7 +163,8 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   }
 
   // Remember what the publish bridge needs: which province/week to re-load and diff against.
-  ;(win as unknown as { __evoProvince?: string }).__evoProvince = province
+  ;(win as unknown as { __evoProvince?: string; __evoCityPrefix?: () => string }).__evoProvince = province
+  ;(win as unknown as { __evoCityPrefix?: () => string }).__evoCityPrefix = () => cityPrefix(province)
 
   win.__evoLoadData({
     people,
@@ -191,6 +192,21 @@ const PROVINCES = [
 
 function trLower(s: string): string {
   return s.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase()
+}
+
+/** 3-letter route-code prefix for a province (Ankara→ANK, İstanbul→IST, İzmir→IZM), Turkish
+ * letters normalised to ASCII. Exposed as window.__evoCityPrefix for the "Yeni rut" modal. */
+function cityPrefix(province: string): string {
+  const ascii = province
+    .replace(/[İIı]/g, 'I')
+    .replace(/[şŞ]/g, 'S')
+    .replace(/[ğĞ]/g, 'G')
+    .replace(/[üÜ]/g, 'U')
+    .replace(/[öÖ]/g, 'O')
+    .replace(/[çÇ]/g, 'C')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+  return ascii.slice(0, 3) || 'RUT'
 }
 
 /** Turn the prototype's region button into a searchable province dropdown; picking one reloads
