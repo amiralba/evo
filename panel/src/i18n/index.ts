@@ -8,5 +8,3 @@ void i18next.use(initReactI18next).init({
   resources: { tr: { translation: tr } },
   interpolation: { escapeValue: false },
 });
-
-export default i18next;

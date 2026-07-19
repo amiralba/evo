@@ -55,13 +55,6 @@ export const categoryColors = {
   S: { fg: colors.text2, bg: colors.grayLight },
 } as const
 
-/** day-total load bar states (`.day-total.ok/.over/.under`, prototype line 137-139) */
-export const loadStatusColors = {
-  ok: colors.green,
-  over: colors.red,
-  under: colors.amberDark,
-} as const
-
 /**
  * Spacing scale — the discrete padding/margin/gap px values actually used across the
  * prototype's inline CSS, deduplicated and named.
@@ -102,17 +95,4 @@ export const fontSize = {
   base: '13px',
   xl: '14px',
   xxl: '15px',
-} as const
-
-export const fontFamily = "-apple-system, 'Segoe UI', Roboto, sans-serif"
-
-export const tokens = {
-  colors,
-  severityColors,
-  categoryColors,
-  loadStatusColors,
-  spacing,
-  radius,
-  fontSize,
-  fontFamily,
 } as const

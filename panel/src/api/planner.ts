@@ -34,7 +34,6 @@ type NoteStatus = components['schemas']['NoteStatus']
 type NoteKind = components['schemas']['NoteKind']
 type NoteAnchorType = components['schemas']['NoteAnchorType']
 type UpdateNoteStatusRequest = components['schemas']['UpdateNoteStatusRequest']
-type NotificationDto = components['schemas']['NotificationDto']
 
 async function json<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -257,9 +256,4 @@ export async function updateNoteStatus(id: string, body: UpdateNoteStatusRequest
     body: JSON.stringify(body),
   })
   return json<NoteDto>(response)
-}
-
-export async function getNotifications(merchandiserId: string): Promise<NotificationDto[]> {
-  const response = await authorizedFetch(`/api/v1/merchandisers/${merchandiserId}/notifications`)
-  return json<NotificationDto[]>(response)
 }

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "extract-prototype": "node scripts/extract-prototype.mjs",
     "generate-api-client": "openapi-typescript ../contracts/openapi.json -o ./src/api/generated/schema.ts",
     "preview": "vite preview",
     "test": "vitest run"

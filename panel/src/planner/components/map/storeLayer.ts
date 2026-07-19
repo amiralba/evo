@@ -16,7 +16,7 @@ const CATEGORY_STROKE: Record<number, string> = {
   3: colors.text2,
 }
 
-export function toFeatureCollection(stores: StoreGeoDto[]): GeoJSON.FeatureCollection {
+function toFeatureCollection(stores: StoreGeoDto[]): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: stores
