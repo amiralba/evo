@@ -1,31 +1,33 @@
 import { expect, test } from '@playwright/test'
+import { login, openPlanner } from './helpers'
 
-test('Görevler flow: open a route, view resolved tasks, open the scope modal', async ({ page }) => {
-  await page.goto('/login')
-  await page.fill('#email', 'admin@evo.local')
-  await page.fill('#password', 'Demo1234!')
-  await page.click('button[type=submit]')
-  await expect(page).toHaveURL(/\/$/)
+/**
+ * Görevler tab against the hosted prototype: focus a store from the rail's Havuz tab, open the
+ * panel's Görevler tab, and assert the tasksBridge swapped in REAL resolved tasks from
+ * GET /stores/{id}/task-plan (name · minutes · rule-source tag · visit total) — not the
+ * prototype's mock task list. Requires the seeded task-template/rule catalog (TaskRuleSeederModule).
+ */
+test('Görevler tab shows backend-resolved tasks for a focused store', async ({ page }) => {
+  await login(page)
+  await openPlanner(page)
 
-  await page.getByRole('link', { name: 'Planlama' }).click()
-  await expect(page).toHaveURL(/\/planner$/)
+  // Focus a store without touching the map: Havuz tab lists unassigned stores; clicking one
+  // focuses it in the right panel.
+  await page.locator('.rail .tabs div[data-t=pool]').click()
+  const firstStore = page.locator('#railList .pool-item').first()
+  await expect(firstStore, 'pool is empty — the spec needs an unassigned store to focus').toBeVisible({
+    timeout: 10_000,
+  })
+  await firstStore.click()
 
-  const routeSelect = page.getByLabel('route')
-  await expect(routeSelect.locator('option').nth(1)).toBeAttached({ timeout: 15_000 })
-  const routeValue = await routeSelect.locator('option').nth(1).getAttribute('value')
-  await routeSelect.selectOption(routeValue!)
+  await page.locator('#panelTabs div[data-t=tasks]').click()
 
-  await page.getByText('Görevler').click()
-
-  const taskRow = page.locator('.kv').first()
-  await expect(taskRow).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.pill').first()).toBeVisible()
-
-  await taskRow.click()
-  await expect(page.getByText('Kapsam seç')).toBeVisible()
-
-  await page.getByLabel(/Bu mağaza için/).check()
-  await expect(page.getByText('Etki önizlemesi')).toBeVisible({ timeout: 15_000 })
+  // tasksBridge paints "Görevler yükleniyor…" then swaps in resolved rows once the API answers.
+  const body = page.locator('#panelBody')
+  await expect(body.locator('.task-row').first()).toBeVisible({ timeout: 15_000 })
+  await expect(body).toContainText(/\ddk/)
+  await expect(body).toContainText('Ziyaret toplamı')
+  await expect(body).toContainText('süreler kurallarla çözülür (backend)')
 
   await page.screenshot({ path: 'e2e/artifacts/tasks-tab.png' })
 })

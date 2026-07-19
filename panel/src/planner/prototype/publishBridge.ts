@@ -67,6 +67,22 @@ interface PublishOpts {
   objective?: string | null
 }
 
+export type { ProtoVisit, EvoState, EvoSnapshot, SchedFields, RouteMeta }
+
+export interface PublishOps {
+  resizeOps: Array<{ routeId: string; stopId: string; minutes: number }>
+  patchOps: Array<{ routeId: string; req: ReturnType<typeof buildTimeShiftPatch> }>
+  newRoutes: EvoState['routes']
+  addOps: Array<{ routeId: string; storeId: string }>
+  removeOps: Array<{ routeId: string; stopId: string }>
+  statusOps: Array<{ storeId: string; active: boolean }>
+  reassignOps: Array<{ routeId: string; merchandiserId: string }>
+  scheduleOps: Array<{ routeId: string; stopId: string; frequency: 1 | 2 | 3; weekdayMask: number }>
+  metaOps: Array<{ routeId: string; body: components['schemas']['UpdateRouteRequest'] }>
+  /** routes needing a republish (excludes new routes — they publish in the create flow) */
+  affected: Set<string>
+}
+
 type ProtoWindow = Window & {
   __evoState?: () => EvoState
   __evoSnapshot?: EvoSnapshot
@@ -97,13 +113,16 @@ export function installPublishBridge(): void {
   }
 }
 
-async function flush(opts: PublishOpts): Promise<void> {
-  const win = window as ProtoWindow
-  const state = win.__evoState?.()
-  const snap = win.__evoSnapshot
-  const province = win.__evoProvince ?? 'Ankara'
-  if (!state || !snap || !snap.weekFrom || !snap.weekTo) return
-
+/**
+ * The pure diff: current in-memory prototype state vs the snapshot taken at load, translated
+ * into backend mutation ops. No I/O, no window — unit-tested in publishBridge.test.ts.
+ * `snap.weekFrom`/`weekTo` must be non-null (flush guards before calling).
+ */
+export function computePublishOps(
+  state: EvoState,
+  snap: EvoSnapshot & { weekFrom: string; weekTo: string },
+  reason?: string | null,
+): PublishOps {
   const routeByStore = new Map(state.stores.map((s) => [s.id, s.route]))
   const snapById = new Map(snap.visits.map((v) => [v.id, v]))
 
@@ -125,8 +144,8 @@ async function flush(opts: PublishOpts): Promise<void> {
       const toDate = dateForDay(snap.weekFrom, cur.day)
       const req =
         cur.day === prev.day
-          ? buildTimeShiftPatch({ storeId: cur.storeId, startsOn: fromDate, endsOn: snap.weekTo, startMinutes: cur.start, reason: opts.reason })
-          : buildMoveVisitPatch({ storeId: cur.storeId, fromDate, toDate, endsOn: snap.weekTo, startMinutes: cur.start, reason: opts.reason })
+          ? buildTimeShiftPatch({ storeId: cur.storeId, startsOn: fromDate, endsOn: snap.weekTo, startMinutes: cur.start, reason })
+          : buildMoveVisitPatch({ storeId: cur.storeId, fromDate, toDate, endsOn: snap.weekTo, startMinutes: cur.start, reason })
       patchOps.push({ routeId, req })
     }
   }
@@ -217,6 +236,20 @@ async function flush(opts: PublishOpts): Promise<void> {
     ...removeOps.map((o) => o.routeId),
     ...statusOps.map((o) => snap.storeRoute[o.storeId]).filter((r): r is string => !!r),
   ])
+
+  return { resizeOps, patchOps, newRoutes, addOps, removeOps, statusOps, reassignOps, scheduleOps, metaOps, affected }
+}
+
+async function flush(opts: PublishOpts): Promise<void> {
+  const win = window as ProtoWindow
+  const state = win.__evoState?.()
+  const snap = win.__evoSnapshot
+  const province = win.__evoProvince ?? 'Ankara'
+  if (!state || !snap || !snap.weekFrom || !snap.weekTo) return
+
+  const { resizeOps, patchOps, newRoutes, addOps, removeOps, statusOps, reassignOps, scheduleOps, metaOps, affected } =
+    computePublishOps(state, snap as EvoSnapshot & { weekFrom: string; weekTo: string }, opts.reason)
+
   if (affected.size === 0 && newRoutes.length === 0 && metaOps.length === 0 && statusOps.length === 0) {
     engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi · ziyaret günleri · ad/hedef · pasifleştir)')
     return

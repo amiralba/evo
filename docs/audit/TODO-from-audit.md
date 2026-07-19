@@ -58,9 +58,22 @@ Mark exactly one option per decision. Sessions must log the chosen option in `do
   weekend/flaky failures as the pre-C3 baseline (no new); seeder demo profile runs green (5 modules,
   idempotent, exit 0); `--wipe` rejection verified (exit 1)
 
-### Session C4 — Playwright + bridge tests (§E.3, §E.4; depends on D1/D2)
-- [ ] Rewrite the 4 broken specs (`planner-core`, `tasks-tab`, `onarim`, `field-execution`) against the prototype DOM — add `data-testid`s via bridges; refresh e2e artifacts
-- [ ] Unit-test `publishBridge.ts` diff logic (highest data-corruption-risk untested code)
+### Session C4 — Playwright + bridge tests (§E.3, §E.4; depends on D1/D2) — DONE 2026-07-19
+- [x] Rewrite the 4 broken specs (`planner-core`, `tasks-tab`, `onarim`, `field-execution`) against the prototype DOM — add `data-testid`s via bridges; refresh e2e artifacts
+  (No testids needed — the prototype DOM has stable ids (`#railList`, `#publishBtn`, `#pubModal`, …).
+  `planner-core` is now the full real loop incl. route creation + self-cleanup; `tasks-tab` asserts
+  backend-resolved tasks; `onarim`+`field-execution` merged into a new `inbox` spec — their original
+  flows died with the pivot + D3b (no realization data path; Onarım opens only from engine-mock
+  disruptions, backend Onarım still has no bridge — audit §A3.2 decision REMAINS OPEN). Suite is now
+  5 specs, serial (`workers: 1`, shared dev DB), boot-gated on the host reveal (engine paints mock
+  data at opacity 0 first — the root cause of the old specs' flakiness). 3× consecutive green runs;
+  artifacts refreshed (`inbox.png` new, `onarim`/`field-execution` pngs deleted).)
+- [x] Unit-test `publishBridge.ts` diff logic (highest data-corruption-risk untested code)
+  (Extracted the diff into pure `computePublishOps(state, snap, reason)` — no behavior change,
+  `flush` now just applies it — and covered it with 14 vitest cases: resize/time-shift/move-visit,
+  ghost visits, add vs new-route ownership, draft exclusion, remove-uses-snapshot-stopId,
+  status/reassign/schedule/meta diffs, ₺×1000 scaling, snapshot-less-store guards. Panel suite
+  40/40.)
 
 ### Session C5 — Docs truth pass (§F)
 - [ ] Log the prototype-verbatim pivot in `docs/DECISIONS.md`; describe `PrototypeHost`/bridges in `docs/ARCHITECTURE.md`

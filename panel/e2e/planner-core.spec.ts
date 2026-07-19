@@ -1,66 +1,81 @@
 import { expect, test } from '@playwright/test'
+import { confirmPublish, login, openPlanner } from './helpers'
 
-test('planner core flow: login -> open workspace -> filter -> bulk-add -> health updates -> publish', async ({ page }) => {
-  // 1. Login + open workspace
-  await page.goto('/login')
-  await page.fill('#email', 'admin@evo.local')
-  await page.fill('#password', 'Demo1234!')
-  await page.click('button[type=submit]')
-  await expect(page).toHaveURL(/\/$/)
+/**
+ * The core planner loop against the hosted v0.5 prototype, end-to-end REAL: create a route
+ * (Yeni rut draft → pool-pick a store → assign a person → Aktifleştir), publish it (Yayınla →
+ * publishBridge writes createRoute/bulkAddStops/reassign/publish to the backend), and see the
+ * round-trip — after publish the bridge reloads backend state, so the new route code showing in
+ * the rail proves it was actually persisted, not just buffered in the prototype's changes[].
+ *
+ * Self-sufficient by design: the seeder does NOT seed routes (decision D3b) — the spec creates
+ * everything it needs. It does require ≥1 unassigned store in the default province (seeded).
+ */
+test('planner core: create a route from the pool, activate, publish, survive the backend round-trip', async ({ page }) => {
+  await login(page)
+  await openPlanner(page)
 
-  await page.getByRole('link', { name: 'Planlama' }).click()
-  await expect(page).toHaveURL(/\/planner$/)
-  await expect(page.getByLabel('province')).toBeVisible()
-
-  // 2. Filter to a route via the top-bar route select (seeded demo data has >=1 route per province)
-  const routeSelect = page.getByLabel('route')
-  await expect(routeSelect.locator('option').nth(1)).toBeAttached({ timeout: 15_000 })
-  const routeValue = await routeSelect.locator('option').nth(1).getAttribute('value')
-  await routeSelect.selectOption(routeValue!)
-
-  await expect(page.getByTestId('week-range')).not.toHaveText('', { timeout: 10_000 })
-
-  // 3. Switch to the Tablo layout to reach the checkbox/list multi-select (not the map lasso).
-  // Exact match — the schedule pane also has a "▤ Tabloda gör" drawer-toggle button (prototype
-  // wording), which a substring match on "Tablo" would ambiguously also hit.
-  await page.getByRole('button', { name: 'Tablo', exact: true }).click()
-  const firstCheckbox = page.locator('[data-testid^="select-store-"]').first()
-  await expect(firstCheckbox).toBeVisible({ timeout: 15_000 })
-
-  // Capture stop count before the add
-  const stopsBefore = await page.locator('text=/varsayılan|dk$/').count()
-
-  await firstCheckbox.check()
-  await page.getByRole('button', { name: /Rotaya ekle/ }).click()
-
-  // 4. Health/stops update after the mutation invalidates the route query
-  await expect(async () => {
-    const stopsAfter = await page.locator('text=/varsayılan|dk$/').count()
-    expect(stopsAfter).toBeGreaterThan(stopsBefore)
-  }).toPass({ timeout: 15_000 })
-
-  // 5. Publish — tolerant of both the clean and override-with-reason paths
-  await page.getByTestId('publish-trigger').click()
-  const modal = page.getByText('Yayın öncesi inceleme')
+  // 1. Yeni rut — capture the auto route code shown in the identity modal (e.g. ANK-03).
+  await page.locator('#railList').getByText('+ Yeni rut').click()
+  const modal = page.locator('#nrModal')
   await expect(modal).toBeVisible()
+  const routeCode = (await modal.locator('.frow b').first().innerText()).trim()
+  expect(routeCode).toMatch(/-\d+$/)
+  await modal.locator('#nrName').fill(`E2E Rut ${Date.now()}`)
+  await modal.locator('#nrGo').click()
 
-  // Findings load async — wait for the modal to settle (either the reason field or the
-  // no-findings message) before deciding which publish path this run takes.
-  const submitButton = page.getByTestId('publish-modal-submit')
-  const reasonBox = page.getByLabel(/Neden/)
-  await expect(async () => {
-    const settled = (await reasonBox.isVisible().catch(() => false)) || !(await submitButton.isDisabled())
-    expect(settled).toBe(true)
-  }).toPass({ timeout: 15_000 })
+  // 2. Draft mode: add one store via the pool picker (the list alternative to the map lasso).
+  await page.getByRole('button', { name: /Havuzdan listeyle ekle/ }).click()
+  const picker = page.locator('#ppModal')
+  await expect(picker).toBeVisible()
+  const firstAdd = picker.locator('.ppAdd').first()
+  await expect(firstAdd, 'pool has no unassigned store in this province — seed or free one up').toBeVisible({
+    timeout: 10_000,
+  })
+  await firstAdd.click()
+  await picker.getByRole('button', { name: 'Bitti' }).click()
 
-  if (await reasonBox.isVisible().catch(() => false)) {
-    await reasonBox.fill('E2E test override reason')
-    await page.getByLabel(/Amaç/).fill('E2E test override objective')
-  }
+  // 3. Assign a person (first real candidate) — required before Aktifleştir.
+  const personSelect = page.locator('#panelBody select')
+  await expect(personSelect).toBeVisible()
+  const firstPerson = await personSelect.locator('option').nth(1).getAttribute('value')
+  await personSelect.selectOption(firstPerson!)
 
-  await expect(submitButton).toBeEnabled({ timeout: 5_000 })
-  await submitButton.click()
-  await expect(page.getByText(/Oluşturulan ziyaret sayısı/)).toBeVisible({ timeout: 15_000 })
+  // 4. Activate the draft — this buffers the change, enabling Yayınla.
+  await page.getByRole('button', { name: 'Aktifleştir', exact: true }).click()
+  await expect(page.locator('#chgCount')).not.toHaveText('0')
+
+  // 5. Publish and wait for the backend write confirmation toast from publishBridge.
+  await confirmPublish(page)
+  await expect(page.locator('#toast')).toContainText(/Backend.e yazıldı/, { timeout: 30_000 })
+
+  // 6. Round-trip: the bridge reloads backend state after the flush; the new route must come
+  // back from the API (rail lists only backend routes after a load).
+  await expect(page.locator('#railList')).toContainText(routeCode, { timeout: 30_000 })
 
   await page.screenshot({ path: 'e2e/artifacts/planner-core.png' })
+
+  // 7. Cleanup — keep the suite rerunnable on the small seeded pool: deactivating the route
+  // returns its store to the pool (engine semantics), and publishing persists both (route
+  // status + stop removal). The engine call replaces the focus-the-route UI dance; the write
+  // path exercised is the same publish flow.
+  await page.evaluate((code) => {
+    const w = window as unknown as {
+      __evoState: () => { routes: Array<{ id: string; code?: string | null }> }
+      deactivateRoute: (id: string) => void
+      confirm: (msg?: string) => boolean
+    }
+    const orig = w.confirm
+    w.confirm = () => true
+    try {
+      const r = w.__evoState().routes.find((x) => x.code === code)
+      if (r) w.deactivateRoute(r.id)
+    } finally {
+      w.confirm = orig
+    }
+  }, routeCode)
+  await confirmPublish(page)
+  // Inactive routes are skipped by the rail render — the code disappearing after the reload
+  // proves the deactivation reached the backend and came back.
+  await expect(page.locator('#railList')).not.toContainText(routeCode, { timeout: 30_000 })
 })
