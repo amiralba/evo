@@ -201,6 +201,10 @@ public class RoutesController : ControllerBase
     {
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
 
+        // Transaction (audit DB §3.6): status transitions mix changelog flushes, visit/instance
+        // deletes and plan regeneration — a mid-sequence failure must not commit half a transition.
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         if (request.Name is not null)
         {
             route.Name = request.Name;
@@ -217,6 +221,7 @@ public class RoutesController : ControllerBase
 
         route.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
 
         var stopCount = await _db.RouteStops.CountAsync(rs => rs.RouteId == id && rs.EffectiveTo == null);
         return ToSummaryDto(route, stopCount);
@@ -483,6 +488,11 @@ public class RoutesController : ControllerBase
         var merchandiser = await _db.Merchandisers.FirstOrDefaultAsync(m => m.Id == request.MerchandiserId)
             ?? throw new NotFoundException("Merchandiser");
 
+        // Transaction (audit DB §3.6): the changelog write below flushes pending state via the
+        // shared DbContext — without a transaction, a unique-index conflict on the new assignment
+        // returned 409 with the closure already COMMITTED, leaving the route unassigned.
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         var currentAssignment = await _db.Assignments.FirstOrDefaultAsync(a => a.RouteId == id && a.EndDate == null);
         if (currentAssignment is not null)
         {
@@ -530,6 +540,7 @@ public class RoutesController : ControllerBase
             instance.MerchandiserId = request.MerchandiserId;
         }
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == merchandiser.UserId);
         return new AssignmentDto(newAssignment.MerchandiserId, user?.DisplayName ?? "?", newAssignment.StartDate, newAssignment.Reason);
@@ -623,10 +634,18 @@ public class RoutesController : ControllerBase
     [HttpGet("{id:guid}/plan")]
     public async Task<ActionResult<IReadOnlyList<PlanDayDto>>> GetPlan(Guid id, [FromQuery] DateOnly from, [FromQuery] DateOnly to)
     {
+        // Span clamp (audit DB §3.8): the range was unbounded — an arbitrary from/to scanned and
+        // materialized years of visits per request. 13 weeks covers every panel view comfortably.
+        if (to > from.AddDays(91))
+        {
+            to = from.AddDays(91);
+        }
+
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
         var settings = await _settingsProvider.GetAsync(route.Province);
 
         var visits = await _db.PlannedVisits
+            .AsNoTracking()
             .Where(v => v.RouteId == id && v.VisitDate >= from && v.VisitDate <= to)
             .ToListAsync();
         var storeNames = await _db.Stores.Where(s => visits.Select(v => v.StoreId).Contains(s.Id))
@@ -659,6 +678,10 @@ public class RoutesController : ControllerBase
             return new LocationPointDto(nearest.Lat, nearest.Lng);
         }
 
+        // V14 hoisted out of the day loop (audit DB §3.7): absence/closure windows load ONCE for
+        // the whole span; the pure evaluation still runs per day so findings stay day-scoped.
+        var v14ByDate = await BuildV14FindingsAsync(visits, groupByDate: true);
+
         var days = new List<PlanDayDto>();
         foreach (var group in visits.GroupBy(v => v.VisitDate).OrderBy(g => g.Key))
         {
@@ -686,7 +709,7 @@ public class RoutesController : ControllerBase
                 .Select(v => (v.MerchandiserId!.Value, v.VisitDate, TimeOnly.FromDateTime(v.PlannedStart!.Value.DateTime), TimeOnly.FromDateTime(v.PlannedEnd!.Value.DateTime)));
             findings.AddRange(OverlapValidator.V12_Overlaps(overlapInputs));
 
-            findings.AddRange(await BuildV14FindingsAsync(group.ToList()));
+            findings.AddRange(v14ByDate.GetValueOrDefault(group.Key) ?? []);
 
             days.Add(new PlanDayDto(group.Key, visitDtos, plannedMinutes,
                 findings.Select(f => new FindingDto(f.Code, f.Severity, f.Message, f.Scope)).ToList()));
@@ -699,6 +722,13 @@ public class RoutesController : ControllerBase
     /// temporarily closed. Never hard-blocks; the finding surfaces on plan/validate and links the
     /// Onarım workbench (spec 010).</summary>
     private async Task<IReadOnlyList<ValidationFinding>> BuildV14FindingsAsync(IReadOnlyList<PlannedVisit> visits)
+    {
+        var byDate = await BuildV14FindingsAsync(visits, groupByDate: false);
+        return byDate.TryGetValue(default, out var flat) ? flat : [];
+    }
+
+    private async Task<Dictionary<DateOnly, IReadOnlyList<ValidationFinding>>> BuildV14FindingsAsync(
+        IReadOnlyList<PlannedVisit> visits, bool groupByDate)
     {
         if (visits.Count == 0) return [];
 
@@ -726,7 +756,19 @@ public class RoutesController : ControllerBase
         var absenceWindows = absences.Select(a => (a.MerchandiserId, a.StartDate, a.EndDate)).ToList();
         var closedWindows = closedStores.Select(f => (f.StoreId, f.StartsOn, f.EndsOn ?? DateOnly.MaxValue)).ToList();
 
-        return AbsenceValidator.Evaluate(visitEvals, absenceWindows, closedWindows);
+        if (!groupByDate)
+        {
+            return new Dictionary<DateOnly, IReadOnlyList<ValidationFinding>>
+            {
+                [default] = AbsenceValidator.Evaluate(visitEvals, absenceWindows, closedWindows),
+            };
+        }
+
+        return visitEvals
+            .GroupBy(v => v.Date)
+            .ToDictionary(
+                g => g.Key,
+                g => AbsenceValidator.Evaluate(g.ToList(), absenceWindows, closedWindows));
     }
 
     [HttpGet("{id:guid}/health")]
@@ -859,6 +901,10 @@ public class RoutesController : ControllerBase
         var routeEval = BuildRouteEval(route, stops, stores, sixMonthRevenue, settings.ServiceMixCapPct);
         var findings = new List<ValidationFinding>(RouteValidator.Evaluate(routeEval));
 
+        // Transaction (audit DB §3.6): journal + regeneration + changelog commit together — the
+        // notification dispatch below stays OUTSIDE (log-and-continue must not roll back a publish).
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         // V14 absence-collision findings are Error severity and must hit the same reason+objective
         // gate as every other error (design §3.2) — previously only /plan and /validate ran them,
         // so absence collisions bypassed the publish override entirely (audit DB §5.2).
@@ -902,6 +948,7 @@ public class RoutesController : ControllerBase
 
         await _changeLog.WriteAsync(id, RouteChangeEvent.Published, null, new { VisitsMaterialized = visitsMaterialized, OverrodeErrors = errors.Count > 0 });
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
 
         try
         {

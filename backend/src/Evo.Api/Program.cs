@@ -47,12 +47,35 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+// Analytics responses are identical for every Supervisor (2-role model, all-regions) and
+// aggregate large scans on read (audit DB §3.1) — cache them briefly, varied by query string.
+// excludeDefaultPolicy: the default policy refuses to cache authorized requests; these GET-only,
+// cookie-free, role-uniform reports are safe to share. Dev/tests set the duration to 0 (NoCache)
+// so assertions never see stale aggregates.
+builder.Services.AddOutputCache(options =>
+{
+    var seconds = builder.Configuration.GetValue("OutputCache:AnalyticsSeconds", 60);
+    options.AddPolicy("analytics", b =>
+    {
+        if (seconds <= 0)
+        {
+            b.NoCache();
+            return;
+        }
+        b.Expire(TimeSpan.FromSeconds(seconds)).SetVaryByQuery("*");
+    }, excludeDefaultPolicy: true);
+});
+
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
-builder.Services.AddDbContext<EvoDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("EvoDb"), x => x.UseNetTopologySuite()));
+// Pooled + bounded command timeout (audit DB §3.10). Retry-on-failure is deliberately NOT
+// enabled: mutation endpoints use explicit BeginTransaction (§3.6), which EF forbids
+// combining with the retrying execution strategy without wrapping every transaction.
+builder.Services.AddDbContextPool<EvoDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("EvoDb"),
+        x => x.UseNetTopologySuite().CommandTimeout(30)));
 
 builder.Services.AddDataProtection();
 
@@ -140,6 +163,7 @@ app.Use(async (context, next) =>
 app.UseHttpsRedirection();
 
 app.UseRateLimiter();
+app.UseOutputCache();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -26,6 +26,7 @@ public class AnalyticsController : ControllerBase
         _mobilityService = mobilityService;
     }
 
+    [Microsoft.AspNetCore.OutputCaching.OutputCache(PolicyName = "analytics")]
     [HttpGet("plan-health")]
     public async Task<ActionResult<PlanHealthReportDto>> GetPlanHealth([FromQuery] string? region, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
@@ -35,12 +36,14 @@ public class AnalyticsController : ControllerBase
         return await _planHealthService.GetReportAsync(region, effectiveFrom, effectiveTo);
     }
 
+    [Microsoft.AspNetCore.OutputCaching.OutputCache(PolicyName = "analytics")]
     [HttpGet("stability")]
     public async Task<ActionResult<IReadOnlyList<RouteStabilityDto>>> GetStability([FromQuery] string? region)
     {
         return (await _stabilityService.GetRegionStabilityAsync(region)).ToList();
     }
 
+    [Microsoft.AspNetCore.OutputCaching.OutputCache(PolicyName = "analytics")]
     [HttpGet("mobility")]
     public async Task<ActionResult<IReadOnlyList<MerchandiserMobilityDto>>> GetMobility([FromQuery] string? region, [FromQuery] int months = 12)
     {

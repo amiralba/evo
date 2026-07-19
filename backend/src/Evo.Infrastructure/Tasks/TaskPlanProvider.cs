@@ -8,6 +8,12 @@ public class TaskPlanProvider : ITaskPlanProvider
 {
     private readonly EvoDbContext _db;
 
+    // Scoped-lifetime memo (one HTTP request / one generation run): PlanGenerationService calls
+    // ResolveForStoresAsync once per DAY in its date loop, which re-fetched ALL templates + ALL
+    // rules each time — 84 queries per route regeneration (audit DB §3.3). The catalog cannot
+    // change mid-request, so load it once per provider instance.
+    private (IReadOnlyList<TaskTemplateInput> Templates, IReadOnlyList<TaskRuleInput> Rules)? _catalog;
+
     public TaskPlanProvider(EvoDbContext db)
     {
         _db = db;
@@ -33,15 +39,21 @@ public class TaskPlanProvider : ITaskPlanProvider
 
     private async Task<(IReadOnlyList<TaskTemplateInput> Templates, IReadOnlyList<TaskRuleInput> Rules)> LoadAsync(CancellationToken ct)
     {
+        if (_catalog is { } cached)
+        {
+            return cached;
+        }
+
         var templates = await _db.TaskTemplates
             .Where(t => t.Active)
             .Select(t => new TaskTemplateInput(t.Id, t.Code, t.DefaultMinutes, t.TargetChain, t.TargetFormat, t.ValidUntil, t.Active))
             .ToListAsync(ct);
 
-        var ruleRows = await _db.Rules.ToListAsync(ct);
+        var ruleRows = await _db.Rules.AsNoTracking().ToListAsync(ct);
         var rules = ruleRows.Select(MapRule).ToList();
 
-        return (templates, rules);
+        _catalog = (templates, rules);
+        return _catalog.Value;
     }
 
     private static TaskRuleInput MapRule(Rule rule)

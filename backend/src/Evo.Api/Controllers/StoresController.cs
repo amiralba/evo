@@ -121,7 +121,7 @@ public class StoresController : ControllerBase
             query = query.Where(s => s.District == district);
         }
 
-        var stores = await query.Take(5000).ToListAsync();
+        var stores = await query.AsNoTracking().Take(5000).ToListAsync();
         var storeIds = stores.Select(s => s.Id).ToList();
 
         var activeStops = await _db.RouteStops

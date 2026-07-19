@@ -90,27 +90,49 @@ Mark exactly one option per decision. Sessions must log the chosen option in `do
 
 ---
 
-## 2. P0 — Trust & safety (main report §G)
-- [ ] TimeProvider + Istanbul-aware "today" + FakeTimeProvider in tests → kills the 11 weekend failures + the 00:00–03:00 window (§B.3, §E.1, DB §1.1)
-- [ ] CI: add SQL Server service container to backend job; `global.json` rollForward (§E.2, §E.7)
-- [ ] XSS: escape backend strings at bridge boundary + engine.js render paths; CSP + HSTS + real AllowedHosts (§C H1/H2)
-- [ ] Rate-limit login/refresh; shorten access token or token-version revocation (§C M1/M2)
+## 2. P0 — Trust & safety (main report §G) — DONE 2026-07-19
+- [x] TimeProvider + Istanbul-aware "today" + FakeTimeProvider in tests → kills the 11 weekend failures + the 00:00–03:00 window (§B.3, §E.1, DB §1.1)
+  (`PlanningClock` in Evo.Infrastructure/Time; `TestClock` pins Wed 2026-07-15; suite went 161/171
+  → **171/171, verified on a Sunday**. PlannedStart/End now carry Istanbul's real offset.)
+- [x] CI: add SQL Server service container to backend job; `global.json` rollForward (§E.2, §E.7)
+  (mssql:2022 service on both jobs; panel job seeds + boots the API before Playwright. rollForward
+  was ALREADY latestFeature — §E.7 item was stale. First real exercise: next push/PR.)
+- [x] XSS: escape backend strings at bridge boundary + engine.js render paths; CSP + HSTS + real AllowedHosts (§C H1/H2)
+  (`backendBridge.esc` boundary escaping + `publishBridge.unesc` for round-trip fields; panel CSP
+  meta (script-src keeps 'unsafe-inline' until D2b removes inline handlers); API HSTS + security
+  headers + AllowedHosts=localhost. In-engine escaping of the 82 innerHTML sites remains D2b.)
+- [x] Rate-limit login/refresh; shorten access token or token-version revocation (§C M1/M2)
+  (per-IP 10/min fixed window on login+refresh, config-raised in dev; access token 60→15 min —
+  panel already auto-refreshes on 401.)
 
-## 3. P2 — Scale readiness (DB report §7 checklist has the full list)
-- [ ] `(RouteId, VisitDate)` + `(StoreId, VisitDate)` indexes on planned_visit (DB §2.1/2.2)
+## 3. P2 — Scale readiness (DB report §7 checklist has the full list) — PARTIAL 2026-07-19
+- [x] `(RouteId, VisitDate)` + `(StoreId, VisitDate)` indexes on planned_visit (DB §2.1/2.2) — in the P3 migration
 - [ ] Analytics: region required, set-based aggregation, output cache; then `route_day_stats` (DB §3.1, §7.1)
-- [ ] Batch plan endpoint + react-query caching → collapse 44-request boot (§D.1)
+  (DONE: 60s output cache on the 3 analytics GETs (shared across Supervisors by design, dev/tests
+  uncached). DEFERRED: region-required (breaks the panel's "Tüm Bölgeler" option — needs a UX
+  decision), the per-metric GROUP BY rewrite, and `route_day_stats`.)
+- [ ] Batch plan endpoint + react-query caching → collapse 44-request boot (§D.1) — DEFERRED (new contract surface; spec it)
 - [ ] Transactions per mutation + AuditWriter fix + rowversion (§B.4, DB §3.6/1.5)
-- [ ] Regeneration queue (202) + hardened nightly job + lazy patch expiry (§D.9/10, DB §4.3)
+  (DONE: explicit transactions on the three verified-dangerous mutations — Reassign (the concrete
+  route-left-unassigned bug), Publish, route status transitions. DEFERRED: AuditWriter save-semantics
+  change (touches every call site) and rowversion concurrency.)
+- [ ] Regeneration queue (202) + hardened nightly job + lazy patch expiry (§D.9/10, DB §4.3) — DEFERRED (contract change)
 - [ ] AsNoTracking sweep, DbContext pooling + retry, pagination, plan-span clamp (DB §3.5/3.8/3.12)
+  (DONE: plan-span clamp (91 days), targeted AsNoTracking on the hot reads (plan, stores/geo,
+  merchandisers, rules), `AddDbContextPool` + 30s command timeout, and the §3.3 per-day rule-reload
+  hoist (TaskPlanProvider scoped memo — 84→2 catalog queries per regeneration) + §3.7 V14 hoist in
+  GetPlan. DEFERRED: repo-wide NoTracking default, retry strategy (conflicts with the new explicit
+  transactions), full pagination pass.)
 
-## 4. P3 — Correctness bugs (cheap, real; DB report §5)
-- [ ] Chain-targeting fix incl. `string?`→`Guid?` type (DB §5.1)
-- [ ] Guid.Empty sentinel collision (DB §1.4)
-- [ ] V14 in the publish gate (DB §5.2)
-- [ ] 450 + 42-day constants → settings (§B.2)
-- [ ] task_instance orphans on deactivate; MerchandiserId refresh on reassign (DB §4.4)
-- [ ] Cascade → Restrict on route/visit family (DB §1.2)
+## 4. P3 — Correctness bugs (cheap, real; DB report §5) — DONE 2026-07-19
+- [x] Chain-targeting fix incl. `string?`→`Guid?` type (DB §5.1)
+- [x] Guid.Empty sentinel collision (DB §1.4) — PatchId-keyed upserts + filtered unique index
+- [x] V14 in the publish gate (DB §5.2)
+- [x] 450 + 42-day constants → settings (§B.2)
+- [x] task_instance orphans on deactivate; MerchandiserId refresh on reassign (DB §4.4)
+- [x] Cascade → Restrict on route/visit family (DB §1.2) — ALL FKs now Restrict
+  (also DB §5.3: Onarım patches pick Pending/Active from StartsOn. Migration:
+  AuditP3RestrictCascadesFilteredVisitKeyIndexes. Backend 171/171.)
 
 ## 5. P4 — KVKK & lifecycle (before real agent data)
 - [ ] Retention policy + jobs: pings, absence (special-category), audit log (DB §4.1)

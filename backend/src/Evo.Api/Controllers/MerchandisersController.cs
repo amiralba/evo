@@ -49,7 +49,7 @@ public class MerchandisersController : ControllerBase
             query = query.Where(m => m.Active);
         }
 
-        var merchandisers = await query.ToListAsync();
+        var merchandisers = await query.AsNoTracking().ToListAsync();
         var userIds = merchandisers.Select(m => m.UserId).ToList();
         var names = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.DisplayName);
 
