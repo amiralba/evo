@@ -27,6 +27,7 @@ public class PlanGenFormatChangeReresolvesTests
         await db.TaskInstances.ExecuteDeleteAsync();
         await db.Rules.ExecuteDeleteAsync();
         await db.TaskTemplates.ExecuteDeleteAsync();
+        await db.VisitRealizations.ExecuteDeleteAsync();
         await db.PlannedVisits.ExecuteDeleteAsync();
         await db.Patches.ExecuteDeleteAsync();
         await db.Assignments.ExecuteDeleteAsync();

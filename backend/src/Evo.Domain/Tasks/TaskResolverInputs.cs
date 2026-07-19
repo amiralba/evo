@@ -4,7 +4,7 @@ public record TaskTemplateInput(
     Guid Id,
     string Code,
     int DefaultMinutes,
-    string? TargetChain,
+    Guid? TargetChain,
     byte? TargetFormat,
     DateOnly? ValidUntil,
     bool Active);

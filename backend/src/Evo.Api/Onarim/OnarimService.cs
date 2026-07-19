@@ -179,7 +179,7 @@ public class OnarimService : IOnarimService
                         StoreId = visit.StoreId,
                         StartsOn = visit.VisitDate,
                         EndsOn = visit.VisitDate,
-                        Status = PatchStatus.Active,
+                        Status = visit.VisitDate <= Today() ? PatchStatus.Active : PatchStatus.Pending,
                         Reason = request.Reason,
                         CreatedBy = actorId,
                     });
@@ -197,7 +197,7 @@ public class OnarimService : IOnarimService
                         StartsOn = visit.VisitDate < targetDate ? visit.VisitDate : targetDate,
                         EndsOn = visit.VisitDate > targetDate ? visit.VisitDate : targetDate,
                         ParamsJson = JsonSerializer.Serialize(moveParams),
-                        Status = PatchStatus.Active,
+                        Status = (visit.VisitDate < targetDate ? visit.VisitDate : targetDate) <= Today() ? PatchStatus.Active : PatchStatus.Pending,
                         Reason = request.Reason,
                         CreatedBy = actorId,
                     });
@@ -215,7 +215,7 @@ public class OnarimService : IOnarimService
                             CoverMerchandiserId = targetMerchandiserId,
                             StartsOn = disruption.Start < today ? today : disruption.Start,
                             EndsOn = disruption.End,
-                            Status = PatchStatus.Active,
+                            Status = (disruption.Start < today ? today : disruption.Start) <= today ? PatchStatus.Active : PatchStatus.Pending,
                             Reason = request.Reason,
                             CreatedBy = actorId,
                         });
@@ -237,7 +237,7 @@ public class OnarimService : IOnarimService
                         StartsOn = visit.VisitDate,
                         EndsOn = visit.VisitDate,
                         ParamsJson = JsonSerializer.Serialize(crossParams),
-                        Status = PatchStatus.Active,
+                        Status = visit.VisitDate <= Today() ? PatchStatus.Active : PatchStatus.Pending,
                         Reason = request.Reason,
                         CreatedBy = actorId,
                     });

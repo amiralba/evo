@@ -48,6 +48,17 @@ public class RoutesController : ControllerBase
         _clock = clock;
     }
 
+    /// <summary>Regeneration horizon end from the route's province settings — was hardcoded
+    /// today+42 at 8 call sites while Publish and the nightly job used plan_horizon_weeks
+    /// (audit §B.2: with the setting != 6 weeks, incremental edits silently regenerated a
+    /// different horizon than publish, dropping tail visits).</summary>
+    private async Task<DateOnly> HorizonEndAsync(Guid routeId, DateOnly today)
+    {
+        var province = await _db.Routes.Where(r => r.Id == routeId).Select(r => r.Province).FirstOrDefaultAsync();
+        var settings = await _settingsProvider.GetAsync(province);
+        return today.AddDays(settings.PlanHorizonWeeks * 7);
+    }
+
     private Guid? CurrentUserId
     {
         get
@@ -226,7 +237,7 @@ public class RoutesController : ControllerBase
             route.Version++;
             await _changeLog.WriteAsync(route.Id, RouteChangeEvent.Published, null, new { route.Status });
             await _db.SaveChangesAsync();
-            await _planGenerationService.RegenerateFutureAsync(route.Id, today, today.AddDays(42));
+            await _planGenerationService.RegenerateFutureAsync(route.Id, today, await HorizonEndAsync(route.Id, today));
         }
         else if (route.Status == RouteStatus.Active && newStatus == RouteStatus.Inactive)
         {
@@ -236,6 +247,14 @@ public class RoutesController : ControllerBase
                 stop.EffectiveTo = today;
             }
             var futureVisits = await _db.PlannedVisits.Where(v => v.RouteId == route.Id && v.VisitDate >= today).ToListAsync();
+            // Deleting the visits without their task instances left null-visit Pending tasks
+            // accumulating forever and polluting compliance metrics (audit DB §4.4) —
+            // task_instance.PlannedVisitId is SetNull, not Cascade.
+            var futureVisitIds = futureVisits.Select(v => v.Id).ToHashSet();
+            var orphanedInstances = await _db.TaskInstances
+                .Where(ti => ti.PlannedVisitId != null && futureVisitIds.Contains(ti.PlannedVisitId.Value))
+                .ToListAsync();
+            _db.TaskInstances.RemoveRange(orphanedInstances);
             _db.PlannedVisits.RemoveRange(futureVisits);
 
             route.Status = RouteStatus.Inactive;
@@ -309,7 +328,7 @@ public class RoutesController : ControllerBase
         {
             await _changeLog.WriteAsync(id, RouteChangeEvent.StopAdded, null, new { StoreIds = added });
             await _db.SaveChangesAsync();
-            await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+            await _planGenerationService.RegenerateFutureAsync(id, today, await HorizonEndAsync(id, today));
         }
 
         return new BulkAddResultDto(added, rejected);
@@ -347,7 +366,7 @@ public class RoutesController : ControllerBase
         await _db.SaveChangesAsync();
 
         var today = _clock.Today;
-        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+        await _planGenerationService.RegenerateFutureAsync(id, today, await HorizonEndAsync(id, today));
 
         var storeName = await _db.Stores.Where(s => s.Id == stop.StoreId).Select(s => s.Name).FirstOrDefaultAsync() ?? "?";
         return new RouteStopDto(stop.Id, stop.StoreId, storeName, stop.Frequency, stop.WeekdayMask, stop.ServiceMinutes, stop.Sequence, stop.EffectiveFrom, stop.EffectiveTo);
@@ -426,8 +445,8 @@ public class RoutesController : ControllerBase
         await _changeLog.WriteAsync(id, RouteChangeEvent.StopMoved, new { From = id }, new { To = request.TargetRouteId });
         await _db.SaveChangesAsync();
 
-        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
-        await _planGenerationService.RegenerateFutureAsync(request.TargetRouteId, today, today.AddDays(42));
+        await _planGenerationService.RegenerateFutureAsync(id, today, await HorizonEndAsync(id, today));
+        await _planGenerationService.RegenerateFutureAsync(request.TargetRouteId, today, await HorizonEndAsync(request.TargetRouteId, today));
 
         return new RouteStopDto(newStop.Id, newStop.StoreId, store.Name, newStop.Frequency, newStop.WeekdayMask, newStop.ServiceMinutes, newStop.Sequence, newStop.EffectiveFrom, newStop.EffectiveTo);
     }
@@ -447,7 +466,7 @@ public class RoutesController : ControllerBase
         await _changeLog.WriteAsync(id, RouteChangeEvent.StopRemoved, new { stop.Id, stop.StoreId }, null);
         await _db.SaveChangesAsync();
 
-        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+        await _planGenerationService.RegenerateFutureAsync(id, today, await HorizonEndAsync(id, today));
 
         return NoContent();
     }
@@ -499,6 +518,16 @@ public class RoutesController : ControllerBase
         foreach (var visit in futureVisits)
         {
             visit.MerchandiserId = request.MerchandiserId;
+        }
+        // Keep task-instance ownership in sync with the visits (audit DB §4.4: MerchandiserId was
+        // stamped at creation only, leaving the future overdue feed pointing at the old person).
+        var reassignedVisitIds = futureVisits.Select(v => v.Id).ToHashSet();
+        var futureInstances = await _db.TaskInstances
+            .Where(ti => ti.PlannedVisitId != null && reassignedVisitIds.Contains(ti.PlannedVisitId.Value))
+            .ToListAsync();
+        foreach (var instance in futureInstances)
+        {
+            instance.MerchandiserId = request.MerchandiserId;
         }
         await _db.SaveChangesAsync();
 
@@ -563,7 +592,7 @@ public class RoutesController : ControllerBase
         await _changeLog.WriteAsync(id, RouteChangeEvent.Patched, null, new { patch.Id, patch.Type });
         await _db.SaveChangesAsync();
 
-        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+        await _planGenerationService.RegenerateFutureAsync(id, today, await HorizonEndAsync(id, today));
 
         return new PatchDto(patch.Id, patch.Type, patch.StoreId, patch.StartsOn, patch.EndsOn, patch.Status);
     }
@@ -586,7 +615,7 @@ public class RoutesController : ControllerBase
         await _db.SaveChangesAsync();
 
         var today = _clock.Today;
-        await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
+        await _planGenerationService.RegenerateFutureAsync(id, today, await HorizonEndAsync(id, today));
 
         return new PatchDto(patch.Id, patch.Type, patch.StoreId, patch.StartsOn, patch.EndsOn, patch.Status);
     }
@@ -828,7 +857,17 @@ public class RoutesController : ControllerBase
 
         var settings = await _settingsProvider.GetAsync(route.Province);
         var routeEval = BuildRouteEval(route, stops, stores, sixMonthRevenue, settings.ServiceMixCapPct);
-        var findings = RouteValidator.Evaluate(routeEval);
+        var findings = new List<ValidationFinding>(RouteValidator.Evaluate(routeEval));
+
+        // V14 absence-collision findings are Error severity and must hit the same reason+objective
+        // gate as every other error (design §3.2) — previously only /plan and /validate ran them,
+        // so absence collisions bypassed the publish override entirely (audit DB §5.2).
+        var publishToday = _clock.Today;
+        var publishFutureVisits = await _db.PlannedVisits
+            .Where(v => v.RouteId == id && v.VisitDate >= publishToday)
+            .ToListAsync();
+        findings.AddRange(await BuildV14FindingsAsync(publishFutureVisits));
+
         var errors = findings.Where(f => f.Severity == FindingSeverity.Error).ToList();
 
         Guid? decisionJournalId = null;

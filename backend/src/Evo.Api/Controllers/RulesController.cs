@@ -21,20 +21,28 @@ namespace Evo.Api.Controllers;
 [Authorize(Roles = Roles.Supervisor)]
 public class RulesController : ControllerBase
 {
-    private const int DailyWorkMinutes = 450;
-
     private readonly EvoDbContext _db;
     private readonly IAuditWriter _auditWriter;
     private readonly IPlanGenerationService _planGenerationService;
+    private readonly ISettingsProvider _settingsProvider;
 
     private readonly PlanningClock _clock;
 
-    public RulesController(EvoDbContext db, IAuditWriter auditWriter, IPlanGenerationService planGenerationService, PlanningClock clock)
+    public RulesController(EvoDbContext db, IAuditWriter auditWriter, IPlanGenerationService planGenerationService, ISettingsProvider settingsProvider, PlanningClock clock)
     {
         _clock = clock;
         _db = db;
         _auditWriter = auditWriter;
         _planGenerationService = planGenerationService;
+        _settingsProvider = settingsProvider;
+    }
+
+    /// <summary>Per-route regeneration horizon + V10 threshold from settings — was hardcoded
+    /// 450/42 while the rest of the pipeline read settings (audit §B.2 desync).</summary>
+    private async Task<(int HorizonDays, int DailyWorkMinutes)> RouteSettingsAsync(string? province)
+    {
+        var settings = await _settingsProvider.GetAsync(province);
+        return (settings.PlanHorizonWeeks * 7, settings.DailyWorkMinutes);
     }
 
     private Guid? CurrentUserId
@@ -79,9 +87,13 @@ public class RulesController : ControllerBase
 
         var today = _clock.Today;
         var affectedRouteIds = await FindAffectedRouteIdsAsync(request.Scope, request.Condition);
+        var provinceByRoute = await _db.Routes
+            .Where(r => affectedRouteIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => r.Province);
         foreach (var routeId in affectedRouteIds)
         {
-            await _planGenerationService.RegenerateFutureAsync(routeId, today, today.AddDays(42));
+            var (horizonDays, _) = await RouteSettingsAsync(provinceByRoute.GetValueOrDefault(routeId));
+            await _planGenerationService.RegenerateFutureAsync(routeId, today, today.AddDays(horizonDays));
         }
 
         return CreatedAtAction(nameof(List), null, ToDto(rule));
@@ -118,7 +130,7 @@ public class RulesController : ControllerBase
             op, setValue, scaleValue, Priority: int.MaxValue, weekDates[0], weekDates[^1]);
 
         var templates = await _db.TaskTemplates.Where(t => t.Active)
-            .Select(t => new TaskTemplateInput(t.Id, t.Code, t.DefaultMinutes, null, t.TargetFormat, t.ValidUntil, t.Active))
+            .Select(t => new TaskTemplateInput(t.Id, t.Code, t.DefaultMinutes, t.TargetChain, t.TargetFormat, t.ValidUntil, t.Active))
             .ToListAsync();
         var existingRules = await _db.Rules.ToListAsync();
         var existingRuleInputs = existingRules.Select(MapRuleRow).ToList();
@@ -144,10 +156,17 @@ public class RulesController : ControllerBase
         }
 
         // Simplified V10 estimate (M2 scope): sums only the matched stores' contribution per
-        // route/day (not the full route's other stops) against the 450-min threshold.
+        // route/day (not the full route's other stops) against the configured daily-minutes
+        // threshold (was hardcoded 450 — audit §B.2: a region configured to 480 got previews
+        // contradicting the plan view).
         var daysOver450 = 0;
+        var impactedRouteIds = stopsForStores.Select(s => s.RouteId).Distinct().ToList();
+        var impactProvinceByRoute = await _db.Routes
+            .Where(r => impactedRouteIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => r.Province);
         foreach (var routeGroup in stopsForStores.GroupBy(s => s.RouteId))
         {
+            var (_, dailyWorkMinutes) = await RouteSettingsAsync(impactProvinceByRoute.GetValueOrDefault(routeGroup.Key));
             foreach (var date in weekDates)
             {
                 var totalBefore = 0;
@@ -166,7 +185,7 @@ public class RulesController : ControllerBase
                     totalAfter += TaskResolver.Resolve(store, templates, [.. existingRuleInputs, candidateRule], date).Sum(r => r.Minutes);
                 }
 
-                if (totalBefore <= DailyWorkMinutes && totalAfter > DailyWorkMinutes)
+                if (totalBefore <= dailyWorkMinutes && totalAfter > dailyWorkMinutes)
                 {
                     daysOver450++;
                 }

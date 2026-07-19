@@ -74,5 +74,6 @@ public static class TaskResolver
         template.ValidUntil is null || date <= template.ValidUntil;
 
     private static bool TargetMatches(TaskTemplateInput template, StoreAttributes store) =>
-        template.TargetFormat is null || template.TargetFormat == store.Format;
+        (template.TargetFormat is null || template.TargetFormat == store.Format)
+        && (template.TargetChain is null || template.TargetChain == store.ChainId);
 }

@@ -38,6 +38,13 @@ public class PlanGenerationService : IPlanGenerationService
         return GenerateAsync(routeId, from, to, ct);
     }
 
+    /// <summary>Upsert identity for a visit-day. Patch-added visits all carry the
+    /// RouteStopId = Guid.Empty sentinel, so keying by (RouteStopId, Date) alone silently
+    /// collapsed two add-type patches on the same route+date into one visit (audit DB §1.4) —
+    /// they are distinct plan rows, so their PatchId is the identity instead.</summary>
+    private static Guid UpsertStopKey(Guid routeStopId, Guid? patchId) =>
+        routeStopId == Guid.Empty && patchId is { } p ? p : routeStopId;
+
     private async Task<int> GenerateAsync(Guid routeId, DateOnly from, DateOnly to, CancellationToken ct)
     {
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == routeId, ct)
@@ -146,7 +153,7 @@ public class PlanGenerationService : IPlanGenerationService
             {
                 var projected = ordered[i];
                 var scheduled = dayPlan.Visits[i];
-                var key = (projected.RouteStopId, date);
+                var key = (UpsertStopKey(projected.RouteStopId, projected.PatchId), date);
 
                 newVisits[key] = new PlannedVisit
                 {
@@ -170,7 +177,7 @@ public class PlanGenerationService : IPlanGenerationService
         var existing = await _db.PlannedVisits
             .Where(v => v.RouteId == routeId && v.VisitDate >= from && v.VisitDate <= to)
             .ToListAsync(ct);
-        var existingByKey = existing.ToDictionary(v => (v.RouteStopId, v.VisitDate));
+        var existingByKey = existing.ToDictionary(v => (UpsertStopKey(v.RouteStopId, v.PatchId), v.VisitDate));
 
         var upsertCount = 0;
         var plannedVisitIdByKey = new Dictionary<(Guid RouteStopId, DateOnly Date), Guid>();
@@ -195,7 +202,7 @@ public class PlanGenerationService : IPlanGenerationService
             upsertCount++;
         }
 
-        var toDelete = existing.Where(v => !newVisits.ContainsKey((v.RouteStopId, v.VisitDate))).ToList();
+        var toDelete = existing.Where(v => !newVisits.ContainsKey((UpsertStopKey(v.RouteStopId, v.PatchId), v.VisitDate))).ToList();
         _db.PlannedVisits.RemoveRange(toDelete);
 
         var toDeleteVisitIds = toDelete.Select(v => v.Id).ToHashSet();

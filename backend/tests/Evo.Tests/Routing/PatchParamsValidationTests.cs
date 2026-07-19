@@ -28,6 +28,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<EvoDbContext>();
+        await db.VisitRealizations.ExecuteDeleteAsync();
         await db.PlannedVisits.ExecuteDeleteAsync();
         await db.DecisionJournal.ExecuteDeleteAsync();
         await db.Patches.ExecuteDeleteAsync();

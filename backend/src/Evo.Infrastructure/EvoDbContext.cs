@@ -134,7 +134,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<RouteStop>(entity =>
         {
             entity.ToTable("route_stop");
-            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<Store>().WithMany().HasForeignKey(e => e.StoreId).OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => e.StoreId)
                 .HasFilter("[EffectiveTo] IS NULL")
@@ -153,7 +153,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<Patch>(entity =>
         {
             entity.ToTable("patch");
-            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Restrict);
             entity.Property(e => e.Reason).HasMaxLength(1000);
             entity.Property(e => e.ParamsJson).HasColumnType("nvarchar(max)");
             entity.HasIndex(e => new { e.RouteId, e.Status, e.EndsOn });
@@ -162,9 +162,15 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<PlannedVisit>(entity =>
         {
             entity.ToTable("planned_visit");
-            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(e => new { e.RouteStopId, e.VisitDate }).IsUnique();
+            entity.HasOne<Route>().WithMany().HasForeignKey(e => e.RouteId).OnDelete(DeleteBehavior.Restrict);
+            // Filtered: patch-added visits all carry the RouteStopId = Guid.Empty sentinel and
+            // may legitimately coexist on one date (audit DB §1.4); their identity is PatchId.
+            entity.HasIndex(e => new { e.RouteStopId, e.VisitDate }).IsUnique()
+                .HasFilter("[RouteStopId] <> '00000000-0000-0000-0000-000000000000'");
             entity.HasIndex(e => new { e.MerchandiserId, e.VisitDate });
+            // Hot paths (audit DB §2.1/2.2): plan reads + analytics scan by route/store + date.
+            entity.HasIndex(e => new { e.RouteId, e.VisitDate });
+            entity.HasIndex(e => new { e.StoreId, e.VisitDate });
         });
 
         builder.Entity<DecisionJournalEntry>(entity =>
@@ -236,14 +242,14 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<VisitRealization>(entity =>
         {
             entity.ToTable("visit_realization");
-            entity.HasOne<PlannedVisit>().WithMany().HasForeignKey(e => e.PlannedVisitId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<PlannedVisit>().WithMany().HasForeignKey(e => e.PlannedVisitId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => e.PlannedVisitId).IsUnique();
         });
 
         builder.Entity<MerchandiserLocationPing>(entity =>
         {
             entity.ToTable("merchandiser_location_ping");
-            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.MerchandiserId, e.RecordedAt });
         });
 
@@ -251,7 +257,7 @@ public class EvoDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         {
             entity.ToTable("absence");
             entity.Property(e => e.Note).HasMaxLength(1000);
-            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Merchandiser>().WithMany().HasForeignKey(e => e.MerchandiserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => new { e.MerchandiserId, e.StartDate, e.EndDate });
         });

@@ -95,6 +95,25 @@ public class OnarimApplyTests : IClassFixture<EvoApiTestFactory>
         return (routeA, routeB, merchA.Id, merchB.Id, storeA, visitDate, visit.Id);
     }
 
+
+    /// <summary>The API-tests DB is shared and the planning clock is pinned (TestClock), so
+    /// absence disruptions from earlier runs never age out — picking First(Absence) grabs an
+    /// arbitrary stale one. Each test must target the disruption that contains ITS OWN visit.</summary>
+    private static async Task<(DisruptionDto Disruption, List<AffectedVisitDto> Affected)> FindDisruptionForVisitAsync(
+        HttpClient client, Guid visitId)
+    {
+        var disruptions = await client.GetFromJsonAsync<List<DisruptionDto>>("/api/v1/onarim/disruptions");
+        foreach (var d in disruptions!.Where(d => d.Kind == "Absence" && d.AffectedVisitCount > 0))
+        {
+            var affected = await client.GetFromJsonAsync<List<AffectedVisitDto>>($"/api/v1/onarim/disruptions/{d.Id}/affected-visits");
+            if (affected!.Any(a => a.PlannedVisitId == visitId))
+            {
+                return (d, affected);
+            }
+        }
+        throw new InvalidOperationException("No absence disruption contains the seeded visit.");
+    }
+
     [Fact]
     public async Task Apply_MoveDay_CreatesPatchRegeneratesPlanAndJournals()
     {
@@ -112,10 +131,7 @@ public class OnarimApplyTests : IClassFixture<EvoApiTestFactory>
             (routeA, _, _, _, _, visitDate, visitId) = await SeedTwoRoutesAsync(db, suffix);
         }
 
-        var disruptions = await client.GetFromJsonAsync<List<DisruptionDto>>("/api/v1/onarim/disruptions");
-        var disruption = disruptions!.First(d => d.AffectedVisitCount > 0 && d.Kind == "Absence");
-
-        var affected = await client.GetFromJsonAsync<List<AffectedVisitDto>>($"/api/v1/onarim/disruptions/{disruption.Id}/affected-visits");
+        var (disruption, affected) = await FindDisruptionForVisitAsync(client, visitId);
         var row = Assert.Single(affected!, a => a.PlannedVisitId == visitId);
 
         var applyReq = new ApplyOnarimRequest("Merchandiser sick", "Keep store coverage", new[]
@@ -152,8 +168,7 @@ public class OnarimApplyTests : IClassFixture<EvoApiTestFactory>
             (_, _, _, _, _, _, visitId) = await SeedTwoRoutesAsync(db, suffix);
         }
 
-        var disruptions = await client.GetFromJsonAsync<List<DisruptionDto>>("/api/v1/onarim/disruptions");
-        var disruption = disruptions!.First(d => d.AffectedVisitCount > 0 && d.Kind == "Absence");
+        var (disruption, _) = await FindDisruptionForVisitAsync(client, visitId);
 
         int patchCountBefore, journalCountBefore;
         using (var scope = _factory.Services.CreateScope())
@@ -196,10 +211,7 @@ public class OnarimApplyTests : IClassFixture<EvoApiTestFactory>
             (routeA, routeB, _, merchB, storeA, visitDate, visitId) = await SeedTwoRoutesAsync(db, suffix);
         }
 
-        var disruptions = await client.GetFromJsonAsync<List<DisruptionDto>>("/api/v1/onarim/disruptions");
-        var disruption = disruptions!.First(d => d.AffectedVisitCount > 0 && d.Kind == "Absence");
-
-        var affected = await client.GetFromJsonAsync<List<AffectedVisitDto>>($"/api/v1/onarim/disruptions/{disruption.Id}/affected-visits");
+        var (disruption, affected) = await FindDisruptionForVisitAsync(client, visitId);
         var row = affected!.Single(a => a.PlannedVisitId == visitId);
         var candidate = row.Candidates.FirstOrDefault(c => c.RouteId == routeB.Id);
         Assert.NotNull(candidate);

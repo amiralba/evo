@@ -26,6 +26,7 @@ public class AssignmentConstraintTests
         var db = provider.GetRequiredService<EvoDbContext>();
         await db.Database.MigrateAsync();
 
+        await db.VisitRealizations.ExecuteDeleteAsync();
         await db.PlannedVisits.ExecuteDeleteAsync();
         await db.Patches.ExecuteDeleteAsync();
         await db.Assignments.ExecuteDeleteAsync();

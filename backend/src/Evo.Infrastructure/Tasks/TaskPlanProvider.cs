@@ -35,7 +35,7 @@ public class TaskPlanProvider : ITaskPlanProvider
     {
         var templates = await _db.TaskTemplates
             .Where(t => t.Active)
-            .Select(t => new TaskTemplateInput(t.Id, t.Code, t.DefaultMinutes, null, t.TargetFormat, t.ValidUntil, t.Active))
+            .Select(t => new TaskTemplateInput(t.Id, t.Code, t.DefaultMinutes, t.TargetChain, t.TargetFormat, t.ValidUntil, t.Active))
             .ToListAsync(ct);
 
         var ruleRows = await _db.Rules.ToListAsync(ct);
