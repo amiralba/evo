@@ -253,6 +253,10 @@ function apply(): void {
       fitToCoords(m, geo.map((g) => [g.longitude ?? 0, g.latitude ?? 0]))
     }
   }
+
+  // Force a render frame — covers the "style + tiles are ready but the map went idle without
+  // painting them" case (needs a nudge), on a visible tab.
+  m.triggerRepaint()
 }
 
 function initMap(): void {
@@ -285,6 +289,15 @@ function initMap(): void {
   m.on('load', apply)
   m.on('styledata', apply)
   m.on('idle', apply)
+  // Chrome throttles/pauses a background tab's requestAnimationFrame, which stalls MapLibre's
+  // style + tile loading (map stays blank). When the tab becomes visible again, resize + re-apply,
+  // and restart the poll if the store layer never got a chance to land.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !map) return
+    map.resize()
+    apply()
+    if (!map.getLayer('stores-circles')) pollUntilApplied()
+  })
   // Style-load and backend-data-arrival race (idle/styledata can fire before data is loaded, and
   // nothing fires after), so poll apply() until the store layer actually lands, then stop.
   pollUntilApplied()

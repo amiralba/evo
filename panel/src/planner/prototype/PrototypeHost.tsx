@@ -37,6 +37,10 @@ let revealed = false
 function reveal(): void {
   revealed = true
   if (protoRoot) protoRoot.style.opacity = '1'
+  // The map was created while the root was hidden (opacity 0); nudge it once it's shown so it
+  // recomputes size and paints, rather than waiting for the first user interaction.
+  const m = (window as unknown as { __evoMap?: { resize: () => void } }).__evoMap
+  if (m) requestAnimationFrame(() => m.resize())
 }
 
 async function bootOnce(host: HTMLElement): Promise<void> {
