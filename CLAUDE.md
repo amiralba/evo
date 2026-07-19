@@ -79,7 +79,7 @@ dotnet run --project backend/src/Evo.Api                   # http://localhost:50
 dotnet build backend/Evo.sln                                # also regenerates contracts/openapi.json
 dotnet test backend/Evo.sln
 dotnet ef migrations add <Name> --project backend/src/Evo.Infrastructure --startup-project backend/src/Evo.Api
-dotnet run --project backend/src/Evo.Seeder -- --profile demo   # or: --profile scale --wipe
+dotnet run --project backend/src/Evo.Seeder -- --profile demo   # or: --profile scale  (to reset: drop the DB and re-run)
 # seeds the bootstrap Supervisor: admin@evo.local / Demo1234!
 # (override via EVO_SEED_ADMIN_EMAIL / EVO_SEED_ADMIN_PASSWORD)
 

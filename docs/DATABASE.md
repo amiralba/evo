@@ -137,9 +137,9 @@ merchandiser when `POST /routes/{id}/publish` succeeds (log-and-continue on disp
 blocks the publish result); no real FCM delivery/ack loop. `task_instance.result_json` (reserved since
 spec 008) is now typed and populated: `Evo.Domain.Tasks.TaskResult` records (None/Photo/Form) matching
 each template's `ProofRequired` — Photo results are **seeded object keys + fake URLs**, no real MinIO
-upload (mobile capture deferred). No new validation codes; `PlanGenerationService` gained a
-seeder-only `MaterializeHistoryAsync` (bypasses `RegenerateFutureAsync`'s today-clamp) so past history
-routes through the same real engine rather than being hand-inserted.
+upload (mobile capture deferred). No new validation codes. (The spec's seeder-only
+`MaterializeHistoryAsync` and `FieldExecutionSeederModule` were deleted 2026-07-19, decision D3b —
+they were never registered on this branch, so no history/outcome rows were ever seeded.)
 
 ## absence, V8/V14, on-read analytics (spec 010-analytics-onarim, M4)
 `absence` (`id`, `merchandiser_id` FK→`merchandiser`, `start_date`/`end_date` `DateOnly` **inclusive**,
@@ -147,8 +147,9 @@ routes through the same real engine rather than being hand-inserted.
 nullable FK→`AspNetUsers`, `created_at`) — no delete, windowed leave as a historical fact. Indexed on
 `(merchandiser_id, start_date, end_date)` (the V14/Onarım hot path). Minimal manual surface: `POST`/`GET
 /merchandisers/{id}/absences` (Supervisor only), no admin UI. Not in design §5 — see
-`EVO-Route-Planning-Design.md` §3.2 build note. Seeded + has ≥2 rows colliding with future visits
-(`AbsenceSeederModule`).
+`EVO-Route-Planning-Design.md` §3.2 build note. NOT seeded — the spec's `AbsenceSeederModule` was
+never registered and was deleted 2026-07-19 (decision D3b); absence rows come from
+`POST /merchandisers/{id}/absences`.
 
 Two new pure validators wired into `GET /routes/{id}/plan` and `POST /routes/{id}/validate`:
 `AbsenceValidator` (V14 — Error, visit collides with an absence window or a `store_flag` ClosedTemp

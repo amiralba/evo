@@ -46,10 +46,17 @@ Mark exactly one option per decision. Sessions must log the chosen option in `do
 - [ ] ~~If D1b~~ (not chosen)
 - [x] Log in `docs/DECISIONS.md`; verify full panel suite + build (Vitest 26/26 in 7 files, `tsc -b` exit 0, `vite build` exit 0; lint still has the 1 pre-existing `engine.js` parse error — D2b's session will absorb it)
 
-### Session C3 — Execute D3 (seeder) — only after D3 marked
-- [ ] Re-register or delete modules; fix `--wipe` no-op (`Program.cs:51-54`)
-- [ ] Fix the 4 stale doc claims (ARCHITECTURE.md:95, DATABASE.md:141+151, ROADMAP.md:71-72, panel/e2e/README.md:8)
-- [ ] If D3a: run seeder demo profile, verify routes/visits/absences appear
+### Session C3 — Execute D3 (seeder) — only after D3 marked — DONE 2026-07-19 (D3b)
+- [x] Re-register or delete modules; fix `--wipe` no-op (`Program.cs:51-54`)
+  (D3b: deleted `RouteSeederModule`/`FieldExecutionSeederModule`/`AbsenceSeederModule` +
+  `MaterializeHistoryAsync` from `IPlanGenerationService`/`PlanGenerationService`; `--wipe` now
+  REJECTS with exit 1 + a drop-the-DB hint instead of silently no-opping — a real wipe would delete
+  FK targets of panel-built routes; CLAUDE.md command line updated)
+- [x] Fix the 4 stale doc claims (ARCHITECTURE.md:95, DATABASE.md:141+151, ROADMAP.md:71-72, panel/e2e/README.md:8)
+  (also ARCHITECTURE.md's Seeder table row + spec-009 row — same false present-tense claims)
+- [x] ~~If D3a~~ (D3b chosen) — verification: `dotnet build` 0 errors; `dotnet test` same 10 pre-existing
+  weekend/flaky failures as the pre-C3 baseline (no new); seeder demo profile runs green (5 modules,
+  idempotent, exit 0); `--wipe` rejection verified (exit 1)
 
 ### Session C4 — Playwright + bridge tests (§E.3, §E.4; depends on D1/D2)
 - [ ] Rewrite the 4 broken specs (`planner-core`, `tasks-tab`, `onarim`, `field-execution`) against the prototype DOM — add `data-testid`s via bridges; refresh e2e artifacts

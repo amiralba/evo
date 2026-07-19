@@ -18,7 +18,14 @@ var config = new ConfigurationBuilder()
     .Build();
 
 var profileArg = GetArgValue(args, "--profile") ?? "demo";
-var wipe = args.Contains("--wipe");
+
+// --wipe was removed (audit C3, decision D3b): it was always a no-op, and a real wipe would
+// delete the stores/merchandisers that panel-built routes reference. Reset by dropping the DB.
+if (args.Contains("--wipe"))
+{
+    Console.Error.WriteLine("--wipe has been removed. To reset, drop the database and re-run (migrations + seed recreate everything).");
+    return 1;
+}
 
 if (!Enum.TryParse<SeedProfile>(profileArg, ignoreCase: true, out var profile))
 {
@@ -48,15 +55,11 @@ await using var scope = provider.CreateAsyncScope();
 var db = scope.ServiceProvider.GetRequiredService<EvoDbContext>();
 await db.Database.MigrateAsync();
 
-if (wipe)
-{
-    Console.WriteLine("--wipe requested (no entities registered yet — nothing to wipe).");
-}
-
 // SeederModule plug-in interface (see ISeederModule.cs): future specs register their module
 // here as they add tables. CLAUDE.md rule: every spec that adds tables extends this list.
 // Routes (and their materialized plan / field-execution / absences) are the planner's work product,
-// built in the panel — the seeder only supplies stores, people (merchandisers) and task templates.
+// built in the panel — the seeder only supplies stores, people (merchandisers) and task templates
+// (decision D3b, 2026-07-19: the never-registered Route/FieldExecution/Absence modules were deleted).
 var modules = new List<ISeederModule>
 {
     new IdentitySeederModule(),

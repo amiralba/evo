@@ -13,10 +13,11 @@ namespace Evo.Seeder.Modules;
 /// <summary>
 /// Seeds a realistic TaskTemplate catalog + Rule ladder (format scale, store/route exceptions,
 /// a dated rule, an exclude rule) plus one ONCE adhoc survey — replaces the flat
-/// service_minutes fallback with the real Rule-resolution engine (design §2.9/§2.10). Runs
-/// AFTER RouteSeederModule so it can attach store/route-scoped rules to real seeded rows, then
-/// re-triggers RegenerateFutureAsync so TaskInstance rows materialize immediately (idempotent
-/// by TaskTemplate.Code).
+/// service_minutes fallback with the real Rule-resolution engine (design §2.9/§2.10). Routes
+/// are not seeded (they're the planner's work product), so store-scoped rules attach to seeded
+/// stores and any route-scoped behavior only appears once the panel creates routes; re-triggers
+/// RegenerateFutureAsync so TaskInstance rows materialize immediately (idempotent by
+/// TaskTemplate.Code).
 /// </summary>
 public class TaskRuleSeederModule : ISeederModule
 {

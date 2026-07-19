@@ -99,8 +99,8 @@ public class IdentitySeederModule : ISeederModule
         }
         else
         {
-            // Scale profile needs one FieldAgent per seeded route (spec 005 RouteSeederModule
-            // assigns a distinct merchandiser to each route) — generate deterministic fake agents.
+            // Scale profile: generate deterministic fake agents for the merchandiser pool
+            // (routes are the planner's work product — built in the panel, not seeded).
             for (var i = 1; i <= 50; i++)
             {
                 var email = $"scale-agent-{i:D3}@evo.local";

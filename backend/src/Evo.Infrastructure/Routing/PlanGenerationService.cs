@@ -35,12 +35,6 @@ public class PlanGenerationService : IPlanGenerationService
         return GenerateAsync(routeId, from, to, ct);
     }
 
-    /// <summary>Seeder-only (spec 009): materializes past dates through the same real engine, bypassing
-    /// RegenerateFutureAsync's today-clamp. Never call this from request/background-service code paths —
-    /// regeneration must stay future-only so history stays frozen (design §2.6).</summary>
-    public Task<int> MaterializeHistoryAsync(Guid routeId, DateOnly from, DateOnly to, CancellationToken ct = default) =>
-        GenerateAsync(routeId, from, to, ct);
-
     private async Task<int> GenerateAsync(Guid routeId, DateOnly from, DateOnly to, CancellationToken ct)
     {
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == routeId, ct)

@@ -70,7 +70,8 @@ Goal: everything downstream of the field (planned-vs-realized, task results, not
       seeded object keys not real MinIO); `note`/`notification` schema + supervisor inbox + mocked
       `INotificationDispatcher` firing on publish; `FieldExecutionSeederModule` (past history via a
       new seeder-only `MaterializeHistoryAsync`, ~85/8/7 Done/Missed/Skipped distribution, dense
-      location pings, task results, notes, notifications — verified idempotent); panel schedule-block
+      location pings, task results, notes, notifications — verified idempotent; NOTE: never registered
+      on the prototype-parity branch and deleted 2026-07-19, decision D3b); panel schedule-block
       outcome coloring + planned-vs-realized tooltip, task results in Görevler, Notes inbox modal with
       an open-count badge. Backend 142/142, panel 48/48 tests, 5/5 Playwright specs green. Deferred
       (confirmed 2026-07-17, not silently dropped): real mobile app/live agent write API, real
