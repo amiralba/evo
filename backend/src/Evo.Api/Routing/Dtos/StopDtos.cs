@@ -8,7 +8,7 @@ public record BulkAddResultDto(IReadOnlyList<Guid> Added, IReadOnlyList<Rejected
 
 public record RejectedStoreDto(Guid StoreId, string Reason);
 
-public record UpdateStopRequest(Frequency? Frequency, int? ServiceMinutes, int? Sequence);
+public record UpdateStopRequest(Frequency? Frequency, int? ServiceMinutes, int? Sequence, short? WeekdayMask);
 
 public record MoveStopRequest(Guid TargetRouteId);
 

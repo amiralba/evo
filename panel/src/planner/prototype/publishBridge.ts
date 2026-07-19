@@ -25,9 +25,15 @@ interface ProtoVisit {
   patched?: boolean
 }
 
+interface SchedFields {
+  stopId?: string | null
+  freqNum?: number | null
+  weekdayMask?: number | null
+}
+
 interface EvoState {
   visits: ProtoVisit[]
-  stores: Array<{ id: string; route: string | null }>
+  stores: Array<{ id: string; route: string | null } & SchedFields>
   routes: Array<{
     id: string
     person: string | null
@@ -50,6 +56,7 @@ interface EvoSnapshot {
   storeRoute: Record<string, string | null>
   routePerson: Record<string, string | null>
   routeMeta: Record<string, RouteMeta>
+  storeSchedule: Record<string, { stopId: string } & SchedFields>
   weekFrom: string | null
   weekTo: string | null
 }
@@ -146,6 +153,23 @@ async function flush(opts: PublishOpts): Promise<void> {
     if (r.person && prevP && r.person !== prevP) reassignOps.push({ routeId: r.id, merchandiserId: r.person })
   }
 
+  // Schedule presence (L4): a routed store's visit days changed (Weekly + weekdayMask) or its
+  // frequency switched — buffered by scheduleBridge. Only routed stores (stopId) carry a schedule.
+  const scheduleOps: Array<{ routeId: string; stopId: string; frequency: number; weekdayMask: number }> = []
+  for (const s of state.stores) {
+    if (!s.stopId) continue
+    const prev = snap.storeSchedule[s.id]
+    if (!prev) continue // freshly-added stores aren't in the load snapshot; handled by addOps
+    const curFreq = s.freqNum ?? prev.freqNum ?? 2
+    const curMask = s.weekdayMask ?? 0
+    const prevMask = prev.weekdayMask ?? 0
+    const prevFreq = prev.freqNum ?? 2
+    const routeId = s.route ?? null
+    if (routeId && (curFreq !== prevFreq || curMask !== prevMask)) {
+      scheduleOps.push({ routeId, stopId: s.stopId, frequency: curFreq, weekdayMask: curMask })
+    }
+  }
+
   // Ad / Hedef (rename or revenue target) and Pasifleştir/Aktifleştir (status) — both via updateRoute.
   const metaOps: Array<{ routeId: string; body: components['schemas']['UpdateRouteRequest'] }> = []
   for (const r of state.routes) {
@@ -164,9 +188,10 @@ async function flush(opts: PublishOpts): Promise<void> {
     ...patchOps.map((o) => o.routeId),
     ...addOps.map((o) => o.routeId),
     ...reassignOps.map((o) => o.routeId),
+    ...scheduleOps.map((o) => o.routeId),
   ])
   if (affected.size === 0 && newRoutes.length === 0 && metaOps.length === 0) {
-    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi · ad/hedef · pasifleştir)')
+    engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi · ziyaret günleri · ad/hedef · pasifleştir)')
     return
   }
 
@@ -200,13 +225,15 @@ async function flush(opts: PublishOpts): Promise<void> {
     await planner.bulkAddStops(op.routeId, { storeIds: [op.storeId], frequency: 2, weekdayMask: 0, serviceMinutes: null })
   for (const op of reassignOps)
     await planner.reassignRoute(op.routeId, { merchandiserId: op.merchandiserId, startDate: today, reason: 1 })
+  for (const op of scheduleOps)
+    await planner.updateStop(op.routeId, op.stopId, { frequency: op.frequency, weekdayMask: op.weekdayMask })
   for (const op of metaOps) await planner.updateRoute(op.routeId, op.body)
   for (const routeId of new Set([...affected, ...createdRouteIds])) {
     await planner.publishRoute(routeId, { reason: opts.reason ?? null, objective: opts.objective ?? null })
   }
 
   engineToast(
-    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi · ${metaOps.length} ad/hedef·durum`,
+    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi · ${scheduleOps.length} gün · ${metaOps.length} ad/hedef·durum`,
   )
   await loadBackendIntoPrototype(province)
 }

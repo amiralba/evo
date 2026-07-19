@@ -37,7 +37,7 @@ services.AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<EvoDbContext>();
 services.AddScoped<IStoreSyncService, StoreSyncService>();
-services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(perCity: profile == SeedProfile.Demo ? null : 130));
+services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: profile == SeedProfile.Demo ? null : 400));
 services.AddScoped<ISettingsProvider, SettingsProvider>();
 services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 services.AddScoped<IPlanGenerationService, PlanGenerationService>();

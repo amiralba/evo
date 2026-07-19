@@ -33,12 +33,14 @@ public class FakeStoreSyncSource : IStoreSyncSource
         }),
     };
 
-    // null = curated demo (4–6 stores per city); a number overrides it (scale profile).
-    private readonly int? _perCity;
+    // null = curated demo (4–6 stores per city, round-robining each city's districts);
+    // a number = exactly that many stores, round-robining across ALL cities' districts
+    // (used by the scale profile and by StoreSyncServiceTests, which need a deterministic count).
+    private readonly int? _storeCount;
 
-    public FakeStoreSyncSource(int? perCity = null)
+    public FakeStoreSyncSource(int? storeCount = null)
     {
-        _perCity = perCity;
+        _storeCount = storeCount;
     }
 
     public Task<IReadOnlyList<StoreSyncRecord>> FetchAsync(CancellationToken ct = default)
@@ -47,41 +49,57 @@ public class FakeStoreSyncSource : IStoreSyncSource
         var records = new List<StoreSyncRecord>();
         var i = 0;
 
-        foreach (var (province, districts) in Cities)
+        StoreSyncRecord Build(string province, (string District, double Lat, double Lng) district)
         {
-            var count = _perCity ?? faker.Random.Int(4, 6); // 4–6 stores per city for the demo
-            for (var n = 0; n < count; n++)
+            i++;
+            var revenue = new List<StoreSyncRevenueRecord>();
+            var monthsBack = faker.Random.Int(6, 12);
+            var firstOfThisMonth = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+            for (var m = 0; m < monthsBack; m++)
             {
-                i++;
-                var evoStoreId = $"EVO-{i:D5}";
-                var district = districts[n % districts.Length];
+                revenue.Add(new StoreSyncRevenueRecord(firstOfThisMonth.AddMonths(-m), faker.Random.Decimal(50_000, 500_000)));
+            }
 
-                var revenue = new List<StoreSyncRevenueRecord>();
-                var monthsBack = faker.Random.Int(6, 12);
-                var firstOfThisMonth = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-                for (var m = 0; m < monthsBack; m++)
+            // Jitter ~0.008° (~800m) around the district center.
+            var lat = district.Lat + faker.Random.Double(-0.008, 0.008);
+            var lng = district.Lng + faker.Random.Double(-0.008, 0.008);
+
+            return new StoreSyncRecord(
+                EvoStoreId: $"EVO-{i:D5}",
+                Name: $"{faker.Company.CompanyName()} {district.District}",
+                ChainName: faker.PickRandom(Chains),
+                Channel: faker.PickRandom("Perakende", "Bakkal", "Market"),
+                Province: province,
+                District: district.District,
+                Neighborhood: faker.Address.StreetName(),
+                Latitude: lat,
+                Longitude: lng,
+                Category: (StoreCategory)faker.Random.Int(1, 3),
+                Format: (byte)faker.Random.Int(1, 6),
+                Revenue: revenue,
+                Flags: new List<StoreSyncFlagRecord>());
+        }
+
+        if (_storeCount is { } total)
+        {
+            // Deterministic exact-count mode: round-robin across every city's districts.
+            var flat = Cities.SelectMany(c => c.Districts.Select(d => (c.Province, District: d))).ToList();
+            for (var n = 0; n < total; n++)
+            {
+                var (province, district) = flat[n % flat.Count];
+                records.Add(Build(province, district));
+            }
+        }
+        else
+        {
+            // Curated demo: 4–6 stores per city.
+            foreach (var (province, districts) in Cities)
+            {
+                var count = faker.Random.Int(4, 6);
+                for (var n = 0; n < count; n++)
                 {
-                    revenue.Add(new StoreSyncRevenueRecord(firstOfThisMonth.AddMonths(-m), faker.Random.Decimal(50_000, 500_000)));
+                    records.Add(Build(province, districts[n % districts.Length]));
                 }
-
-                // Jitter ~0.008° (~800m) around the district center.
-                var lat = district.Lat + faker.Random.Double(-0.008, 0.008);
-                var lng = district.Lng + faker.Random.Double(-0.008, 0.008);
-
-                records.Add(new StoreSyncRecord(
-                    EvoStoreId: evoStoreId,
-                    Name: $"{faker.Company.CompanyName()} {district.District}",
-                    ChainName: faker.PickRandom(Chains),
-                    Channel: faker.PickRandom("Perakende", "Bakkal", "Market"),
-                    Province: province,
-                    District: district.District,
-                    Neighborhood: faker.Address.StreetName(),
-                    Latitude: lat,
-                    Longitude: lng,
-                    Category: (StoreCategory)faker.Random.Int(1, 3),
-                    Format: (byte)faker.Random.Int(1, 6),
-                    Revenue: revenue,
-                    Flags: new List<StoreSyncFlagRecord>()));
             }
         }
 

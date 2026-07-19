@@ -1,4 +1,5 @@
 import * as planner from '../../api/planner'
+import { registerAfterPanel } from './afterPanel'
 
 /**
  * Backs the store Görevler (tasks) tab with real data. The prototype's own task tab is driven by
@@ -96,7 +97,7 @@ function renderTasksHtml(rows: TaskRow[]): string {
 export function installTasksBridge(): void {
   const w = window as TasksWindow
   w.__evoStoreTasks = cache
-  w.__evoAfterPanel = () => {
+  registerAfterPanel(() => {
     const st = w.__evoState?.()
     if (!st || !st.focus || st.focus.type !== 'store' || st.panelTab !== 'tasks' || !st.focus.id) return
     const body = document.getElementById('panelBody')
@@ -109,5 +110,5 @@ export function installTasksBridge(): void {
       return
     }
     body.innerHTML = renderTasksHtml(rows)
-  }
+  })
 }

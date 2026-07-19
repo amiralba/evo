@@ -200,7 +200,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         async Task<int?> UpdateAndGetMinutes(int minutes)
         {
             var response = await client.PatchAsJsonAsync($"/api/v1/routes/{route.Id}/stops/{stopId}",
-                new UpdateStopRequest(null, minutes, null));
+                new UpdateStopRequest(null, minutes, null, null));
             var dto = await response.Content.ReadFromJsonAsync<RouteStopDto>();
             return dto!.ServiceMinutes;
         }
