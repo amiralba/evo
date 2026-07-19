@@ -81,7 +81,7 @@ public class AssignmentConstraintTests
             Id = Guid.NewGuid(),
             RouteId = route.Id,
             MerchandiserId = m1.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StartDate = TestClock.Today,
             EndDate = null,
             Reason = AssignmentReason.NewHire,
         });
@@ -92,7 +92,7 @@ public class AssignmentConstraintTests
             Id = Guid.NewGuid(),
             RouteId = route.Id,
             MerchandiserId = m2.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StartDate = TestClock.Today,
             EndDate = null,
             Reason = AssignmentReason.Swap,
         });
@@ -116,14 +116,14 @@ public class AssignmentConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeA.Id,
             MerchandiserId = m1.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StartDate = TestClock.Today,
             EndDate = null,
             Reason = AssignmentReason.NewHire,
         };
         db.Assignments.Add(firstAssignment);
         await db.SaveChangesAsync();
 
-        firstAssignment.EndDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        firstAssignment.EndDate = TestClock.Today;
         await db.SaveChangesAsync();
 
         db.Assignments.Add(new Assignment
@@ -131,7 +131,7 @@ public class AssignmentConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeB.Id,
             MerchandiserId = m1.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StartDate = TestClock.Today,
             EndDate = null,
             Reason = AssignmentReason.Swap,
         });
@@ -157,7 +157,7 @@ public class AssignmentConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeA.Id,
             MerchandiserId = m1.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StartDate = TestClock.Today,
             EndDate = null,
             Reason = AssignmentReason.NewHire,
         });
@@ -168,7 +168,7 @@ public class AssignmentConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeB.Id,
             MerchandiserId = m1.Id,
-            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StartDate = TestClock.Today,
             EndDate = null,
             Reason = AssignmentReason.Coverage,
         });

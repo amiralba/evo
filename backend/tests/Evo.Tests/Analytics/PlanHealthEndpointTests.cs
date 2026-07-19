@@ -34,7 +34,7 @@ public class PlanHealthEndpointTests : IClassFixture<EvoApiTestFactory>
         await TestAuthHelper.EnsureUserAsync(_factory, email, "Passw0rd!", Roles.Supervisor);
         var client = await TestAuthHelper.LoginAsync(_factory, email, "Passw0rd!");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         Guid routeId;
         using (var scope = _factory.Services.CreateScope())
         {

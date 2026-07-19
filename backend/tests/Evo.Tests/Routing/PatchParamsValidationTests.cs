@@ -68,7 +68,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var response = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
             new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, null, "test"));
@@ -82,7 +82,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var response = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
             new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, "not json", "test"));
@@ -96,7 +96,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var response = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
             new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, """{"startMinutes":600}""", "test"));
@@ -110,7 +110,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var response = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
             new CreatePatchRequest(PatchType.MoveVisit, storeId, null, today, today.AddDays(1), "not json", "test"));
@@ -124,7 +124,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var paramsJson = $$"""{"fromDate":"{{today:O}}","toDate":"{{today:O}}"}""";
 
         var response = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
@@ -139,7 +139,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var tomorrow = today.AddDays(1);
         var paramsJson = $$"""{"fromDate":"{{today:O}}","toDate":"{{tomorrow:O}}"}""";
 
@@ -155,7 +155,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var createResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
             new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, """{"startMinutes":600}""", "test"));
@@ -174,7 +174,7 @@ public class PatchParamsValidationTests : IClassFixture<EvoApiTestFactory>, IAsy
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (route, storeId) = await CreateRouteWithOneStopAsync(client, suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var createResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
             new CreatePatchRequest(PatchType.TimeShift, storeId, null, today, today, """{"startMinutes":600}""", "test"));

@@ -3,6 +3,7 @@ using Evo.Api.Analytics.Dtos;
 using Evo.Domain.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Controllers;
 
@@ -15,8 +16,11 @@ public class AnalyticsController : ControllerBase
     private readonly IStabilityService _stabilityService;
     private readonly IMobilityService _mobilityService;
 
-    public AnalyticsController(IPlanHealthService planHealthService, IStabilityService stabilityService, IMobilityService mobilityService)
+    private readonly PlanningClock _clock;
+
+    public AnalyticsController(IPlanHealthService planHealthService, IStabilityService stabilityService, IMobilityService mobilityService, PlanningClock clock)
     {
+        _clock = clock;
         _planHealthService = planHealthService;
         _stabilityService = stabilityService;
         _mobilityService = mobilityService;
@@ -25,7 +29,7 @@ public class AnalyticsController : ControllerBase
     [HttpGet("plan-health")]
     public async Task<ActionResult<PlanHealthReportDto>> GetPlanHealth([FromQuery] string? region, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var effectiveTo = to ?? today;
         var effectiveFrom = from ?? effectiveTo.AddDays(-28);
         return await _planHealthService.GetReportAsync(region, effectiveFrom, effectiveTo);

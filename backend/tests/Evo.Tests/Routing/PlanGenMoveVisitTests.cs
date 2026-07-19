@@ -108,7 +108,7 @@ public class PlanGenMoveVisitTests
     public async Task ActiveMoveVisitPatch_MovesTheVisit_FromSourceDate_ToTargetDate()
     {
         await using var db = await CreateContextAsync();
-        var fromDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var fromDate = TestClock.Today;
         while (fromDate.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
         {
             fromDate = fromDate.AddDays(1);
@@ -136,7 +136,7 @@ public class PlanGenMoveVisitTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
         await service.RegenerateFutureAsync(route.Id, fromDate, toDate);
 
         var visits = await db.PlannedVisits.Where(v => v.RouteId == route.Id).ToListAsync();

@@ -60,7 +60,7 @@ public class RuleImpactTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
                 Id = Guid.NewGuid(), RouteCode = "IMP-" + suffix, Name = "Impact Test Route " + suffix,
                 Province = "Ankara", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
             };
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = TestClock.Today;
             var stop = new RouteStop
             {
                 Id = Guid.NewGuid(), RouteId = route.Id, StoreId = store.Id, Frequency = Frequency.Daily,

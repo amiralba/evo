@@ -1,6 +1,7 @@
 using Evo.Api.Analytics.Dtos;
 using Evo.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Analytics;
 
@@ -20,14 +21,17 @@ public class MobilityService : IMobilityService
 
     private readonly EvoDbContext _db;
 
-    public MobilityService(EvoDbContext db)
+    private readonly PlanningClock _clock;
+
+    public MobilityService(EvoDbContext db, PlanningClock clock)
     {
+        _clock = clock;
         _db = db;
     }
 
     public async Task<IReadOnlyList<MerchandiserMobilityDto>> GetReportAsync(string? region, int months, CancellationToken ct = default)
     {
-        var since = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-months));
+        var since = _clock.Today.AddMonths(-months);
 
         var routesQuery = _db.Routes.AsQueryable();
         if (!string.IsNullOrEmpty(region))

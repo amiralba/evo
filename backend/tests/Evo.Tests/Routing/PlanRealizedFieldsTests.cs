@@ -32,7 +32,7 @@ public class PlanRealizedFieldsTests : IClassFixture<EvoApiTestFactory>
         await TestAuthHelper.EnsureUserAsync(_factory, email, "Passw0rd!", Roles.Supervisor);
         var client = await TestAuthHelper.LoginAsync(_factory, email, "Passw0rd!");
 
-        var pastDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-3);
+        var pastDate = TestClock.Today.AddDays(-3);
         var checkInAt = new DateTimeOffset(pastDate.ToDateTime(new TimeOnly(9, 30)), TimeSpan.Zero);
         var checkOutAt = checkInAt.AddMinutes(30);
 

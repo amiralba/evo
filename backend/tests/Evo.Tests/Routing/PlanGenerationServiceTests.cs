@@ -106,11 +106,11 @@ public class PlanGenerationServiceTests
     public async Task RegenerateFutureAsync_MaterializesExpectedVisits_WithStartSetAndBreaksRespected()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, _, _, _) = await SeedRouteAsync(db, today);
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
 
         var to = today.AddDays(13); // 2-week range
         var count = await service.RegenerateFutureAsync(route.Id, today, to);
@@ -130,11 +130,11 @@ public class PlanGenerationServiceTests
     public async Task SecondRun_IsIdempotent_CountStable()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, _, _, _) = await SeedRouteAsync(db, today);
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
         var to = today.AddDays(6);
 
         var firstCount = await service.RegenerateFutureAsync(route.Id, today, to);
@@ -149,7 +149,7 @@ public class PlanGenerationServiceTests
     public async Task PastDatedVisit_IsNotModified_WhenRegenerateFromIsToday()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, stop, store, merchandiser) = await SeedRouteAsync(db, today.AddDays(-10));
 
         var pastDate = today.AddDays(-3);
@@ -169,7 +169,7 @@ public class PlanGenerationServiceTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
         await service.RegenerateFutureAsync(route.Id, pastDate, today.AddDays(3));
 
         var refreshed = await db.PlannedVisits.FirstAsync(v => v.Id == pastVisit.Id);
@@ -181,7 +181,7 @@ public class PlanGenerationServiceTests
     public async Task ActiveSkipStorePatch_RemovesVisitsInWindow_RestoresPastEndsOn()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, _, store, _) = await SeedRouteAsync(db, today);
 
         var windowEnd = today.AddDays(2);
@@ -199,7 +199,7 @@ public class PlanGenerationServiceTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
         var to = today.AddDays(6);
         await service.RegenerateFutureAsync(route.Id, today, to);
 

@@ -53,7 +53,7 @@ public class RouteListSummaryFieldsTests : IClassFixture<EvoApiTestFactory>
             var stop = new RouteStop
             {
                 Id = Guid.NewGuid(), RouteId = route.Id, StoreId = store.Id, Frequency = Frequency.Daily,
-                WeekdayMask = 0, Sequence = 1, EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-10), EffectiveTo = null,
+                WeekdayMask = 0, Sequence = 1, EffectiveFrom = TestClock.Today.AddDays(-10), EffectiveTo = null,
             };
 
             var userId = Guid.NewGuid();
@@ -64,7 +64,7 @@ public class RouteListSummaryFieldsTests : IClassFixture<EvoApiTestFactory>
                 DisplayName = "Summary Merch " + suffix,
             });
             var merchandiser = new Merchandiser { Id = Guid.NewGuid(), UserId = userId, Active = true };
-            var assignment = new Assignment { Id = Guid.NewGuid(), RouteId = route.Id, MerchandiserId = merchandiser.Id, StartDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-5), Reason = AssignmentReason.NewHire };
+            var assignment = new Assignment { Id = Guid.NewGuid(), RouteId = route.Id, MerchandiserId = merchandiser.Id, StartDate = TestClock.Today.AddDays(-5), Reason = AssignmentReason.NewHire };
 
             var thisMonth = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
             var revenue = new StoreRevenue { StoreId = store.Id, Month = thisMonth, Revenue = 1500 };

@@ -73,7 +73,7 @@ public class RouteStopConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeA.Id,
             StoreId = store.Id,
-            EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow),
+            EffectiveFrom = TestClock.Today,
             EffectiveTo = null,
         });
         await db.SaveChangesAsync();
@@ -83,7 +83,7 @@ public class RouteStopConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeB.Id,
             StoreId = store.Id,
-            EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow),
+            EffectiveFrom = TestClock.Today,
             EffectiveTo = null,
         });
 
@@ -107,13 +107,13 @@ public class RouteStopConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeA.Id,
             StoreId = store.Id,
-            EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow),
+            EffectiveFrom = TestClock.Today,
             EffectiveTo = null,
         };
         db.RouteStops.Add(firstStop);
         await db.SaveChangesAsync();
 
-        firstStop.EffectiveTo = DateOnly.FromDateTime(DateTime.UtcNow);
+        firstStop.EffectiveTo = TestClock.Today;
         await db.SaveChangesAsync();
 
         db.RouteStops.Add(new RouteStop
@@ -121,7 +121,7 @@ public class RouteStopConstraintTests
             Id = Guid.NewGuid(),
             RouteId = routeB.Id,
             StoreId = store.Id,
-            EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow),
+            EffectiveFrom = TestClock.Today,
             EffectiveTo = null,
         });
         await db.SaveChangesAsync();

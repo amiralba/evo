@@ -5,6 +5,7 @@ using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Route = Evo.Infrastructure.Routing.Route;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Analytics;
 
@@ -21,8 +22,11 @@ public class PlanHealthService : IPlanHealthService
     private readonly IStabilityService _stabilityService;
     private readonly ISettingsProvider _settingsProvider;
 
-    public PlanHealthService(EvoDbContext db, IStabilityService stabilityService, ISettingsProvider settingsProvider)
+    private readonly PlanningClock _clock;
+
+    public PlanHealthService(EvoDbContext db, IStabilityService stabilityService, ISettingsProvider settingsProvider, PlanningClock clock)
     {
+        _clock = clock;
         _db = db;
         _stabilityService = stabilityService;
         _settingsProvider = settingsProvider;
@@ -101,7 +105,7 @@ public class PlanHealthService : IPlanHealthService
         var patchLoad = patches.GroupBy(p => p.Type.ToString()).ToDictionary(g => g.Key, g => g.Count());
 
         // Assignment turnover (trailing 12 months).
-        var since = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-12));
+        var since = _clock.Today.AddMonths(-12);
         var turnover = await _db.Assignments
             .CountAsync(a => a.RouteId == route.Id && a.EndDate != null && a.EndDate >= since, ct);
 

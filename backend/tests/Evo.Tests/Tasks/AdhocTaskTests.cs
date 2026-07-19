@@ -59,7 +59,7 @@ public class AdhocTaskTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
             Id = Guid.NewGuid(), RouteCode = "ADH-" + suffix, Name = "Adhoc Test Route " + suffix,
             Province = "Ankara", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
         };
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var stop = new RouteStop
         {
             Id = Guid.NewGuid(), RouteId = route.Id, StoreId = store.Id, Frequency = Frequency.Daily,
@@ -80,7 +80,7 @@ public class AdhocTaskTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (store, stop, route) = await SeedStoreOnRouteAsync(suffix, format: 3);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var deadline = today.AddDays(5);
 
         var request = new AdhocTaskRequest("SURVEY-" + suffix, "Fiyat Anketi " + suffix, 15, null, TargetFormat: 3, deadline);
@@ -104,7 +104,7 @@ public class AdhocTaskTests : IClassFixture<EvoApiTestFactory>, IAsyncLifetime
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
         var (store, stop, route) = await SeedStoreOnRouteAsync(suffix, format: 3);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         using (var scope = _factory.Services.CreateScope())
         {

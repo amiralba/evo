@@ -109,7 +109,7 @@ public class PlanGenTaskMinutesTests
     public async Task RegenerateFutureAsync_SetsVisitMinutes_ToSumOfResolvedTasks_AndUpsertsTaskInstances()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, _, store) = await SeedRouteAsync(db, today);
 
         var t1 = new TaskTemplate { Id = Guid.NewGuid(), Code = "SHELF", Name = "Raf Duzeni", DefaultMinutes = 20, Active = true };
@@ -118,7 +118,7 @@ public class PlanGenTaskMinutesTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
 
         var to = today; // just today for a focused assertion
         await service.RegenerateFutureAsync(route.Id, today, to);
@@ -139,7 +139,7 @@ public class PlanGenTaskMinutesTests
     public async Task RegenerateFutureAsync_ExplicitServiceMinutes_StillWinsAsManualOverride()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, stop, _) = await SeedRouteAsync(db, today);
 
         stop.ServiceMinutes = 99;
@@ -147,7 +147,7 @@ public class PlanGenTaskMinutesTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
 
         await service.RegenerateFutureAsync(route.Id, today, today);
 

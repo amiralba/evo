@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Rule = Evo.Infrastructure.Tasks.Rule;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Controllers;
 
@@ -26,8 +27,11 @@ public class RulesController : ControllerBase
     private readonly IAuditWriter _auditWriter;
     private readonly IPlanGenerationService _planGenerationService;
 
-    public RulesController(EvoDbContext db, IAuditWriter auditWriter, IPlanGenerationService planGenerationService)
+    private readonly PlanningClock _clock;
+
+    public RulesController(EvoDbContext db, IAuditWriter auditWriter, IPlanGenerationService planGenerationService, PlanningClock clock)
     {
+        _clock = clock;
         _db = db;
         _auditWriter = auditWriter;
         _planGenerationService = planGenerationService;
@@ -73,7 +77,7 @@ public class RulesController : ControllerBase
 
         await _auditWriter.WriteAsync("Rule", rule.Id.ToString(), "create", after: ToDto(rule), actorId: CurrentUserId);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var affectedRouteIds = await FindAffectedRouteIdsAsync(request.Scope, request.Condition);
         foreach (var routeId in affectedRouteIds)
         {
@@ -92,7 +96,7 @@ public class RulesController : ControllerBase
         var condition = new RuleConditionDto(chainId, format, null, null, null, routeId, storeId);
         var candidateStores = await FindMatchingStoresAsync(condition);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var weekDates = Enumerable.Range(0, 7).Select(today.AddDays).ToList();
 
         var storeAttributesById = candidateStores.ToDictionary(

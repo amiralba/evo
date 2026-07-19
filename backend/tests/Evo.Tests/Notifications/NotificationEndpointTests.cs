@@ -50,7 +50,7 @@ public class NotificationEndpointTests : IClassFixture<EvoApiTestFactory>
                 Id = Guid.NewGuid(), RouteCode = "NOTIF-" + suffix, Name = "Notif Test Route " + suffix,
                 Province = "Ankara", Status = RouteStatus.Draft, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
             };
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = TestClock.Today;
             var stop = new RouteStop
             {
                 Id = Guid.NewGuid(), RouteId = route.Id, StoreId = store.Id, Frequency = Frequency.Daily,

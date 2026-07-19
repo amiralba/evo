@@ -90,7 +90,7 @@ public class AbsenceV14EndpointTests : IClassFixture<EvoApiTestFactory>
         await TestAuthHelper.EnsureUserAsync(_factory, email, "Passw0rd!", Roles.Supervisor);
         var client = await TestAuthHelper.LoginAsync(_factory, email, "Passw0rd!");
 
-        var futureDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5);
+        var futureDate = TestClock.Today.AddDays(5);
         Route route;
         using (var scope = _factory.Services.CreateScope())
         {
@@ -113,7 +113,7 @@ public class AbsenceV14EndpointTests : IClassFixture<EvoApiTestFactory>
         await TestAuthHelper.EnsureUserAsync(_factory, email, "Passw0rd!", Roles.Supervisor);
         var client = await TestAuthHelper.LoginAsync(_factory, email, "Passw0rd!");
 
-        var futureDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5);
+        var futureDate = TestClock.Today.AddDays(5);
         Route route;
         using (var scope = _factory.Services.CreateScope())
         {

@@ -126,13 +126,13 @@ public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
 
         // 4. Assignment without reason -> 422
         var merchandiserId = await CreateMerchandiserAsync(suffix);
-        var noReasonJson = new { MerchandiserId = merchandiserId, StartDate = DateOnly.FromDateTime(DateTime.UtcNow) };
+        var noReasonJson = new { MerchandiserId = merchandiserId, StartDate = TestClock.Today };
         var noReasonResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/assignment", noReasonJson);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, noReasonResponse.StatusCode);
 
         // 5. Assignment with reason -> 200
         var assignResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/assignment",
-            new ReassignRequest(merchandiserId, DateOnly.FromDateTime(DateTime.UtcNow), AssignmentReason.NewHire));
+            new ReassignRequest(merchandiserId, TestClock.Today, AssignmentReason.NewHire));
         Assert.Equal(HttpStatusCode.OK, assignResponse.StatusCode);
 
         // 6. Draft->Active on a fresh route with no assignment -> 409
@@ -148,12 +148,12 @@ public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
 
         // 8. Patch without EndsOn -> 422 (V9)
         var noExpiryPatchResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
-            new CreatePatchRequest(Evo.Domain.Scheduling.PatchType.SkipStore, inScope.Id, null, DateOnly.FromDateTime(DateTime.UtcNow), null, null, "test"));
+            new CreatePatchRequest(Evo.Domain.Scheduling.PatchType.SkipStore, inScope.Id, null, TestClock.Today, null, null, "test"));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, noExpiryPatchResponse.StatusCode);
 
         // 9. Patch with EndsOn -> 200
         var patchResponse = await client.PostAsJsonAsync($"/api/v1/routes/{route.Id}/patches",
-            new CreatePatchRequest(Evo.Domain.Scheduling.PatchType.SkipStore, inScope.Id, null, DateOnly.FromDateTime(DateTime.UtcNow), DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2), null, "test"));
+            new CreatePatchRequest(Evo.Domain.Scheduling.PatchType.SkipStore, inScope.Id, null, TestClock.Today, TestClock.Today.AddDays(2), null, "test"));
         Assert.Equal(HttpStatusCode.OK, patchResponse.StatusCode);
 
         // 10. Publish with an Error finding and no reason -> 422; force an error by inserting an out-of-scope stop directly
@@ -168,7 +168,7 @@ public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
                 Frequency = Evo.Domain.Scheduling.Frequency.Daily,
                 WeekdayMask = 0,
                 Sequence = 99,
-                EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow),
+                EffectiveFrom = TestClock.Today,
                 EffectiveTo = null,
             });
             await db.SaveChangesAsync();
@@ -193,7 +193,7 @@ public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
         }
 
         // 11. GET plan returns days with findings
-        var from = DateOnly.FromDateTime(DateTime.UtcNow);
+        var from = TestClock.Today;
         var to = from.AddDays(6);
         var planResponse = await client.GetAsync($"/api/v1/routes/{route.Id}/plan?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
         Assert.Equal(HttpStatusCode.OK, planResponse.StatusCode);
@@ -232,7 +232,7 @@ public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
         var (selfMerchandiserId, selfClient) = await CreateFieldAgentWithMerchandiserAsync(suffix + "-self");
         var (otherMerchandiserId, _) = await CreateFieldAgentWithMerchandiserAsync(suffix + "-other");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var ownDayResponse = await selfClient.GetAsync($"/api/v1/merchandisers/{selfMerchandiserId}/day?date={today:yyyy-MM-dd}");
         Assert.Equal(HttpStatusCode.OK, ownDayResponse.StatusCode);
@@ -247,7 +247,7 @@ public class RouteEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var (merchandiserId, _) = await CreateFieldAgentWithMerchandiserAsync(suffix);
         var supervisorClient = await SupervisorClientAsync("merch-day-" + suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var response = await supervisorClient.GetAsync($"/api/v1/merchandisers/{merchandiserId}/day?date={today:yyyy-MM-dd}");
 

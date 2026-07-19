@@ -30,6 +30,12 @@ public class EvoApiTestFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["ConnectionStrings:EvoDb"] = ConnectionString,
             });
         });
+        // Pin the planning clock midweek (TestClock) so "today" is deterministic — the API's
+        // PlanningClock resolves from this TimeProvider (see audit §B.3/§E.1).
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<TimeProvider>(TestClock.Provider);
+        });
     }
 
     // Each test class gets its own factory instance (xUnit IClassFixture is per-class), but they

@@ -33,7 +33,7 @@ public class MobilityServiceTests : IClassFixture<EvoApiTestFactory>
         db.Merchandisers.Add(merchandiser);
         await db.SaveChangesAsync();
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         for (var i = 0; i < routeCount; i++)
         {
             var route = new Route

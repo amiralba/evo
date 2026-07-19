@@ -6,6 +6,7 @@ using Evo.Infrastructure;
 using Evo.Infrastructure.Routing;
 using Microsoft.EntityFrameworkCore;
 using Route = Evo.Infrastructure.Routing.Route;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Onarim;
 
@@ -17,14 +18,17 @@ public class OnarimService : IOnarimService
     private readonly DisruptionSource _disruptions;
     private readonly IPlanGenerationService _planGenerationService;
 
-    public OnarimService(EvoDbContext db, DisruptionSource disruptions, IPlanGenerationService planGenerationService)
+    private readonly PlanningClock _clock;
+
+    public OnarimService(EvoDbContext db, DisruptionSource disruptions, IPlanGenerationService planGenerationService, PlanningClock clock)
     {
+        _clock = clock;
         _db = db;
         _disruptions = disruptions;
         _planGenerationService = planGenerationService;
     }
 
-    private static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow);
+    private DateOnly Today() => _clock.Today;
 
     public async Task<IReadOnlyList<DisruptionDto>> GetDisruptionsAsync(string? region, CancellationToken ct = default)
     {

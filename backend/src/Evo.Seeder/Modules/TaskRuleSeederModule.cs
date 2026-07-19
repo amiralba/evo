@@ -32,7 +32,7 @@ public class TaskRuleSeederModule : ISeederModule
 
     public async Task SeedAsync(EvoDbContext db, SeedProfile profile, Bogus.Faker faker, IServiceProvider services, CancellationToken ct)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = services.GetRequiredService<Evo.Infrastructure.Time.PlanningClock>().Today;
 
         var templates = new (string Code, string Name, int Minutes, TaskRecurrence Recurrence)[]
         {

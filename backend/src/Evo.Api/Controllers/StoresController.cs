@@ -12,6 +12,7 @@ using Evo.Infrastructure.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Controllers;
 
@@ -27,8 +28,11 @@ public class StoresController : ControllerBase
     private readonly ITaskPlanProvider _taskPlanProvider;
     private readonly IPlanGenerationService _planGenerationService;
 
-    public StoresController(IStoreSyncService syncService, IAuditWriter auditWriter, EvoDbContext db, ITaskPlanProvider taskPlanProvider, IPlanGenerationService planGenerationService)
+    private readonly PlanningClock _clock;
+
+    public StoresController(IStoreSyncService syncService, IAuditWriter auditWriter, EvoDbContext db, ITaskPlanProvider taskPlanProvider, IPlanGenerationService planGenerationService, PlanningClock clock)
     {
+        _clock = clock;
         _syncService = syncService;
         _auditWriter = auditWriter;
         _db = db;
@@ -109,7 +113,7 @@ public class StoresController : ControllerBase
             throw new EvoValidationException(new Dictionary<string, string[]> { ["province"] = ["province is required."] });
         }
 
-        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+        var sixMonthsAgo = new DateOnly(_clock.Today.Year, _clock.Today.Month, 1).AddMonths(-5);
 
         var query = _db.Stores.Where(s => s.Province == province && s.Location != null);
         if (!string.IsNullOrEmpty(district))
@@ -222,7 +226,7 @@ public class StoresController : ControllerBase
             await _auditWriter.WriteAsync("Store", store.Id.ToString(), request.Active ? "Activated" : "Deactivated", before, new { store.Active });
             await _db.SaveChangesAsync();
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = _clock.Today;
             var routeIds = await _db.RouteStops
                 .Where(rs => rs.StoreId == id && rs.EffectiveTo == null)
                 .Select(rs => rs.RouteId)

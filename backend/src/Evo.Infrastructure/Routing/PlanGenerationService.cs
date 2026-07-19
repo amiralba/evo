@@ -2,6 +2,7 @@ using Evo.Domain.Scheduling;
 using Evo.Domain.Tasks;
 using Evo.Infrastructure.Stores;
 using Evo.Infrastructure.Tasks;
+using Evo.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 
 namespace Evo.Infrastructure.Routing;
@@ -16,17 +17,19 @@ public class PlanGenerationService : IPlanGenerationService
     private readonly EvoDbContext _db;
     private readonly ISettingsProvider _settingsProvider;
     private readonly ITaskPlanProvider _taskPlanProvider;
+    private readonly PlanningClock _clock;
 
-    public PlanGenerationService(EvoDbContext db, ISettingsProvider settingsProvider, ITaskPlanProvider taskPlanProvider)
+    public PlanGenerationService(EvoDbContext db, ISettingsProvider settingsProvider, ITaskPlanProvider taskPlanProvider, PlanningClock clock)
     {
         _db = db;
         _settingsProvider = settingsProvider;
         _taskPlanProvider = taskPlanProvider;
+        _clock = clock;
     }
 
     public Task<int> RegenerateFutureAsync(Guid routeId, DateOnly from, DateOnly to, CancellationToken ct = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         if (from < today)
         {
             from = today;
@@ -153,8 +156,10 @@ public class PlanGenerationService : IPlanGenerationService
                     StoreId = projected.StoreId,
                     MerchandiserId = projected.MerchandiserId,
                     VisitDate = date,
-                    PlannedStart = new DateTimeOffset(date.ToDateTime(scheduled.Start), TimeSpan.Zero),
-                    PlannedEnd = new DateTimeOffset(date.ToDateTime(scheduled.End), TimeSpan.Zero),
+                    // Istanbul wall-clock labeled with Istanbul's real offset (audit §B.3 — these
+                    // were previously stamped +00:00, fabricating the instant by 3 hours).
+                    PlannedStart = new DateTimeOffset(date.ToDateTime(scheduled.Start), _clock.IstanbulOffset(date)),
+                    PlannedEnd = new DateTimeOffset(date.ToDateTime(scheduled.End), _clock.IstanbulOffset(date)),
                     Source = projected.Source,
                     PatchId = projected.PatchId,
                     Status = PlannedVisitStatus.Planned,

@@ -45,6 +45,8 @@ services.AddIdentityCore<ApplicationUser>()
     .AddEntityFrameworkStores<EvoDbContext>();
 services.AddScoped<IStoreSyncService, StoreSyncService>();
 services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: profile == SeedProfile.Demo ? null : 400));
+services.AddSingleton(TimeProvider.System);
+services.AddSingleton<Evo.Infrastructure.Time.PlanningClock>();
 services.AddScoped<ISettingsProvider, SettingsProvider>();
 services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 services.AddScoped<IPlanGenerationService, PlanGenerationService>();

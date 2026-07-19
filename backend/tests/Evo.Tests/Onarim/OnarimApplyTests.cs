@@ -60,7 +60,7 @@ public class OnarimApplyTests : IClassFixture<EvoApiTestFactory>
         var routeB = new Route { Id = Guid.NewGuid(), RouteCode = "OB-" + suffix, Name = "Onarim Route B", Province = "Istanbul", DailyWorkMinutes = 480, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
         db.Routes.AddRange(routeA, routeB);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         db.Assignments.AddRange(
             new Assignment { Id = Guid.NewGuid(), RouteId = routeA.Id, MerchandiserId = merchA.Id, StartDate = today.AddDays(-30), Reason = AssignmentReason.NewHire },
             new Assignment { Id = Guid.NewGuid(), RouteId = routeB.Id, MerchandiserId = merchB.Id, StartDate = today.AddDays(-30), Reason = AssignmentReason.NewHire });

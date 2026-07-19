@@ -108,7 +108,7 @@ public class PlanGenFormatChangeReresolvesTests
     public async Task PlanGenFormatChangeReresolvesTests_FormatChange_ReresolvesFutureDurationsAndInstances()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var (route, _, store) = await SeedRouteAsync(db, today);
 
         // 15 min for format M(2), 40 min for format MM(3) — via TargetFormat-scoped templates.
@@ -118,7 +118,7 @@ public class PlanGenFormatChangeReresolvesTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
 
         await service.RegenerateFutureAsync(route.Id, today, today);
 

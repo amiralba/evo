@@ -33,8 +33,9 @@ public class PlanHorizonBackgroundService : BackgroundService
                 var db = scope.ServiceProvider.GetRequiredService<EvoDbContext>();
                 var settingsProvider = scope.ServiceProvider.GetRequiredService<ISettingsProvider>();
                 var planGenerationService = scope.ServiceProvider.GetRequiredService<IPlanGenerationService>();
+                var clock = scope.ServiceProvider.GetRequiredService<Evo.Infrastructure.Time.PlanningClock>();
 
-                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var today = clock.Today;
 
                 var patches = await db.Patches.Where(p => p.Status == PatchStatus.Pending || p.Status == PatchStatus.Active).ToListAsync(stoppingToken);
                 var advancedCount = 0;

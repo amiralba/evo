@@ -59,7 +59,7 @@ public class RulesEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
             Id = Guid.NewGuid(), RouteCode = "RUL-" + suffix, Name = "Rules Test Route " + suffix,
             Province = "Ankara", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
         };
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var stop = new RouteStop
         {
             Id = Guid.NewGuid(), RouteId = route.Id, StoreId = store.Id, Frequency = Frequency.Daily,
@@ -82,7 +82,7 @@ public class RulesEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await ClientAsync(suffix, Roles.Supervisor);
         var (store, stop, template) = await SeedStoreOnRouteAsync(suffix);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
 
         var request = new CreateRuleRequest(
             template.Id, RuleScopeLevel.Store,
@@ -118,7 +118,7 @@ public class RulesEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLifeti
             null, RuleScopeLevel.Global,
             new RuleConditionDto(null, null, null, null, null, null, null),
             new RuleEffectDto(TaskEffectOp.SetMinutes, 10, null),
-            Priority: 0, EffectiveFrom: DateOnly.FromDateTime(DateTime.UtcNow), EffectiveTo: null);
+            Priority: 0, EffectiveFrom: TestClock.Today, EffectiveTo: null);
 
         var response = await client.PostAsJsonAsync("/api/v1/rules", request);
 

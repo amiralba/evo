@@ -129,7 +129,7 @@ public class PlanGenTimeShiftTests
     public async Task ActiveTimeShiftPatch_PinsFirstStoresStart_AndPushesSecondVisitLater()
     {
         await using var db = await CreateContextAsync();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         // Ensure `today` occurs on a weekday so the assertion date has visits.
         while (today.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
         {
@@ -152,7 +152,7 @@ public class PlanGenTimeShiftTests
         await db.SaveChangesAsync();
 
         var settingsProvider = new SettingsProvider(db);
-        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db));
+        var service = new PlanGenerationService(db, settingsProvider, new TaskPlanProvider(db), TestClock.Clock);
         await service.RegenerateFutureAsync(route.Id, today, today);
 
         var visitA = await db.PlannedVisits.FirstAsync(v => v.RouteStopId == stopA.Id && v.VisitDate == today);

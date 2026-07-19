@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Rule = Evo.Infrastructure.Tasks.Rule;
+using Evo.Infrastructure.Time;
 
 namespace Evo.Api.Controllers;
 
@@ -23,8 +24,11 @@ public class TaskInstancesController : ControllerBase
     private readonly IAuditWriter _auditWriter;
     private readonly IPlanGenerationService _planGenerationService;
 
-    public TaskInstancesController(EvoDbContext db, IAuditWriter auditWriter, IPlanGenerationService planGenerationService)
+    private readonly PlanningClock _clock;
+
+    public TaskInstancesController(EvoDbContext db, IAuditWriter auditWriter, IPlanGenerationService planGenerationService, PlanningClock clock)
     {
+        _clock = clock;
         _db = db;
         _auditWriter = auditWriter;
         _planGenerationService = planGenerationService;
@@ -45,7 +49,7 @@ public class TaskInstancesController : ControllerBase
         var instance = await _db.TaskInstances.FirstOrDefaultAsync(ti => ti.Id == id) ?? throw new NotFoundException("TaskInstance");
         var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == instance.StoreId) ?? throw new NotFoundException("Store");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
 
         switch (request.Scope)
         {
@@ -108,7 +112,7 @@ public class TaskInstancesController : ControllerBase
         if (request.TargetFormat is { } format) query = query.Where(s => s.Format == format);
         var matchingStoreCount = await query.CountAsync();
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var storeIds = await query.Select(s => s.Id).ToListAsync();
         var routeIds = await _db.RouteStops
             .Where(rs => rs.EffectiveTo == null && storeIds.Contains(rs.StoreId))
@@ -150,7 +154,7 @@ public class TaskInstancesController : ControllerBase
                 condition.ChainId, condition.Format, condition.Category, condition.Channel, condition.Province, condition.RouteId, condition.StoreId)),
             EffectJson = JsonSerializer.Serialize(new RuleEffectJson(TaskEffectOp.SetMinutes, minutes, null)),
             Priority = 0,
-            EffectiveFrom = DateOnly.FromDateTime(DateTime.UtcNow),
+            EffectiveFrom = _clock.Today,
             EffectiveTo = null,
             CreatedBy = CurrentUserId,
             CreatedAt = DateTimeOffset.UtcNow,

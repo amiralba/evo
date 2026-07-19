@@ -43,6 +43,8 @@ builder.Services.AddScoped<IStoreSyncService, StoreSyncService>();
 builder.Services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource());
 builder.Services.AddHostedService<StoreSyncBackgroundService>();
 
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<Evo.Infrastructure.Time.PlanningClock>();
 builder.Services.AddScoped<ISettingsProvider, SettingsProvider>();
 builder.Services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 builder.Services.AddScoped<IPlanGenerationService, PlanGenerationService>();

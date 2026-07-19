@@ -93,7 +93,7 @@ public class TaskPlanEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLif
             await db.SaveChangesAsync();
         }
 
-        var date = DateOnly.FromDateTime(DateTime.UtcNow);
+        var date = TestClock.Today;
         var response = await client.GetAsync($"/api/v1/stores/{store.Id}/task-plan?date={date:yyyy-MM-dd}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var plan = await response.Content.ReadFromJsonAsync<TaskPlanDto>();
@@ -110,7 +110,7 @@ public class TaskPlanEndpointTests : IClassFixture<EvoApiTestFactory>, IAsyncLif
         var suffix = Guid.NewGuid().ToString("N")[..8];
         var client = await SupervisorClientAsync(suffix);
 
-        var response = await client.GetAsync($"/api/v1/stores/{Guid.NewGuid()}/task-plan?date={DateOnly.FromDateTime(DateTime.UtcNow):yyyy-MM-dd}");
+        var response = await client.GetAsync($"/api/v1/stores/{Guid.NewGuid()}/task-plan?date={TestClock.Today:yyyy-MM-dd}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

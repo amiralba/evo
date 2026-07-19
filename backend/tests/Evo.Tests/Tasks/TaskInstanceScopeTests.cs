@@ -52,7 +52,7 @@ public class TaskInstanceScopeTests : IClassFixture<EvoApiTestFactory>, IAsyncLi
         var storeB = new Store { Id = Guid.NewGuid(), EvoStoreId = "EVO-TIS-B-" + suffix, Name = "TIS B " + suffix, Province = "Ankara", District = "Cankaya", Category = StoreCategory.HighValue, Format = format, SyncedAt = DateTimeOffset.UtcNow };
         var routeA = new Route { Id = Guid.NewGuid(), RouteCode = "TISA-" + suffix, Name = "TIS Route A " + suffix, Province = "Ankara", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
         var routeB = new Route { Id = Guid.NewGuid(), RouteCode = "TISB-" + suffix, Name = "TIS Route B " + suffix, Province = "Ankara", CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         var stopA = new RouteStop { Id = Guid.NewGuid(), RouteId = routeA.Id, StoreId = storeA.Id, Frequency = Frequency.Daily, WeekdayMask = 0, Sequence = 1, EffectiveFrom = today, EffectiveTo = null };
         var stopB = new RouteStop { Id = Guid.NewGuid(), RouteId = routeB.Id, StoreId = storeB.Id, Frequency = Frequency.Daily, WeekdayMask = 0, Sequence = 1, EffectiveFrom = today, EffectiveTo = null };
         var template = new TaskTemplate { Id = Guid.NewGuid(), Code = "SHELF-" + suffix, Name = "Raf", DefaultMinutes = 20, TargetFormat = format, Active = true };
@@ -70,7 +70,7 @@ public class TaskInstanceScopeTests : IClassFixture<EvoApiTestFactory>, IAsyncLi
     {
         using var scope = _factory.Services.CreateScope();
         var planGen = scope.ServiceProvider.GetRequiredService<IPlanGenerationService>();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         await planGen.RegenerateFutureAsync(routeId, today, today);
     }
 
@@ -83,7 +83,7 @@ public class TaskInstanceScopeTests : IClassFixture<EvoApiTestFactory>, IAsyncLi
         await RegenerateAsync(seeded.StopA.RouteId);
         await RegenerateAsync(seeded.StopB.RouteId);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         Guid instanceAId, instanceBIdBefore;
         int minutesBBefore;
         using (var scope = _factory.Services.CreateScope())
@@ -120,7 +120,7 @@ public class TaskInstanceScopeTests : IClassFixture<EvoApiTestFactory>, IAsyncLi
         await RegenerateAsync(seeded.StopA.RouteId);
         await RegenerateAsync(seeded.StopB.RouteId);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         Guid instanceAId;
         int minutesBBefore, rulesBefore;
         using (var scope = _factory.Services.CreateScope())
@@ -160,7 +160,7 @@ public class TaskInstanceScopeTests : IClassFixture<EvoApiTestFactory>, IAsyncLi
         await RegenerateAsync(seeded.StopA.RouteId);
         await RegenerateAsync(seeded.StopB.RouteId);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = TestClock.Today;
         Guid instanceAId;
         using (var scope = _factory.Services.CreateScope())
         {

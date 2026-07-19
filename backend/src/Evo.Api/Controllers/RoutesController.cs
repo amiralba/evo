@@ -11,6 +11,7 @@ using Evo.Infrastructure.Identity;
 using Evo.Infrastructure.People;
 using Evo.Infrastructure.Routing;
 using Evo.Infrastructure.Stores;
+using Evo.Infrastructure.Time;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,10 +32,12 @@ public class RoutesController : ControllerBase
     private readonly ISettingsProvider _settingsProvider;
     private readonly INotificationDispatcher _notificationDispatcher;
     private readonly ILogger<RoutesController> _logger;
+    private readonly PlanningClock _clock;
 
     public RoutesController(
         EvoDbContext db, IRouteChangeLog changeLog, IPlanGenerationService planGenerationService,
-        ISettingsProvider settingsProvider, INotificationDispatcher notificationDispatcher, ILogger<RoutesController> logger)
+        ISettingsProvider settingsProvider, INotificationDispatcher notificationDispatcher, ILogger<RoutesController> logger,
+        PlanningClock clock)
     {
         _db = db;
         _changeLog = changeLog;
@@ -42,6 +45,7 @@ public class RoutesController : ControllerBase
         _settingsProvider = settingsProvider;
         _notificationDispatcher = notificationDispatcher;
         _logger = logger;
+        _clock = clock;
     }
 
     private Guid? CurrentUserId
@@ -129,7 +133,7 @@ public class RoutesController : ControllerBase
             .Join(_db.Users, x => x.UserId, u => u.Id, (x, u) => new { x.RouteId, u.DisplayName })
             .ToDictionaryAsync(x => x.RouteId, x => x.DisplayName);
 
-        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+        var sixMonthsAgo = new DateOnly(_clock.Today.Year, _clock.Today.Month, 1).AddMonths(-5);
         var revenueByRoute = await _db.RouteStops
             .Where(rs => rs.EffectiveTo == null && ids.Contains(rs.RouteId))
             .Join(_db.StoreRevenues.Where(r => r.Month >= sixMonthsAgo), rs => rs.StoreId, r => r.StoreId, (rs, r) => new { rs.RouteId, r.Revenue })
@@ -209,7 +213,7 @@ public class RoutesController : ControllerBase
 
     private async Task ApplyStatusTransitionAsync(Route route, RouteStatus newStatus)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
 
         if (route.Status == RouteStatus.Draft && newStatus == RouteStatus.Active)
         {
@@ -256,7 +260,7 @@ public class RoutesController : ControllerBase
         var routeDistricts = route.DistrictsJson is null ? [] : JsonSerializer.Deserialize<List<string>>(route.DistrictsJson) ?? [];
 
         var stores = await _db.Stores.Where(s => request.StoreIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var nextSequence = (await _db.RouteStops.Where(rs => rs.RouteId == id && rs.EffectiveTo == null)
             .Select(rs => (int?)rs.Sequence).MaxAsync() ?? 0) + 1;
 
@@ -342,7 +346,7 @@ public class RoutesController : ControllerBase
         }
         await _db.SaveChangesAsync();
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
 
         var storeName = await _db.Stores.Where(s => s.Id == stop.StoreId).Select(s => s.Name).FirstOrDefaultAsync() ?? "?";
@@ -396,7 +400,7 @@ public class RoutesController : ControllerBase
             throw new ConflictException("Store is outside the target route's geo-scope.");
         }
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var nextSequence = (await _db.RouteStops.Where(rs => rs.RouteId == request.TargetRouteId && rs.EffectiveTo == null)
             .Select(rs => (int?)rs.Sequence).MaxAsync() ?? 0) + 1;
 
@@ -437,7 +441,7 @@ public class RoutesController : ControllerBase
         var stop = await _db.RouteStops.FirstOrDefaultAsync(rs => rs.Id == stopId && rs.RouteId == id && rs.EffectiveTo == null)
             ?? throw new NotFoundException("RouteStop");
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         stop.EffectiveTo = today;
 
         await _changeLog.WriteAsync(id, RouteChangeEvent.StopRemoved, new { stop.Id, stop.StoreId }, null);
@@ -490,7 +494,7 @@ public class RoutesController : ControllerBase
 
         await _changeLog.WriteAsync(id, RouteChangeEvent.Assigned, null, new { request.MerchandiserId });
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var futureVisits = await _db.PlannedVisits.Where(v => v.RouteId == id && v.VisitDate >= today).ToListAsync();
         foreach (var visit in futureVisits)
         {
@@ -539,7 +543,7 @@ public class RoutesController : ControllerBase
         }
 
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
 
         var patch = new Patch
         {
@@ -581,7 +585,7 @@ public class RoutesController : ControllerBase
         await _changeLog.WriteAsync(id, RouteChangeEvent.Patched, null, new { patch.Id, patch.Type, Cancelled = true });
         await _db.SaveChangesAsync();
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         await _planGenerationService.RegenerateFutureAsync(id, today, today.AddDays(42));
 
         return new PatchDto(patch.Id, patch.Type, patch.StoreId, patch.StartsOn, patch.EndsOn, patch.Status);
@@ -704,12 +708,12 @@ public class RoutesController : ControllerBase
         var storeIds = stops.Select(s => s.StoreId).ToList();
         var stores = await _db.Stores.Where(s => storeIds.Contains(s.Id)).ToListAsync();
 
-        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+        var sixMonthsAgo = new DateOnly(_clock.Today.Year, _clock.Today.Month, 1).AddMonths(-5);
         var sixMonthRevenue = await _db.StoreRevenues
             .Where(r => storeIds.Contains(r.StoreId) && r.Month >= sixMonthsAgo)
             .SumAsync(r => (decimal?)r.Revenue) ?? 0m;
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var horizonEnd = today.AddDays(27);
         var visits = await _db.PlannedVisits.Where(v => v.RouteId == id && v.VisitDate >= today && v.VisitDate <= horizonEnd).ToListAsync();
         var minutesByWeekday = visits
@@ -741,7 +745,7 @@ public class RoutesController : ControllerBase
         var storeIds = stops.Select(s => s.StoreId).ToList();
         var stores = await _db.Stores.Where(s => storeIds.Contains(s.Id)).ToListAsync();
 
-        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+        var sixMonthsAgo = new DateOnly(_clock.Today.Year, _clock.Today.Month, 1).AddMonths(-5);
         var sixMonthRevenue = await _db.StoreRevenues
             .Where(r => storeIds.Contains(r.StoreId) && r.Month >= sixMonthsAgo)
             .SumAsync(r => (decimal?)r.Revenue) ?? 0m;
@@ -750,7 +754,7 @@ public class RoutesController : ControllerBase
         var routeEval = BuildRouteEval(route, stops, stores, sixMonthRevenue, settings.ServiceMixCapPct);
         var findings = new List<ValidationFinding>(RouteValidator.Evaluate(routeEval));
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var futureVisits = await _db.PlannedVisits
             .Where(v => v.RouteId == id && v.VisitDate >= today)
             .ToListAsync();
@@ -817,7 +821,7 @@ public class RoutesController : ControllerBase
         var storeIds = stops.Select(s => s.StoreId).ToList();
         var stores = await _db.Stores.Where(s => storeIds.Contains(s.Id)).ToListAsync();
 
-        var sixMonthsAgo = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-5);
+        var sixMonthsAgo = new DateOnly(_clock.Today.Year, _clock.Today.Month, 1).AddMonths(-5);
         var sixMonthRevenue = await _db.StoreRevenues
             .Where(r => storeIds.Contains(r.StoreId) && r.Month >= sixMonthsAgo)
             .SumAsync(r => (decimal?)r.Revenue) ?? 0m;
@@ -853,7 +857,7 @@ public class RoutesController : ControllerBase
             decisionJournalId = entry.Id;
         }
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = _clock.Today;
         var horizonEnd = today.AddDays(settings.PlanHorizonWeeks * 7);
         var visitsMaterialized = await _planGenerationService.RegenerateFutureAsync(id, today, horizonEnd);
 
@@ -878,7 +882,7 @@ public class RoutesController : ControllerBase
     public async Task<ActionResult<Evo.Api.Analytics.Dtos.RouteEvidenceDto>> GetEvidence(Guid id, [FromQuery] int weeks = 4)
     {
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
-        var since = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-weeks * 7);
+        var since = _clock.Today.AddDays(-weeks * 7);
 
         var visits = await _db.PlannedVisits
             .Where(v => v.RouteId == id && v.VisitDate >= since)
