@@ -37,7 +37,7 @@ services.AddIdentityCore<ApplicationUser>()
     .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<EvoDbContext>();
 services.AddScoped<IStoreSyncService, StoreSyncService>();
-services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(storeCount: profile == SeedProfile.Demo ? 60 : 400));
+services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource(perCity: profile == SeedProfile.Demo ? null : 130));
 services.AddScoped<ISettingsProvider, SettingsProvider>();
 services.AddScoped<ITaskPlanProvider, TaskPlanProvider>();
 services.AddScoped<IPlanGenerationService, PlanGenerationService>();
@@ -55,16 +55,15 @@ if (wipe)
 
 // SeederModule plug-in interface (see ISeederModule.cs): future specs register their module
 // here as they add tables. CLAUDE.md rule: every spec that adds tables extends this list.
+// Routes (and their materialized plan / field-execution / absences) are the planner's work product,
+// built in the panel — the seeder only supplies stores, people (merchandisers) and task templates.
 var modules = new List<ISeederModule>
 {
     new IdentitySeederModule(),
     new AuditLogSeederModule(),
     new StoreSyncSeederModule(),
     new MerchandiserSeederModule(),
-    new RouteSeederModule(),
     new TaskRuleSeederModule(),
-    new FieldExecutionSeederModule(),
-    new AbsenceSeederModule(),
 };
 
 var faker = new Faker("tr");

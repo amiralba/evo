@@ -40,8 +40,7 @@ builder.Services.AddDataProtection();
 builder.Services.AddScoped<IStoreSyncService, StoreSyncService>();
 // EXTENSION SEAM: swap FakeStoreSyncSource for the real IStoreSyncSource here once customer-IT
 // answers land (see IStoreSyncSource.cs).
-builder.Services.AddSingleton<IStoreSyncSource>(
-    new FakeStoreSyncSource(storeCount: builder.Configuration.GetValue("StoreSync:FakeStoreCount", 40)));
+builder.Services.AddSingleton<IStoreSyncSource>(new FakeStoreSyncSource());
 builder.Services.AddHostedService<StoreSyncBackgroundService>();
 
 builder.Services.AddScoped<ISettingsProvider, SettingsProvider>();
