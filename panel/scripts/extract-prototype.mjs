@@ -51,6 +51,14 @@ script = script.replace(
   'function visiblePeople(){\n  if(!filter)return people.filter(function(p){return routes.some(function(r){return r.person===p.id;})||visits.some(function(v){return v.personId===p.id;});});',
 )
 
+// --- Draft schedule duration ---
+// storeDur() = sum of task-template minutes, but the mock templates are cleared, so every draft
+// store computes to 0 and generateDraftSchedule stacks them all at 06:00. Fall back to a sane 45'
+// slot for the draft PREVIEW (the real per-store durations are resolved by the backend on publish).
+const DRAFTDUR_ANCHOR = 'const s=store(sid),d=storeDur(s);'
+if (!script.includes(DRAFTDUR_ANCHOR)) throw new Error('draft-schedule duration anchor not found — prototype changed?')
+script = script.replace(DRAFTDUR_ANCHOR, 'const s=store(sid),d=storeDur(s)||45;')
+
 // --- Yeni rut modal: route code + geo scope follow the selected city ---
 const NRCODE_ANCHOR = "const code='ANK-'+String(routes.length+1).padStart(2,'0');"
 if (!script.includes(NRCODE_ANCHOR)) throw new Error('new-route code anchor not found — prototype changed?')

@@ -245,7 +245,7 @@ function generateDraftSchedule(r){
   baseVisits=baseVisits.filter(v=>!(r.person&&v.personId===r.person));
   let day=0,cur=DAY_START;
   for(const sid of routeStoreOrder(r.id)){
-    const s=store(sid),d=storeDur(s);
+    const s=store(sid),d=storeDur(s)||45;
     if(cur+d-DAY_START>QUOTA&&day<4){day++;cur=DAY_START;}
     const nv=V(sid,r.person,day,cur,d);
     visits.push(nv);baseVisits.push({...nv});
