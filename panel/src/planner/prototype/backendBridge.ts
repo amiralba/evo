@@ -35,6 +35,21 @@ let weekOffset = 0
 
 /** The planning week to load: this week's Mon–Fri (or next week's if today is the weekend, since
  * the backend only regenerates the plan from today forward), shifted by `weekOffset` weeks. */
+/**
+ * HTML-escape backend strings at the bridge boundary (audit §C H1): engine.js interpolates
+ * everything into innerHTML with no escaping of its own, so a store/route/person name or note
+ * body containing markup would execute in the supervisor's session. Escaping here is the single
+ * choke point for all data entering the engine; publishBridge.unesc() inverts it for the few
+ * fields that round-trip back into API writes (route name/code). Proper in-engine escaping is
+ * part of decision D2b.
+ */
+export function esc(s: string): string {
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
+}
+
 function planningWeek(): { from: string; to: string } {
   const now = new Date()
   const g = now.getDay()
@@ -69,8 +84,8 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   const notes = notesRaw.map((n) => ({
     id: n.id,
     type: n.kind === 1 ? '📋 Talep' : '💬 Not',
-    who: n.authorName ?? 'Saha temsilcisi',
-    txt: n.body ?? '',
+    who: esc(n.authorName ?? 'Saha temsilcisi'),
+    txt: esc(n.body ?? ''),
     status: n.status === 3 ? 'done' : 'open',
     anchor: n.anchorId ?? null,
   }))
@@ -79,8 +94,8 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
 
   const routes = routeItems.map((r, i) => ({
     id: r.id,
-    code: r.routeCode,
-    name: r.name,
+    code: esc(r.routeCode ?? ''),
+    name: esc(r.name ?? ''),
     person: personByRouteCode.get(r.routeCode ?? undefined) ?? null,
     color: ROUTE_COLORS[i % ROUTE_COLORS.length],
     target: Math.round((r.revenueTarget ?? 0) / 1000),
@@ -109,7 +124,7 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   const loadedRouteCodes = new Set(routeItems.map((r) => r.routeCode).filter(Boolean))
   const people = merchandisers
     .filter((m) => m.active && (!m.activeRouteCode || loadedRouteCodes.has(m.activeRouteCode)))
-    .map((m) => ({ id: m.id, name: (m.name ?? '').trim(), active: !!m.active, activeRouteCode: m.activeRouteCode ?? null }))
+    .map((m) => ({ id: m.id, name: esc((m.name ?? '').trim()), active: !!m.active, activeRouteCode: m.activeRouteCode ?? null }))
 
   // Project real lat/lng into the prototype's 600×520 SVG box (temporary — the SVG map is
   // replaced by the React MapLibre map in a later step; until then this keeps the map plausible).
@@ -126,8 +141,8 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   const H = 520
   const stores = geo.map((s) => ({
     id: s.id,
-    name: s.name,
-    chain: s.chainName ?? '—',
+    name: esc(s.name ?? ''),
+    chain: esc(s.chainName ?? '—'),
     format: FORMAT[s.format ?? 2] ?? 'M',
     cat: CATEGORY[(s.category as number) ?? 1] ?? 'S',
     rev: Math.round((s.sixMonthRevenue ?? 0) / 1000),

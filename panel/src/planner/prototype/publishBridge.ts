@@ -102,6 +102,21 @@ function engineToast(msg: string): void {
   ;(window as ProtoWindow).toast?.(msg, [])
 }
 
+/**
+ * Inverse of backendBridge.esc() for the few strings that round-trip from engine state back
+ * into API writes (route name/code) — without this, publishing a rename would persist
+ * "A&amp;B" instead of "A&B". User-typed values (new-route name) pass through unchanged:
+ * unescaping only rewrites entity sequences esc() itself produces.
+ */
+function unesc(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 export function installPublishBridge(): void {
   const win = window as ProtoWindow
 
@@ -265,9 +280,9 @@ async function flush(opts: PublishOpts): Promise<void> {
     const storeIds = state.stores.filter((s) => s.route === nr.id).map((s) => s.id)
     if (!storeIds.length) continue
     const created = await planner.createRoute({
-      name: nr.name ?? nr.code ?? 'Yeni rut',
+      name: unesc(nr.name ?? nr.code ?? 'Yeni rut'),
       province,
-      routeCode: nr.code ?? undefined,
+      routeCode: nr.code ? unesc(nr.code) : undefined,
       revenueTarget: (nr.target ?? 0) * 1000,
     })
     if (!created.id) continue
@@ -289,7 +304,8 @@ async function flush(opts: PublishOpts): Promise<void> {
   for (const op of removeOps) await planner.removeStop(op.routeId, op.stopId)
   for (const op of scheduleOps)
     await planner.updateStop(op.routeId, op.stopId, { frequency: op.frequency, weekdayMask: op.weekdayMask })
-  for (const op of metaOps) await planner.updateRoute(op.routeId, op.body)
+  for (const op of metaOps)
+    await planner.updateRoute(op.routeId, op.body.name != null ? { ...op.body, name: unesc(op.body.name) } : op.body)
   for (const routeId of new Set([...affected, ...createdRouteIds])) {
     await planner.publishRoute(routeId, { reason: opts.reason ?? null, objective: opts.objective ?? null })
   }

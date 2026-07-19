@@ -10,6 +10,7 @@ using Evo.Infrastructure.Tasks;
 using Evo.Api.Stores;
 using Evo.Infrastructure.Stores.Sync;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,24 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
 builder.Services.AddExceptionHandler<EvoExceptionHandler>();
 builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
     options.InvalidModelStateResponseFactory = ValidationProblem.Factory);
+
+// Per-IP limiter on the anonymous auth endpoints (audit §C M2): Identity's lockout is
+// per-account, so spraying many known accounts a few tries each never trips it. Dev/test
+// environments raise the permit via config (the suite logs in once per test class).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    var permitPerMinute = builder.Configuration.GetValue("RateLimiting:AuthPermitPerMinute", 10);
+    options.AddPolicy("auth", context =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permitPerMinute,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+});
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
@@ -100,7 +119,27 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+// Security headers (audit §C H2). The API serves JSON only — a deny-all CSP here is pure
+// defense-in-depth (the panel ships its own CSP via index.html); the rest stop MIME sniffing,
+// framing and referrer leakage.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+    await next();
+});
+
 app.UseHttpsRedirection();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

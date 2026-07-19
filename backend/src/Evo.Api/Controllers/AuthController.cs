@@ -40,6 +40,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
     {
@@ -67,6 +68,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
     [HttpPost("refresh")]
     public async Task<ActionResult<LoginResponse>> Refresh()
     {
