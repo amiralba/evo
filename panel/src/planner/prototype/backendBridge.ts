@@ -141,9 +141,9 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
     catInt: (s.category as number) ?? null,
     activeRouteId: s.activeRouteId ?? null,
     // L4 schedule fields (routed stores): backend RouteStop id/frequency/weekday-mask.
-    stopId: stopByStore.get(s.id)?.stopId ?? null,
-    freqNum: stopByStore.get(s.id)?.freqNum ?? null,
-    weekdayMask: stopByStore.get(s.id)?.weekdayMask ?? null,
+    stopId: (s.id ? stopByStore.get(s.id)?.stopId : null) ?? null,
+    freqNum: (s.id ? stopByStore.get(s.id)?.freqNum : null) ?? null,
+    weekdayMask: (s.id ? stopByStore.get(s.id)?.weekdayMask : null) ?? null,
   }))
 
   const plans = await Promise.all(

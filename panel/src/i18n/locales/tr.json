@@ -1,138 +1,5 @@
 {
-  "app": {
-    "title": "EVO"
-  },
-  "planner": {
-    "title": "Rota Planlama",
-    "selectRoute": "Rota seçin",
-    "pool": "Havuz",
-    "addToRoute": "Rotaya ekle",
-    "moveHere": "Buraya taşı",
-    "lasso": "Kement",
-    "selected": "seçili",
-    "noRouteFocused": "Haritadan veya listeden bir rota seçin.",
-    "unassigned": "Atanmamış",
-    "noStops": "Bu rotada durak yok.",
-    "defaultDuration": "varsayılan",
-    "revenue": "Ciro",
-    "weekdayMinutes": "Haftalık dakika",
-    "categoryMix": "Karışım",
-    "noHealthYet": "Bu rota için henüz sağlık verisi yok.",
-    "prevWeek": "Önceki",
-    "nextWeek": "Sonraki",
-    "thisWeek": "Bu hafta",
-    "noPlanYet": "Bu rota için henüz bir plan yok.",
-    "selectAllInView": "Tümünü seç",
-    "poolStores": "havuz mağazası",
-    "added": "Eklendi",
-    "frequency": "Sıklık",
-    "serviceMinutes": "Süre (dk)",
-    "sequence": "Sıra",
-    "addPatch": "+ Yama ekle",
-    "patchType": "Yama tipi",
-    "store": "Mağaza",
-    "startsOn": "Başlangıç",
-    "endsOn": "Bitiş (zorunlu)",
-    "reason": "Neden",
-    "patchExpiryRequired": "Bir bitiş tarihi zorunludur ve başlangıçtan önce olamaz.",
-    "publishReview": "Yayın öncesi inceleme",
-    "noFindings": "Doğrulama bulgusu yok.",
-    "objective": "Amaç",
-    "visitsMaterialized": "Oluşturulan ziyaret sayısı",
-    "decisionRecorded": "Karar kaydedildi",
-    "detail": "Detay",
-    "detailEmptySub": "Bir mağaza, rut veya kişi seç",
-    "newStart": "Yeni saat",
-    "fromTo": "Gün",
-    "pastWeekReadOnly": "(geçmiş hafta — salt okunur)",
-    "tabInfo": "Bilgi",
-    "tabTasks": "Görevler",
-    "tabHistory": "Geçmiş",
-    "noHistory": "Bu rota için henüz geçmiş kaydı yok.",
-    "noTasks": "Bu ziyaret için görev bulunamadı.",
-    "visitTotal": "Ziyaret toplamı",
-    "taskDuration": "Süre",
-    "selectStop": "Durak",
-    "taskSource": {
-      "template": "Şablon",
-      "chain": "Zincir",
-      "format": "Format",
-      "route": "Rut",
-      "store": "Mağaza",
-      "manual": "Manuel"
-    },
-    "applyScope": {
-      "title": "Kapsam seç",
-      "thisVisit": "Sadece bu ziyaret",
-      "thisStore": "Bu mağaza için (bundan sonra)",
-      "allFormat": "Tüm {{format}} formatındaki mağazalar için"
-    },
-    "impactPreview": {
-      "title": "Etki önizlemesi",
-      "stores": "mağaza",
-      "visitsPerWeek": "haftalık ziyaret",
-      "deltaMinutesPerWeek": "haftalık dk değişimi",
-      "daysOver450": "450 dk üzeri gün"
-    },
-    "outcome": {
-      "done": "Yapıldı",
-      "missed": "Yapılmadı",
-      "skipped": "Atlandı"
-    },
-    "outcomeReason": {
-      "storeClosed": "Mağaza kapalı",
-      "noAccess": "Erişim yok",
-      "agentAbsent": "Personel yok",
-      "timeConstraint": "Zaman kısıtı",
-      "rescheduled": "Ertelendi",
-      "other": "Diğer"
-    },
-    "checkInAt": "Giriş",
-    "actualVsPlanned": "gerçekleşen {{actual}} / planlanan {{planned}}",
-    "taskResult": {
-      "photoCount": "{{count}} fotoğraf",
-      "formCount": "{{count}} form yanıtı",
-      "done": "Tamamlandı"
-    },
-    "notesInbox": "Gelen kutusu",
-    "noOpenNotes": "Açık not yok.",
-    "acknowledge": "Onayla",
-    "resolve": "Çözüldü",
-    "railRoutes": "Rutlar",
-    "railStops": "nokta",
-    "railPoolEmpty": "Havuz boş 🎉",
-    "dragToReorder": "sıralamak için sürükle"
-  },
-  "common": {
-    "clear": "Temizle",
-    "cancel": "Vazgeç",
-    "save": "Kaydet",
-    "publish": "Yayınla",
-    "loading": "Yükleniyor…",
-    "loadError": "Yüklenemedi. Tekrar deneyin.",
-    "close": "Kapat",
-    "apply": "Uygula"
-  },
-  "onarim": {
-    "navLabel": "Onarım",
-    "title": "Onarım",
-    "noDisruptions": "Açık aksaklık yok.",
-    "kindAbsence": "İzin",
-    "kindClosure": "Mağaza Kapalı",
-    "affectedVisits": "{{count}} etkilenen ziyaret",
-    "noAffectedVisits": "Etkilenen ziyaret yok.",
-    "chooseAction": "Eylem seçin",
-    "chooseCandidate": "Aday seçin",
-    "applied": "Onarım uygulandı.",
-    "action": {
-      "skip": "Atla",
-      "moveDay": "Gün değiştir",
-      "reassignRoute": "Rotayı devret",
-      "reassignPerson": "Kişiye devret"
-    }
-  },
   "analytics": {
-    "navLabel": "Analitik",
     "title": "Analitik",
     "backToPlanner": "← Planlamaya dön",
     "allRegions": "Tüm Bölgeler",
@@ -153,13 +20,10 @@
     "routesHeld": "Farklı Rota Sayısı",
     "reshuffles": "Rota İçi Değişim",
     "regionalMedian": "Bölge Medyanı",
-    "reviewFlag": "gözden geçir",
-    "evidenceTitle": "Kanıt Zinciri (son 4 hafta)",
-    "store": "Mağaza",
-    "planned": "Planlanan",
-    "done": "Tamamlanan",
-    "missed": "Kaçırılan",
-    "skipped": "Atlanan",
-    "causalityDisclaimer": "Kanıt, nedensellik değil."
+    "reviewFlag": "gözden geçir"
+  },
+  "common": {
+    "loading": "Yükleniyor…",
+    "loadError": "Yüklenemedi. Tekrar deneyin."
   }
 }

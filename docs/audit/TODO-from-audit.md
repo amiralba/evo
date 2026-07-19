@@ -12,16 +12,16 @@ Work items reference report sections (e.g. "§A2" = main report section A2, "DB 
 Mark exactly one option per decision. Sessions must log the chosen option in `docs/DECISIONS.md` and must STOP and ask if a needed decision is unmarked.
 
 **D1 — The dead pre-rebuild React tree (§A2, ~4,552 LOC + 11 client fns + 5–6 deps + ~20 test files):**
-- [X] D1a. DELETE the tree (recommended — git keeps history; the keep-rationale is stale)
-- [X] D1b. KEEP as migration target (then: fix stale comment in `PlannerPage.tsx:9-12`, declare `@dnd-kit/utilities` in package.json, and mark the tree clearly)
+- [x] D1a. DELETE the tree (recommended — git keeps history; the keep-rationale is stale) ← CHOSEN 2026-07-19
+- [ ] D1b. KEEP as migration target (then: fix stale comment in `PlannerPage.tsx:9-12`, declare `@dnd-kit/utilities` in package.json, and mark the tree clearly)
 
 **D2 — Prototype engine endgame (§G item 6; quality finding 3.1):**
-- [X] D2a. Migrate pane-by-pane back into React over time (conflicts with D1a — the components ARE the dead tree; if D1a chosen, migration means rewriting)
-- [X] D2b. ADOPT engine.js as product code: move into `src/` as TS, bring under eslint/tests, escape all interpolations (pairs fine with D1a)
+- [ ] D2a. Migrate pane-by-pane back into React over time (conflicts with D1a — the components ARE the dead tree; if D1a chosen, migration means rewriting)
+- [x] D2b. ADOPT engine.js as product code: move into `src/` as TS, bring under eslint/tests, escape all interpolations (pairs fine with D1a) ← CHOSEN 2026-07-19
 
 **D3 — Seeder modules (§A3.1, DB §6.1):**
-- [X] D3a. RE-REGISTER Route/FieldExecution/Absence seeder modules (recommended — Onarım, analytics and e2e need the data; keep panel-built routes via profiles)
-- [X] D3b. DELETE the three modules + `MaterializeHistoryAsync`, and fix the 4 docs that claim they run
+- [ ] D3a. RE-REGISTER Route/FieldExecution/Absence seeder modules (recommended — Onarım, analytics and e2e need the data; keep panel-built routes via profiles)
+- [x] D3b. DELETE the three modules + `MaterializeHistoryAsync`, and fix the 4 docs that claim they run ← CHOSEN 2026-07-19 (overrides the recommendation; user's call)
 
 ---
 
@@ -40,10 +40,11 @@ Mark exactly one option per decision. Sessions must log the chosen option in `do
   parse error in `public/evo-prototype/engine.js` [untouched, present at HEAD] and 9–10 weekend-date/flaky
   backend tests [same set fails with Class1.cs restored; run on a Sunday])
 
-### Session C2 — Execute D1 (dead tree) — only after D1 marked
-- [ ] If D1a: delete the tree per §A2 list (everything except `map/storeLayer.ts`), the 11 dead client fns in `planner.ts`, dead deps (`@dnd-kit/*`, `@turf/*`, `recharts`, `zustand`), dead tests, `useRouteEvidence`/`getRouteEvidence`, i18n keys only the tree used (§A3 note: keep backend endpoints — they're contract-intentional, §A4)
-- [ ] If D1b: stale-comment fix + declare `@dnd-kit/utilities` + quarantine note
-- [ ] Log in `docs/DECISIONS.md`; verify full panel suite + build
+### Session C2 — Execute D1 (dead tree) — only after D1 marked — DONE 2026-07-19 (D1a)
+- [x] If D1a: delete the tree per §A2 list (everything except `map/storeLayer.ts`), the 11 dead client fns in `planner.ts`, dead deps (`@dnd-kit/*`, `@turf/*`, `recharts`, `zustand`), dead tests, `useRouteEvidence`/`getRouteEvidence`, i18n keys only the tree used (§A3 note: keep backend endpoints — they're contract-intentional, §A4)
+  (Deviations from the frozen §A2 list, re-verified at HEAD `a8ebb26`: `getRoute`, `removeStop`, `updateStoreStatus` are now LIVE via bridges — kept; 10 fns deleted. `tokens.test.ts` died with `planner.css` (it was a parity guard for it). `@types/geojson` added as direct devDep — was transitive via deleted deps. 4 pre-existing tsc errors in committed L-session bridge code fixed minimally (type-level only).)
+- [ ] ~~If D1b~~ (not chosen)
+- [x] Log in `docs/DECISIONS.md`; verify full panel suite + build (Vitest 26/26 in 7 files, `tsc -b` exit 0, `vite build` exit 0; lint still has the 1 pre-existing `engine.js` parse error — D2b's session will absorb it)
 
 ### Session C3 — Execute D3 (seeder) — only after D3 marked
 - [ ] Re-register or delete modules; fix `--wipe` no-op (`Program.cs:51-54`)

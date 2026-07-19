@@ -15,11 +15,3 @@ export function useMobility(region: string | undefined, months?: number) {
     queryFn: () => analytics.getMobility(region, months),
   })
 }
-
-export function useRouteEvidence(routeId: string | null, weeks: number) {
-  return useQuery({
-    queryKey: ['route-evidence', routeId, weeks],
-    queryFn: () => analytics.getRouteEvidence(routeId!, weeks),
-    enabled: Boolean(routeId),
-  })
-}

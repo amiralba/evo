@@ -180,7 +180,7 @@ async function flush(opts: PublishOpts): Promise<void> {
 
   // Schedule presence (L4): a routed store's visit days changed (Weekly + weekdayMask) or its
   // frequency switched — buffered by scheduleBridge. Only routed stores (stopId) carry a schedule.
-  const scheduleOps: Array<{ routeId: string; stopId: string; frequency: number; weekdayMask: number }> = []
+  const scheduleOps: Array<{ routeId: string; stopId: string; frequency: 1 | 2 | 3; weekdayMask: number }> = []
   for (const s of state.stores) {
     if (!s.stopId) continue
     const prev = snap.storeSchedule[s.id]
@@ -191,7 +191,7 @@ async function flush(opts: PublishOpts): Promise<void> {
     const prevFreq = prev.freqNum ?? 2
     const routeId = s.route ?? null
     if (routeId && (curFreq !== prevFreq || curMask !== prevMask)) {
-      scheduleOps.push({ routeId, stopId: s.stopId, frequency: curFreq, weekdayMask: curMask })
+      scheduleOps.push({ routeId, stopId: s.stopId, frequency: curFreq as 1 | 2 | 3, weekdayMask: curMask })
     }
   }
 
