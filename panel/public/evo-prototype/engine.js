@@ -3141,7 +3141,7 @@ function renderInbox(){
     showPage('planner');
   });
   el.querySelectorAll('.doneBtn').forEach(b=>b.onclick=()=>{
-    inboxData.find(x=>x.id===b.dataset.id).status='done';renderInbox();
+    inboxData.find(x=>x.id===b.dataset.id).status='done';if(window.__evoResolveNote)window.__evoResolveNote(b.dataset.id);renderInbox();
   });
   el.querySelectorAll('.applyBtn').forEach(b=>b.onclick=()=>{
     const i=inboxData.find(x=>x.id===b.dataset.id);

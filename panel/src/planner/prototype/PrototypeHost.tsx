@@ -3,6 +3,7 @@ import { loadBackendIntoPrototype, installProvinceControl, installWeekNav } from
 import { installPublishBridge } from './publishBridge'
 import { installMapBridge } from './prototypeMap'
 import { installTasksBridge } from './tasksBridge'
+import { installNotesBridge } from './notesBridge'
 
 /**
  * Hosts the v0.5 planner prototype VERBATIM inside the React panel.
@@ -86,6 +87,7 @@ export function PrototypeHost() {
     installPublishBridge()
     installMapBridge()
     installTasksBridge()
+    installNotesBridge()
     void ensureBooted(host)
       .then(() => {
         // Replace the prototype's mock seeds with live backend data once the engine is up.

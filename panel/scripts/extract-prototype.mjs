@@ -30,6 +30,16 @@ let script = slice(438, 3593)
 // Give the region button an id so the province control can wire it (it's a static mock otherwise).
 body = body.replace('<button>Ankara ▾</button>', '<button id="evoRegionBtn">Ankara ▾</button>')
 
+// --- Inbox resolve ---
+// The "Çözüldü" button marks a field note done locally; also persist it (NoteStatus 3) via the
+// notes bridge. Note status is field comms, not a schedule effect — immediate, no Yayınla.
+const NOTE_DONE_ANCHOR = "inboxData.find(x=>x.id===b.dataset.id).status='done';renderInbox();"
+if (!script.includes(NOTE_DONE_ANCHOR)) throw new Error('inbox doneBtn anchor not found — prototype changed?')
+script = script.replace(
+  NOTE_DONE_ANCHOR,
+  "inboxData.find(x=>x.id===b.dataset.id).status='done';if(window.__evoResolveNote)window.__evoResolveNote(b.dataset.id);renderInbox();",
+)
+
 // --- Calendar people filter ---
 // `people` now includes unassigned merchandisers (candidates for the reassign/new-route pickers),
 // so visiblePeople() must not put them on the calendar as empty rows — only people with a route or
