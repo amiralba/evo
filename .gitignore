@@ -28,3 +28,8 @@ panel/src/api/generated/
 # Local snapshots / scratch (never commit)
 .claude/*.tar.gz
 .claude/evo-snapshot.tar.gz
+
+# Meeting recordings / audio (never commit)
+meetings/
+**/meetings/
+*.m4a
