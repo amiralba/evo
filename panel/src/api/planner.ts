@@ -97,6 +97,11 @@ export async function updateStop(id: string, stopId: string, body: UpdateStopReq
   return json<RouteStopDto>(response)
 }
 
+export async function removeStop(id: string, stopId: string): Promise<void> {
+  const response = await authorizedFetch(`/api/v1/routes/${id}/stops/${stopId}`, { method: 'DELETE' })
+  if (!response.ok) throw new Error(`removeStop failed: ${response.status}`)
+}
+
 export async function reorderStops(id: string, stopIds: string[]): Promise<RouteDetailDto> {
   const response = await authorizedFetch(`/api/v1/routes/${id}/stops:reorder`, {
     method: 'POST',

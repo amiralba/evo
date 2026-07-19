@@ -146,6 +146,19 @@ async function flush(opts: PublishOpts): Promise<void> {
     if (!prevRoute && nowRoute && !newRouteIds.has(nowRoute)) addOps.push({ routeId: nowRoute, storeId: s.id })
   }
 
+  // Remove store (route -> pool, L3): a store that had a route now has none ("Havuza çıkar").
+  // Soft-closes its stop (DELETE = EffectiveTo today, no hard delete). The stop id comes from the
+  // load snapshot, since the store's live route/stopId are cleared once it drops to the pool.
+  const removeOps: Array<{ routeId: string; stopId: string }> = []
+  for (const s of state.stores) {
+    const prevRoute = snap.storeRoute[s.id] ?? null
+    const nowRoute = s.route ?? null
+    if (prevRoute && !nowRoute) {
+      const sched = snap.storeSchedule[s.id]
+      if (sched?.stopId) removeOps.push({ routeId: prevRoute, stopId: sched.stopId })
+    }
+  }
+
   // Reassign merchandiser (Kişi değiştir): a route's person changed.
   const reassignOps: Array<{ routeId: string; merchandiserId: string }> = []
   for (const r of state.routes) {
@@ -189,6 +202,7 @@ async function flush(opts: PublishOpts): Promise<void> {
     ...addOps.map((o) => o.routeId),
     ...reassignOps.map((o) => o.routeId),
     ...scheduleOps.map((o) => o.routeId),
+    ...removeOps.map((o) => o.routeId),
   ])
   if (affected.size === 0 && newRoutes.length === 0 && metaOps.length === 0) {
     engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi · ziyaret günleri · ad/hedef · pasifleştir)')
@@ -225,6 +239,7 @@ async function flush(opts: PublishOpts): Promise<void> {
     await planner.bulkAddStops(op.routeId, { storeIds: [op.storeId], frequency: 2, weekdayMask: 0, serviceMinutes: null })
   for (const op of reassignOps)
     await planner.reassignRoute(op.routeId, { merchandiserId: op.merchandiserId, startDate: today, reason: 1 })
+  for (const op of removeOps) await planner.removeStop(op.routeId, op.stopId)
   for (const op of scheduleOps)
     await planner.updateStop(op.routeId, op.stopId, { frequency: op.frequency, weekdayMask: op.weekdayMask })
   for (const op of metaOps) await planner.updateRoute(op.routeId, op.body)
@@ -233,7 +248,7 @@ async function flush(opts: PublishOpts): Promise<void> {
   }
 
   engineToast(
-    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${reassignOps.length} kişi · ${scheduleOps.length} gün · ${metaOps.length} ad/hedef·durum`,
+    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${removeOps.length} çıkarma · ${reassignOps.length} kişi · ${scheduleOps.length} gün · ${metaOps.length} ad/hedef·durum`,
   )
   await loadBackendIntoPrototype(province)
 }
