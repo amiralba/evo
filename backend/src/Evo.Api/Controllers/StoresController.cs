@@ -25,13 +25,15 @@ public class StoresController : ControllerBase
     private readonly IAuditWriter _auditWriter;
     private readonly EvoDbContext _db;
     private readonly ITaskPlanProvider _taskPlanProvider;
+    private readonly IPlanGenerationService _planGenerationService;
 
-    public StoresController(IStoreSyncService syncService, IAuditWriter auditWriter, EvoDbContext db, ITaskPlanProvider taskPlanProvider)
+    public StoresController(IStoreSyncService syncService, IAuditWriter auditWriter, EvoDbContext db, ITaskPlanProvider taskPlanProvider, IPlanGenerationService planGenerationService)
     {
         _syncService = syncService;
         _auditWriter = auditWriter;
         _db = db;
         _taskPlanProvider = taskPlanProvider;
+        _planGenerationService = planGenerationService;
     }
 
     [Authorize(Roles = Roles.Supervisor)]
@@ -155,7 +157,8 @@ public class StoresController : ControllerBase
                 s.Location!.X,
                 activeRouteId,
                 activeRouteId is { } id ? routeCodes.GetValueOrDefault(id) : null,
-                revenueByStore.GetValueOrDefault(s.Id, 0m));
+                revenueByStore.GetValueOrDefault(s.Id, 0m),
+                s.Active);
         }).ToList();
 
         return result;
@@ -200,6 +203,38 @@ public class StoresController : ControllerBase
             store.SyncedAt,
             revenue,
             flags);
+    }
+
+    // L1: activate / deactivate a store. Per the design, a deactivated store keeps its route
+    // membership (its RouteStops stay open) but drops out of the plan/schedule — no visits are
+    // generated for it until it is reactivated. So we flip Store.Active and regenerate the plan for
+    // every route that currently holds it, letting PlanGenerationService add/remove its visits.
+    [Authorize(Roles = Roles.Supervisor)]
+    [HttpPatch("{id:guid}/status")]
+    public async Task<ActionResult<StoreDetailDto>> UpdateStatus(Guid id, [FromBody] UpdateStoreStatusRequest request)
+    {
+        var store = await _db.Stores.FirstOrDefaultAsync(s => s.Id == id) ?? throw new NotFoundException("Store");
+
+        if (store.Active != request.Active)
+        {
+            var before = new { store.Active };
+            store.Active = request.Active;
+            await _auditWriter.WriteAsync("Store", store.Id.ToString(), request.Active ? "Activated" : "Deactivated", before, new { store.Active });
+            await _db.SaveChangesAsync();
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var routeIds = await _db.RouteStops
+                .Where(rs => rs.StoreId == id && rs.EffectiveTo == null)
+                .Select(rs => rs.RouteId)
+                .Distinct()
+                .ToListAsync();
+            foreach (var routeId in routeIds)
+            {
+                await _planGenerationService.RegenerateFutureAsync(routeId, today, today.AddDays(42));
+            }
+        }
+
+        return await Get(id);
     }
 
     [Authorize]

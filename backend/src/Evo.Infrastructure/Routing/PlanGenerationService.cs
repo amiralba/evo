@@ -53,6 +53,10 @@ public class PlanGenerationService : IPlanGenerationService
         var storeIds = stops.Select(s => s.StoreId).ToHashSet();
         var stores = await _db.Stores.Where(s => storeIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, ct);
 
+        // L1: a deactivated store keeps its route membership (the RouteStop stays open) but drops out
+        // of the plan/schedule — no visits are generated for it until it is reactivated.
+        stops = stops.Where(s => stores.GetValueOrDefault(s.StoreId)?.Active == true).ToList();
+
         var currentAssignment = await _db.Assignments
             .Where(a => a.RouteId == routeId && a.EndDate == null)
             .FirstOrDefaultAsync(ct);

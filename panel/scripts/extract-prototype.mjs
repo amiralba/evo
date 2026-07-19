@@ -132,6 +132,7 @@ window.__evoLoadData = function (d) {
       routePerson: (d.routes || []).reduce(function (m, r) { m[r.id] = r.person || null; return m; }, {}),
       routeMeta: (d.routes || []).reduce(function (m, r) { m[r.id] = { name: r.name, target: r.target, active: r.active !== false }; return m; }, {}),
       storeSchedule: (d.stores || []).reduce(function (m, s) { if (s.stopId) m[s.id] = { stopId: s.stopId, freqNum: s.freqNum, weekdayMask: s.weekdayMask, route: s.route || null }; return m; }, {}),
+      storeActive: (d.stores || []).reduce(function (m, s) { m[s.id] = s.active !== false; return m; }, {}),
       weekFrom: d.weekFrom || null,
       weekTo: d.weekTo || null,
     };

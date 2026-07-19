@@ -33,7 +33,7 @@ interface SchedFields {
 
 interface EvoState {
   visits: ProtoVisit[]
-  stores: Array<{ id: string; route: string | null } & SchedFields>
+  stores: Array<{ id: string; route: string | null; active?: boolean } & SchedFields>
   routes: Array<{
     id: string
     person: string | null
@@ -57,6 +57,7 @@ interface EvoSnapshot {
   routePerson: Record<string, string | null>
   routeMeta: Record<string, RouteMeta>
   storeSchedule: Record<string, { stopId: string } & SchedFields>
+  storeActive: Record<string, boolean>
   weekFrom: string | null
   weekTo: string | null
 }
@@ -159,6 +160,17 @@ async function flush(opts: PublishOpts): Promise<void> {
     }
   }
 
+  // Store activate/deactivate (L1): Store.Active flipped. Membership is kept (its stop stays open);
+  // the backend regenerates the plan for the store's routes so its visits drop/return. Republish the
+  // store's current route (if any) so the change promotes like every other edit.
+  const statusOps: Array<{ storeId: string; active: boolean }> = []
+  for (const s of state.stores) {
+    const prevActive = snap.storeActive[s.id]
+    if (prevActive === undefined) continue
+    const nowActive = s.active !== false
+    if (nowActive !== prevActive) statusOps.push({ storeId: s.id, active: nowActive })
+  }
+
   // Reassign merchandiser (Kişi değiştir): a route's person changed.
   const reassignOps: Array<{ routeId: string; merchandiserId: string }> = []
   for (const r of state.routes) {
@@ -203,8 +215,9 @@ async function flush(opts: PublishOpts): Promise<void> {
     ...reassignOps.map((o) => o.routeId),
     ...scheduleOps.map((o) => o.routeId),
     ...removeOps.map((o) => o.routeId),
+    ...statusOps.map((o) => snap.storeRoute[o.storeId]).filter((r): r is string => !!r),
   ])
-  if (affected.size === 0 && newRoutes.length === 0 && metaOps.length === 0) {
+  if (affected.size === 0 && newRoutes.length === 0 && metaOps.length === 0 && statusOps.length === 0) {
     engineToast('Bu değişiklikler henüz backend’e yazılmıyor (destekli: yeni rut · süre · taşıma · havuzdan ekleme · kişi · ziyaret günleri · ad/hedef · pasifleştir)')
     return
   }
@@ -239,6 +252,7 @@ async function flush(opts: PublishOpts): Promise<void> {
     await planner.bulkAddStops(op.routeId, { storeIds: [op.storeId], frequency: 2, weekdayMask: 0, serviceMinutes: null })
   for (const op of reassignOps)
     await planner.reassignRoute(op.routeId, { merchandiserId: op.merchandiserId, startDate: today, reason: 1 })
+  for (const op of statusOps) await planner.updateStoreStatus(op.storeId, op.active)
   for (const op of removeOps) await planner.removeStop(op.routeId, op.stopId)
   for (const op of scheduleOps)
     await planner.updateStop(op.routeId, op.stopId, { frequency: op.frequency, weekdayMask: op.weekdayMask })
@@ -248,7 +262,7 @@ async function flush(opts: PublishOpts): Promise<void> {
   }
 
   engineToast(
-    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${removeOps.length} çıkarma · ${reassignOps.length} kişi · ${scheduleOps.length} gün · ${metaOps.length} ad/hedef·durum`,
+    `Backend’e yazıldı ✓ ${createdRouteIds.length} yeni rut · ${resizeOps.length} süre · ${patchOps.length} yama · ${addOps.length} ekleme · ${removeOps.length} çıkarma · ${reassignOps.length} kişi · ${scheduleOps.length} gün · ${statusOps.length} mağaza durumu · ${metaOps.length} ad/hedef·durum`,
   )
   await loadBackendIntoPrototype(province)
 }
