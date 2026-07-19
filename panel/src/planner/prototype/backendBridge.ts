@@ -177,21 +177,87 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   })
 }
 
-const PROVINCES = ['Ankara', 'İstanbul', 'İzmir', 'Bursa', 'Adana']
+// prettier-ignore
+const PROVINCES = [
+  'Adana','Adıyaman','Afyonkarahisar','Ağrı','Aksaray','Amasya','Ankara','Antalya','Ardahan','Artvin',
+  'Aydın','Balıkesir','Bartın','Batman','Bayburt','Bilecik','Bingöl','Bitlis','Bolu','Burdur','Bursa',
+  'Çanakkale','Çankırı','Çorum','Denizli','Diyarbakır','Düzce','Edirne','Elazığ','Erzincan','Erzurum',
+  'Eskişehir','Gaziantep','Giresun','Gümüşhane','Hakkari','Hatay','Iğdır','Isparta','İstanbul','İzmir',
+  'Kahramanmaraş','Karabük','Karaman','Kars','Kastamonu','Kayseri','Kırıkkale','Kırklareli','Kırşehir',
+  'Kilis','Kocaeli','Konya','Kütahya','Malatya','Manisa','Mardin','Mersin','Muğla','Muş','Nevşehir',
+  'Niğde','Ordu','Osmaniye','Rize','Sakarya','Samsun','Siirt','Sinop','Sivas','Şanlıurfa','Şırnak',
+  'Tekirdağ','Tokat','Trabzon','Tunceli','Uşak','Van','Yalova','Yozgat','Zonguldak',
+]
 
-/** Wire the prototype's region button (a static mock) to cycle provinces and reload backend data,
- * refitting the map to the new province's stores. */
+function trLower(s: string): string {
+  return s.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase()
+}
+
+/** Turn the prototype's region button into a searchable province dropdown; picking one reloads
+ * backend data and refits the MapLibre map to that province's stores. */
 export function installProvinceControl(): void {
   const btn = document.getElementById('evoRegionBtn')
-  if (!btn) return
-  let idx = 0
-  btn.addEventListener('click', () => {
-    idx = (idx + 1) % PROVINCES.length
-    const province = PROVINCES[idx]
-    btn.textContent = `${province} ▾`
+  if (!btn || btn.dataset.evoRegionWired) return // guard against StrictMode/remount double-install
+  btn.dataset.evoRegionWired = '1'
+
+  let dd: HTMLDivElement | null = null
+  const onDoc = (e: MouseEvent) => {
+    if (dd && !dd.contains(e.target as Node) && e.target !== btn) close()
+  }
+  function close() {
+    dd?.remove()
+    dd = null
+    document.removeEventListener('click', onDoc)
+  }
+  function pick(province: string) {
+    if (btn) btn.textContent = `${province} ▾`
+    close()
     weekOffset = 0 // switching region returns to the current week
     resetMapFit()
     void loadBackendIntoPrototype(province).catch((e) => console.error('[evo] province switch', e))
+  }
+  function open() {
+    if (!btn) return
+    close()
+    const r = btn.getBoundingClientRect()
+    dd = document.createElement('div')
+    dd.style.cssText =
+      `position:fixed;top:${r.bottom + 4}px;left:${r.left}px;z-index:100;width:210px;max-height:340px;` +
+      'display:flex;flex-direction:column;overflow:hidden;background:var(--card);border:1px solid var(--border2);' +
+      'border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);'
+    const search = document.createElement('input')
+    search.type = 'text'
+    search.placeholder = 'Şehir ara…'
+    search.style.cssText =
+      'margin:6px;padding:6px 8px;border:1px solid var(--border2);border-radius:5px;font-size:12px;background:var(--card);color:var(--tx);'
+    const list = document.createElement('div')
+    list.style.cssText = 'overflow-y:auto;flex:1;'
+    dd.append(search, list)
+    document.body.appendChild(dd)
+
+    const render = (q: string) => {
+      const filtered = PROVINCES.filter((p) => trLower(p).includes(trLower(q)))
+      list.innerHTML = filtered.length
+        ? filtered
+            .map((p) => `<div data-p="${p}" style="padding:6px 10px;cursor:pointer;font-size:12px;color:var(--tx);">${p}</div>`)
+            .join('')
+        : '<div style="padding:8px 10px;color:var(--tx3);font-size:11px;">Bulunamadı</div>'
+      list.querySelectorAll<HTMLElement>('[data-p]').forEach((el) => {
+        el.onmouseenter = () => (el.style.background = 'var(--blue-l)')
+        el.onmouseleave = () => (el.style.background = '')
+        el.onclick = () => pick(el.dataset.p as string)
+      })
+    }
+    render('')
+    search.oninput = () => render(search.value)
+    search.focus()
+    setTimeout(() => document.addEventListener('click', onDoc), 0)
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    if (dd) close()
+    else open()
   })
 }
 
