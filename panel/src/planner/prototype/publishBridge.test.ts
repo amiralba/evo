@@ -64,7 +64,7 @@ describe('computePublishOps', () => {
     expect(r.affected).toEqual(new Set(['r1']))
   })
 
-  it('same-day start change → a TimeShift patch anchored to the visit date', () => {
+  it('same-day start change → a single-day TimeShift patch anchored to the visit date', () => {
     const state = baseState()
     state.visits[0].start = 600
     const r = ops(state, baseSnap(), 'trafik')
@@ -73,7 +73,9 @@ describe('computePublishOps', () => {
     expect(r.patchOps[0].routeId).toBe('r1')
     expect(req.type).toBe(5) // PATCH_TYPE_TIME_SHIFT
     expect(req.startsOn).toBe('2026-07-13')
-    expect(req.endsOn).toBe(WEEK_TO)
+    // A time-drag retimes ONLY that day's occurrence, so the window is that single day (not week-end)
+    // — otherwise a Mon shift would bleed onto the rest of the week.
+    expect(req.endsOn).toBe('2026-07-13')
     expect(req.reason).toContain('trafik')
   })
 

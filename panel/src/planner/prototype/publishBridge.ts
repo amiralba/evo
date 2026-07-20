@@ -89,6 +89,18 @@ type ProtoWindow = Window & {
   __evoProvince?: string
   __evoPublish?: (opts: PublishOpts) => void
   toast?: (message: string, buttons?: unknown[]) => void
+  // Engine global: the rule-resolved visit duration for a store (sum of task minutes). Used to tell
+  // whether a new route's drafted duration was extended beyond the rule default.
+  storeDur?: (store: unknown) => number
+}
+
+/** Minutes-since-midnight from an ISO date-time like "2026-07-22T12:30:00". */
+function isoToMinutes(iso: string | null | undefined): number | null {
+  if (!iso) return null
+  const t = iso.split('T')[1]
+  if (!t) return null
+  const [h, m] = t.split(':')
+  return Number(h) * 60 + Number(m)
 }
 
 function dateForDay(weekFrom: string, dayIndex: number): string {
@@ -282,7 +294,8 @@ async function flush(opts: PublishOpts): Promise<void> {
   // is in thousands of ₺; the backend wants raw ₺.
   const createdRouteIds: string[] = []
   for (const nr of newRoutes) {
-    const storeIds = state.stores.filter((s) => s.route === nr.id).map((s) => s.id)
+    const routeStores = state.stores.filter((s) => s.route === nr.id)
+    const storeIds = routeStores.map((s) => s.id)
     if (!storeIds.length) continue
     const created = await planner.createRoute({
       name: unesc(nr.name ?? nr.code ?? 'Yeni rut'),
@@ -297,6 +310,52 @@ async function flush(opts: PublishOpts): Promise<void> {
     // shows in the rail/map/calendar (the bridge only loads Active routes).
     await planner.updateRoute(created.id, { status: 2 })
     createdRouteIds.push(created.id)
+
+    // bulkAddStops used defaults for every stop — carry the draft customizations the planner set on
+    // this route before publishing (otherwise a route built + scheduled in one draft loses it all):
+    //   • day selection  -> frequency (Weekly) + weekdayMask
+    //   • extended visit duration -> serviceMinutes (only when it differs from the rule-resolved value)
+    // Then per-day time moves become single-day TimeShift patches, diffed against the plan the stop
+    // updates regenerate. (Order matters: change days/durations first, then compare visit times.)
+    const detail = await planner.getRoute(created.id)
+    const stopByStore = new Map((detail.stops ?? []).filter((st) => !st.effectiveTo && st.storeId).map((st) => [st.storeId!, st.id!]))
+    for (const s of routeStores) {
+      const stopId = stopByStore.get(s.id)
+      if (!stopId) continue
+      const body: components['schemas']['UpdateStopRequest'] = {}
+      // Days: derive from the store's actual draft visits (the calendar's source of truth), not a
+      // freqNum field — a draft-route store has no stopId, so the day editor never set one. Anything
+      // short of all five weekdays becomes Weekly + that mask.
+      const days = new Set(state.visits.filter((v) => v.storeId === s.id).map((v) => v.day))
+      if (days.size > 0 && !(days.size === 5 && [0, 1, 2, 3, 4].every((d) => days.has(d)))) {
+        let mask = 0
+        for (const d of days) if (d >= 0 && d < 5) mask |= 1 << d
+        body.frequency = 2
+        body.weekdayMask = mask
+      }
+      // Extended duration: the drafted visit length, when it differs from the rule-resolved default.
+      const dur = state.visits.find((v) => v.storeId === s.id)?.dur
+      const ruleDur = win.storeDur?.(s) ?? 0
+      if (dur && dur !== ruleDur) body.serviceMinutes = dur
+      if (Object.keys(body).length) await planner.updateStop(created.id, stopId, body)
+    }
+    const plan = await planner.getPlan(created.id, snap.weekFrom, snap.weekTo)
+    const genStart = new Map<string, number>()
+    for (const day of plan) for (const v of day.visits ?? []) {
+      const mins = isoToMinutes(v.start)
+      if (v.storeId && day.date && mins !== null) genStart.set(`${v.storeId}@${day.date}`, mins)
+    }
+    for (const v of state.visits) {
+      if (!routeStores.some((s) => s.id === v.storeId)) continue
+      const date = dateForDay(snap.weekFrom, v.day)
+      const gen = genStart.get(`${v.storeId}@${date}`)
+      if (gen !== undefined && gen !== v.start) {
+        await planner.createPatch(
+          created.id,
+          buildTimeShiftPatch({ storeId: v.storeId, startsOn: date, endsOn: date, startMinutes: v.start, reason: opts.reason }),
+        )
+      }
+    }
   }
 
   for (const op of resizeOps) await planner.updateStop(op.routeId, op.stopId, buildResizeUpdate(op.minutes))
