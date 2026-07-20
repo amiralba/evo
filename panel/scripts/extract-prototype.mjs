@@ -77,6 +77,16 @@ const NRGEO_ANCHOR = '<span>Ankara ▾ · <span style="color:var(--tx3);">ilçe 
 if (!script.includes(NRGEO_ANCHOR)) throw new Error('new-route geo anchor not found — prototype changed?')
 script = script.replace(NRGEO_ANCHOR, "<span>${window.__evoProvince||'Ankara'} ▾ · <span style=\"color:var(--tx3);\">ilçe seç")
 
+// --- Person multi-month overview (host modal) ---
+// Add a 📅 button to the schedule's person row that opens the React PersonOverviewModal
+// (FullCalendar multiMonth). stopPropagation so it doesn't toggle the .nm person filter.
+const PERSONCELL_ANCHOR = 'pc.innerHTML=`<div class="nm">${p.name}</div>'
+if (!script.includes(PERSONCELL_ANCHOR)) throw new Error('person-cell anchor not found — prototype changed?')
+script = script.replace(
+  PERSONCELL_ANCHOR,
+  'pc.innerHTML=`<div class="nm">${p.name} <button title="Aylık genel bakış" style="border:none;background:none;cursor:pointer;font-size:11px;padding:0 2px;vertical-align:middle;" onclick="event.stopPropagation();if(window.__evoPersonOverview)window.__evoPersonOverview(\'${p.id}\')">📅</button></div>',
+)
+
 // --- Map delegation (M4) ---
 // Let the React MapLibre controller (window.__evoRenderMap) take over map rendering; the
 // prototype's SVG map is skipped when the hook is present. #mapSvg stays in the DOM (empty) so

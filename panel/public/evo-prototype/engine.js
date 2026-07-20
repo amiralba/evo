@@ -931,7 +931,7 @@ function renderSched(){
     const r=personRoute(p.id);
     const val=visits.filter(v=>v.personId===p.id&&store(v.storeId).cat!=='S').reduce((s,v)=>s+v.dur,0);
     const valPct=wk?Math.round(val/wk*100):0;
-    pc.innerHTML=`<div class="nm">${p.name}</div>
+    pc.innerHTML=`<div class="nm">${p.name} <button title="Aylık genel bakış" style="border:none;background:none;cursor:pointer;font-size:11px;padding:0 2px;vertical-align:middle;" onclick="event.stopPropagation();if(window.__evoPersonOverview)window.__evoPersonOverview('${p.id}')">📅</button></div>
       <div class="meta">${r?r.code:'—'} · %${valPct} değerli</div>
       <div class="loadbar"><div style="width:${Math.min(pct,100)}%;background:${pct>100?'var(--red)':pct<80?'var(--amber)':'var(--green)'}"></div></div>
       <div class="meta">%${pct} yük</div>`;
