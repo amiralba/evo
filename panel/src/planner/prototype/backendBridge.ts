@@ -70,6 +70,11 @@ export async function loadBackendIntoPrototype(province = 'Ankara'): Promise<voi
   const win = window as ProtoWindow
   if (typeof win.__evoLoadData !== 'function') return
 
+  // Persist the selected city in the URL (?city=…) so a refresh reopens the same province instead
+  // of falling back to the default. Every province change flows through here (initial load, region
+  // picker, week nav, publish reload), so this one line keeps the URL in sync everywhere.
+  setProvinceInUrl(province)
+
   const week = planningWeek()
   const [routesRes, merchandisers, geo, notesRaw] = await Promise.all([
     planner.listRoutes(province),
@@ -221,6 +226,36 @@ const PROVINCES = [
   'Niğde','Ordu','Osmaniye','Rize','Sakarya','Samsun','Siirt','Sinop','Sivas','Şanlıurfa','Şırnak',
   'Tekirdağ','Tokat','Trabzon','Tunceli','Uşak','Van','Yalova','Yozgat','Zonguldak',
 ]
+
+const CITY_PARAM = 'city'
+
+/** The province from the ?city= URL param, if it's a known province — else null. */
+export function provinceFromUrl(): string | null {
+  try {
+    const v = new URLSearchParams(window.location.search).get(CITY_PARAM)
+    if (v && PROVINCES.includes(v)) return v
+  } catch {
+    /* ignore malformed URL */
+  }
+  return null
+}
+
+/** The province to open with: the URL's ?city= if valid, otherwise the default (Ankara). */
+export function initialProvince(): string {
+  return provinceFromUrl() ?? 'Ankara'
+}
+
+/** Reflect the current province in the URL without adding a history entry (survives refresh). */
+function setProvinceInUrl(province: string): void {
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get(CITY_PARAM) === province) return
+    url.searchParams.set(CITY_PARAM, province)
+    window.history.replaceState(window.history.state, '', url)
+  } catch {
+    /* ignore */
+  }
+}
 
 function trLower(s: string): string {
   return s.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase()

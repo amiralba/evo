@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { loadBackendIntoPrototype, installProvinceControl, installWeekNav } from './backendBridge'
+import { loadBackendIntoPrototype, installProvinceControl, installWeekNav, initialProvince } from './backendBridge'
 import { installPublishBridge } from './publishBridge'
 import { installMapBridge } from './prototypeMap'
 import { installTasksBridge } from './tasksBridge'
@@ -99,7 +99,11 @@ export function PrototypeHost() {
         // Replace the prototype's mock seeds with live backend data once the engine is up.
         installProvinceControl()
         installWeekNav()
-        return loadBackendIntoPrototype('Ankara')
+        // Open on the city from the URL (?city=…) so a refresh stays put; default Ankara otherwise.
+        const prov = initialProvince()
+        const rb = document.getElementById('evoRegionBtn')
+        if (rb) rb.textContent = `${prov} ▾`
+        return loadBackendIntoPrototype(prov)
       })
       .catch((e) => console.error('[evo] backend load', e))
       .finally(reveal) // reveal only after real data is in (or on failure, so we never hang hidden)
