@@ -57,6 +57,27 @@ await using var scope = provider.CreateAsyncScope();
 var db = scope.ServiceProvider.GetRequiredService<EvoDbContext>();
 await db.Database.MigrateAsync();
 
+// --reset: clear the PANEL-BUILT planning graph (routes and everything hanging off them) so the DB
+// is a clean slate — only the seeded reference data (stores, merchandisers, task templates, users)
+// survives. This is what you want after test/e2e runs leave stale routes behind. It does NOT touch
+// stores/merchandisers/templates, so unlike a full DB drop it needs no re-migration. Deletes run
+// child → parent to respect FKs. (Distinct from the removed --wipe, which would have deleted the
+// reference data that panel routes depend on.)
+if (args.Contains("--reset"))
+{
+    var tables = new[]
+    {
+        "visit_realization", "task_instance", "merchandiser_location_ping",
+        "planned_visit", "assignment", "route_stop", "route",
+    };
+    foreach (var table in tables)
+    {
+        var n = await db.Database.ExecuteSqlRawAsync($"DELETE FROM [{table}];");
+        Console.WriteLine($"reset: cleared {table} ({n} rows)");
+    }
+    Console.WriteLine("reset: planning graph cleared — stores / merchandisers / task templates kept.");
+}
+
 // SeederModule plug-in interface (see ISeederModule.cs): future specs register their module
 // here as they add tables. CLAUDE.md rule: every spec that adds tables extends this list.
 // Routes (and their materialized plan / field-execution / absences) are the planner's work product,

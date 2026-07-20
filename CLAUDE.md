@@ -79,7 +79,9 @@ dotnet run --project backend/src/Evo.Api                   # http://localhost:50
 dotnet build backend/Evo.sln                                # also regenerates contracts/openapi.json
 dotnet test backend/Evo.sln
 dotnet ef migrations add <Name> --project backend/src/Evo.Infrastructure --startup-project backend/src/Evo.Api
-dotnet run --project backend/src/Evo.Seeder -- --profile demo   # or: --profile scale  (to reset: drop the DB and re-run)
+dotnet run --project backend/src/Evo.Seeder -- --profile demo   # or: --profile scale
+# add --reset to clear the panel-built route graph (routes/stops/visits/assignments) first —
+# keeps stores/merchandisers/task templates. Use after test/e2e runs leave stale routes behind.
 # seeds the bootstrap Supervisor: admin@evo.local / Demo1234!
 # (override via EVO_SEED_ADMIN_EMAIL / EVO_SEED_ADMIN_PASSWORD)
 
