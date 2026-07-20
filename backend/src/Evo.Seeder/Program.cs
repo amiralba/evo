@@ -68,7 +68,7 @@ if (args.Contains("--reset"))
     var tables = new[]
     {
         "visit_realization", "task_instance", "merchandiser_location_ping",
-        "planned_visit", "assignment", "route_stop", "route",
+        "planned_visit", "patch", "assignment", "route_stop", "route",
     };
     foreach (var table in tables)
     {

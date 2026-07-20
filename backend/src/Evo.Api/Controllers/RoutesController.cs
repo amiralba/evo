@@ -585,6 +585,33 @@ public class RoutesController : ControllerBase
         var route = await _db.Routes.FirstOrDefaultAsync(r => r.Id == id) ?? throw new NotFoundException("Route");
         var today = _clock.Today;
 
+        // Supersede the prior override this one replaces, so repeated edits to the same occurrence
+        // don't pile up: the resolver applies EVERY patch whose window covers a date (last-in-list
+        // wins), so two TimeShifts retiming the same day to different times would conflict. Never
+        // hard-delete — cancel, same as the manual "Geri al" undo. TimeShift: same store + overlapping
+        // window (windows are single-day, so effectively same day). MoveVisit: same store + same
+        // source date (distinct moves in a week must NOT cancel each other).
+        if (request.StoreId is { } supersedeStore && (request.Type == PatchType.TimeShift || request.Type == PatchType.MoveVisit))
+        {
+            var candidates = await _db.Patches
+                .Where(p => p.RouteId == id && p.StoreId == supersedeStore && p.Type == request.Type
+                    && (p.Status == PatchStatus.Pending || p.Status == PatchStatus.Active)
+                    && p.StartsOn <= request.EndsOn.Value && p.EndsOn >= request.StartsOn)
+                .ToListAsync();
+            IEnumerable<Patch> toCancel = candidates;
+            if (request.Type == PatchType.MoveVisit
+                && PatchParams.TryParse<PatchParams.MoveVisitParams>(request.ParamsJson, out var newMove) && newMove is not null)
+            {
+                toCancel = candidates.Where(p =>
+                    PatchParams.TryParse<PatchParams.MoveVisitParams>(p.ParamsJson, out var oldMove)
+                    && oldMove is not null && oldMove.FromDate == newMove.FromDate);
+            }
+            foreach (var superseded in toCancel)
+            {
+                superseded.Status = PatchStatus.Cancelled;
+            }
+        }
+
         var patch = new Patch
         {
             Id = Guid.NewGuid(),

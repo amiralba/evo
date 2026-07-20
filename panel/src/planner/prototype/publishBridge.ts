@@ -157,10 +157,15 @@ export function computePublishOps(
     if (cur.day !== prev.day || cur.start !== prev.start) {
       const fromDate = dateForDay(snap.weekFrom, prev.day)
       const toDate = dateForDay(snap.weekFrom, cur.day)
+      // A move's window must cover BOTH the source (skip) and target (add) day — later of the two;
+      // buildMoveVisitPatch sets startsOn to the earlier of the two.
+      const moveEnd = fromDate > toDate ? fromDate : toDate
       const req =
         cur.day === prev.day
-          ? buildTimeShiftPatch({ storeId: cur.storeId, startsOn: fromDate, endsOn: snap.weekTo, startMinutes: cur.start, reason })
-          : buildMoveVisitPatch({ storeId: cur.storeId, fromDate, toDate, endsOn: snap.weekTo, startMinutes: cur.start, reason })
+          ? // A time-drag retimes ONLY that one day's occurrence — window it to that single day
+            // (endsOn = fromDate), not the rest of the week, else it bleeds onto later weekdays.
+            buildTimeShiftPatch({ storeId: cur.storeId, startsOn: fromDate, endsOn: fromDate, startMinutes: cur.start, reason })
+          : buildMoveVisitPatch({ storeId: cur.storeId, fromDate, toDate, endsOn: moveEnd, startMinutes: cur.start, reason })
       patchOps.push({ routeId, req })
     }
   }
