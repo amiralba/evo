@@ -88,7 +88,10 @@ export function installScheduleBridge(): void {
     const st = (window as SchedWindow).__evoState?.()
     if (!st || !st.focus || st.focus.type !== 'store' || st.panelTab !== 'info' || !st.focus.id) return
     const store = st.stores.find((x) => x.id === st.focus!.id)
-    if (!store || !store.stopId) return // only routed stores have a schedule
+    // Any store that belongs to a route — including a draft route being built (no stopId yet) — has a
+    // schedule to edit. Toggling days adds/removes its visits; on Yayınla the new-route flush reads
+    // those visit-days to set the stop's frequency/weekdayMask (see publishBridge).
+    if (!store || !store.route) return
     const body = document.getElementById('panelBody')
     if (!body || document.getElementById('evoSchedEditor')) return
     body.insertAdjacentHTML('beforeend', editorHtml(store))
