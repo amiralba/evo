@@ -21,8 +21,12 @@
   ranked decision workbench only, not this narrower auto-fix; no target spec assigned yet
 
 ## Next up
-- No milestone in progress — M0 through M4 are all complete. Next work needs a `/brainstorm` or `/plan`
-  pass to pick the next spec from the backlog below.
+- No milestone in progress — M0 through M4 are all complete. `main` is now the working branch
+  (`cleanup/c1-safe-deletions` merged 2026-07-20; `prototype-parity-rebuild` is a backup branch
+  only). The store/route/schedule 4-layer editing model (store activate/deactivate,
+  remove-stop-to-pool, weekday-mask scheduling) shipped 2026-07-20 — see `docs/DECISIONS.md`/
+  `docs/API.md`. Next work needs a `/brainstorm` or `/plan` pass to pick the next spec from the
+  backlog below.
 - Conflict Center/Sorun Merkezi — explicitly deferred out of 006/007/008/009/010; decide scope at
   `/plan` time.
 - `POST /simulate/route` — still deferred (pushed from 005 → 006/007 → 008 → 009 → 010 too).

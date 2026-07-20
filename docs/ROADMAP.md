@@ -94,5 +94,16 @@ Goal: everything downstream of the field (planned-vs-realized, task results, not
       weekend-date flakes), panel 75/75, Playwright 6/6. Deferred (not silently dropped): materialized
       analytics views, live-location map visualization layer, ⚡ "Otomatik düzelt" auto-fix.
 
+### Post-M4 hardening (2026-07-20, `main`)
+- Audit branch `cleanup/c1-safe-deletions` merged into `main` — `main` is now the working branch
+  (`prototype-parity-rebuild` is a backup branch only). Dead pre-rebuild React tree deleted,
+  `PlanningClock`/security/correctness fixes landed (see `docs/DECISIONS.md`, 2026-07-19/20).
+- Store/route/schedule **4-layer editing model** shipped: L1 `PATCH /stores/{id}/status`
+  (activate/deactivate, keeps route membership, drops from materialized plan), L2 route
+  deactivate (pre-existing), L3 `DELETE /routes/{id}/stops/{stopId}` (remove-from-route → pool,
+  soft-close), L4 `weekdayMask` on `PATCH /routes/{id}/stops/{stopId}` (pin a weekly stop to
+  specific weekdays). No new tables — both underlying columns already existed. Backend 171/171,
+  panel Vitest 40/40, lint 0 errors, `tsc` clean.
+
 ## Open questions (blocking pieces of M0)
 The 9 customer-IT questions in `EVO-Teknoloji-Yigini.pdf` — hosting, SQL Server version, AD/Entra, KVKK retention, device fleet, integration contract.

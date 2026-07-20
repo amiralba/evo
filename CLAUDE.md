@@ -6,7 +6,7 @@
 
 - **Name:** EVO — Merchandising Route Planning Tool
 - **One-line description:** Web tool for planners/supervisors to design, adjust, and monitor field merchandiser routes (stores, visit frequencies, in-store tasks, schedules) on a single-page workspace; field agents consume the plan on mobile.
-- **Status:** planning → pre-build (design + v0.5 prototype done; no production code yet)
+- **Status:** in build — backend M0–M4 complete; panel = v0.5 prototype hosted verbatim and wired to the backend (draft-until-publish). `main` is the working branch.
 - **Scale target:** ~1,000 supervisors (web), ~5,000 field agents (Android), ~75k visit records/day. Turkish market (Turkish domain vocabulary, KVKK compliance). Single strong VM — NO microservices, NO Kubernetes.
 
 ## Source-of-truth documents (read before designing anything)
@@ -22,7 +22,7 @@
 - Backend: .NET 8 — ASP.NET Core Web API + EF Core
 - Database: SQL Server
 - API contract: OpenAPI (Swashbuckle/NSwag); TypeScript clients GENERATED from the contract — clients never hand-write API types
-- Web panel: React + TypeScript (heavy drag-drop calendar/map UI)
+- Web panel: React + TypeScript (Vite) shell that **hosts the v0.5 prototype VERBATIM** at `/planner` (`panel/public/evo-prototype/{proto.css,body.html,engine.js}`, sliced by `panel/scripts/extract-prototype.mjs`) and wires it to the backend via bridges in `panel/src/planner/prototype/` (draft-until-publish: edits buffer locally and flush on Yayınla). The only net-new React surface kept is the MapLibre map. The pre-pivot React workspace was deleted (audit D1a). See ARCHITECTURE.md "Panel" row + DECISIONS.md 2026-07-19 pivot entry.
 - Mobile (field agents): **DEFERRED — out of current scope.** Field-agent behavior (check-ins, visit outcomes, task results) is simulated: seed data writes realistic values directly to the DB; any agent-facing API is mocked when the panel needs it. (Planned stack when revived: React Native/Expo, WatermelonDB, FCM.)
 - Test data: `Evo.Seeder` console app (Bogus) writes realistic fake data DIRECTLY to the DB — Turkish store names/provinces, routes, merchandisers, visits with outcomes. **Every spec that adds tables must extend the seeder in the same spec.**
 - Photo storage: MinIO (S3-compatible) on own server
@@ -99,18 +99,26 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
 ## Current focus
 
 <!-- Coordinator keeps this updated after every session -->
-- Milestone: M0–M4 backend work is COMPLETE. The panel pivoted on 2026-07-18 to hosting the v0.5
-  prototype VERBATIM at `/planner` with backend bridges (`panel/src/planner/prototype/` — see
-  ARCHITECTURE.md "Panel" row + DECISIONS.md 2026-07-19 retroactive pivot entry); the pre-pivot React
-  workspace was deleted (audit decision D1a). Suites: backend **171/171** (the weekend-date defect
-  is FIXED — `PlanningClock` + pinned `FakeTimeProvider`, see DECISIONS.md 2026-07-19), panel
-  Vitest 40/40, Playwright 5/5 (serial, live-backend, prototype-DOM specs).
-- Active feature: none. The 2026-07-19 audit backlog (docs/audit/TODO-from-audit.md): C1–C5, P0,
-  P3 and the contained half of P2 are DONE on `cleanup/c1-safe-deletions` (not yet merged to
-  prototype-parity-rebuild). Next up: the **D2b engine.js→TS adoption session** (also clears the
-  standing eslint parse error + inline-handler CSP exception), the deferred P2 items (batch plan
-  endpoint, 202 regen queue, analytics GROUP BY rewrite), and P4 KVKK (blocked on customer
-  retention-policy answers).
+- Branch: **`main`** is the working branch (the `cleanup/c1-safe-deletions` audit branch was merged
+  into `main` on 2026-07-20; `prototype-parity-rebuild` remains as a backup with the L1/L3/L4 commits
+  cherry-picked onto it). Milestone: backend M0–M4 COMPLETE. The panel pivoted on 2026-07-18 to
+  hosting the v0.5 prototype VERBATIM at `/planner` with backend bridges (`panel/src/planner/prototype/`
+  — see ARCHITECTURE.md "Panel" row + DECISIONS.md 2026-07-19 pivot entry); the pre-pivot React
+  workspace was deleted (audit D1a). Suites (verified on `main` 2026-07-20): backend **171/171** (the
+  weekend-date defect is FIXED — `PlanningClock` + pinned `FakeTimeProvider`), panel Vitest **40/40**,
+  `tsc` clean, lint **0 errors** (the vendored `public/evo-prototype` bundle is eslint-ignored).
+- Last work — the **store/route/schedule 4-layer model**, wired end-to-end (draft-until-publish) and
+  E2E-verified: **L1** store activate/deactivate (`PATCH /stores/{id}/status` — keeps route membership,
+  drops the store from the plan; plan-gen skips inactive stops); **L2** route deactivate (already
+  worked, `updateRoute {status}`); **L3** remove-from-route → pool (`DELETE /routes/{id}/stops/{stopId}`,
+  soft-close per no-delete); **L4** schedule-days editor (visit only Mon/Wed/Fri or zero days via
+  `updateStop {frequency, weekdayMask}`). Panel bridges: `scheduleBridge`/`afterPanel` + the
+  `publishBridge` diff gained schedule/remove/status ops.
+- Active feature: none. Audit backlog (docs/audit/TODO-from-audit.md): C1–C5, P0, P3 and the contained
+  half of P2 are DONE (the standing eslint parse error is now also resolved). Next candidates: the
+  **D2b engine.js→TS adoption session** (clears the inline-handler CSP exception), the deferred P2
+  items (batch plan endpoint, 202 regen queue, analytics GROUP BY rewrite), and P4 KVKK (blocked on
+  customer retention-policy answers).
 - Backend-complete but panel-dark (lost their UI in the pivot; backends tested + in contract):
   Onarım workbench (no bridge — wire or formally re-defer, audit §A3.2 decision OPEN), outcome
   coloring/planned-vs-realized (no realization data path since D3b), evidence strip, audit-log/
@@ -125,7 +133,7 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
   CRUD, real mobile app / live field-agent write API, real MinIO/FCM, out-of-route visits + their
   analytics, materialized analytics views (M4 shipped on-read aggregation instead), ⚡ "Otomatik düzelt"
   same-person auto-fix.
-- Last session summary (2026-07-19, audit cleanup C1–C5): C1 safe deletions (template stubs, dead
+- Prior session (2026-07-19, audit cleanup C1–C5): C1 safe deletions (template stubs, dead
   client fns, unused theme exports/assets). C2 executed D1a — deleted the ~4.5k-LOC dead React tree,
   ~20 dead test files, 6 dead npm deps, 10 dead client fns, dead i18n keys (`getRoute`/`removeStop`/
   `updateStoreStatus` kept — live via bridges). C3 executed D3b — deleted the never-registered

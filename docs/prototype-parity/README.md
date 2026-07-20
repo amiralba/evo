@@ -1,3 +1,9 @@
+> **SUPERSEDED (2026-07-20):** the React panel was replaced by hosting the v0.5 prototype
+> verbatim (`/planner` mounts `evo-planner-prototype-v0.5.html` via `PrototypeHost.tsx`, backend
+> wired in through bridge modules — see `docs/DECISIONS.md`, "prototype-verbatim pivot"). This
+> analysis's premise — manually refactoring the React panel toward the prototype — no longer
+> applies. Kept as historical analysis only, not an active plan.
+
 # Prototype-Parity Analysis
 
 Research-only analysis (no code changes) comparing the EVO planner **v0.5 HTML prototype** and the

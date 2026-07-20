@@ -55,7 +55,9 @@ toggle only. `route` (`id`, `route_code` unique, `name`, `province`, `districts_
 `geo_scope` geography nullable, `status` Draft/Active/Inactive, `version`, `revenue_target`,
 `daily_work_minutes`) — identity is `route_code`, composition is `version`, no delete.
 `route_stop` dated membership, `effective_to IS NULL` = active, filtered-unique on `store_id`
-(one active route per store). `assignment` dated seat, `end_date IS NULL` = current, two
+(one active route per store); also carries `weekday_mask` (int16, bit0=Mon…bit4=Fri) — pre-existing
+column, no migration needed when the panel's 4-layer model (2026-07-20) exposed it via
+`PATCH /routes/{id}/stops/{stopId}` (see `docs/API.md`). `assignment` dated seat, `end_date IS NULL` = current, two
 filtered-unique indexes (one active assignment per route AND per merchandiser). `patch`
 (`starts_on`, `ends_on` **NOT NULL** — mandatory expiry, V9) never mutates baseline; applied at
 generation time by the pure `PatchResolver`. `planned_visit` is the materialized calendar —
@@ -174,6 +176,9 @@ the sync model. `store_type` (Jet/M/MM/3M/4M/5M, codes 1–6) is a fixed lookup,
 via EF `HasData` — not admin-editable. `chain` is a **real lookup table** (`id`, `name`), a
 deviation from the leaner denormalized-string approach the planner recommended — logged in
 `docs/DECISIONS.md` (chain is foundational for chain-scoped Rules/map color-coding/filters).
+`store.active` is also now writable directly via `PATCH /stores/{id}/status` (2026-07-20, the
+4-layer model's L1 — deactivating a store keeps its `route_stop` membership open but
+`PlanGenerationService` skips stops on inactive stores; no schema change, pre-existing column).
 `store.default_service_minutes` and `store.active` are **planner-owned**: sync never overwrites
 them. `store_revenue` retains only the latest 12 months per store (older rows pruned on sync).
 `store_flag` (BANNED/ClosedTemp) is replace-managed by sync each run. Sync never deactivates a
