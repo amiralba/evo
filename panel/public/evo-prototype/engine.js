@@ -911,17 +911,10 @@ function renderSched(){
   computeIssues(); /* v0.5: kart durumu + gün başlığı sayaçları için */
   const grid=document.createElement('div');grid.className='sched-grid';
   grid.appendChild(document.createElement('div'));
-  DAYS.forEach((d,di)=>{
+  /* v0.5.1: gün başlığı sayaçları kişi satırına taşındı (kapsam-bazlı yerleşim: kişi+gün) —
+     başlıkta yalnızca gün adları kalır; rozetler her kişinin ilgili gün sütununda görünür. */
+  DAYS.forEach(d=>{
     const h=document.createElement('div');h.className='day-head';h.textContent=d;
-    /* v0.5: gün başlığı problem sayacı (kapsam-bazlı yerleşim: gün-seviyesi) */
-    const de=curIssues.filter(i=>i.day===di&&i.sev==='err').length;
-    const dw=curIssues.filter(i=>i.day===di&&i.sev==='warn').length;
-    if(de||dw){
-      const c=document.createElement('span');c.className='dhc';
-      c.innerHTML=(de?`<span style="color:var(--red-d)">🔴${de}</span>`:'')+(dw?` <span style="color:var(--amber-d)">🟡${dw}</span>`:'');
-      c.style.cursor='pointer';c.title='Sorun Merkezi';c.onclick=openConflictCenter;
-      h.appendChild(c);
-    }
     grid.appendChild(h);
   });
   const src=mode==='base'?baseVisits:visits;
@@ -931,12 +924,19 @@ function renderSched(){
     const r=personRoute(p.id);
     const val=visits.filter(v=>v.personId===p.id&&store(v.storeId).cat!=='S').reduce((s,v)=>s+v.dur,0);
     const valPct=wk?Math.round(val/wk*100):0;
-    pc.innerHTML=`<div class="nm">${p.name} <button title="Aylık genel bakış" style="border:none;background:none;cursor:pointer;font-size:11px;padding:0 2px;vertical-align:middle;" onclick="event.stopPropagation();if(window.__evoPersonOverview)window.__evoPersonOverview('${p.id}')">📅</button></div>
+    pc.innerHTML=`<div class="nm">${p.name} <button title="Aylık genel bakış" style="border:1px solid var(--border2);background:var(--card);color:var(--tx2);border-radius:10px;cursor:pointer;font-size:10px;padding:1px 8px;margin-left:6px;vertical-align:middle;" onclick="event.stopPropagation();if(window.__evoPersonOverview)window.__evoPersonOverview('${p.id}')">📅 Aylık</button></div>
       <div class="meta">${r?r.code:'—'} · %${valPct} değerli</div>
       <div class="loadbar"><div style="width:${Math.min(pct,100)}%;background:${pct>100?'var(--red)':pct<80?'var(--amber)':'var(--green)'}"></div></div>
       <div class="meta">%${pct} yük</div>`;
     pc.querySelector('.nm').onclick=()=>{ if(filter&&filter.type==='person'&&filter.id===p.id){setFilter(null);}else{setFilter({type:'person',id:p.id});setFocus({type:'person',id:p.id});} };
     grid.appendChild(pc);
+    /* v0.5.1: boş takvim çizme — bu hafta ziyareti olmayan kişi yalnızca bilgi satırı olarak
+       görünür (bir filtre aktifken tam ızgara kalır: seçilen rut/kişi için plan kurulabilsin). */
+    if(!filter&&!visits.some(v=>v.personId===p.id)){
+      const nn=document.createElement('div');nn.className='meta';nn.style.color='var(--tx3)';
+      nn.textContent='Bu hafta planlanmış ziyaret yok';pc.appendChild(nn);
+      continue;
+    }
     const ax=document.createElement('div');ax.className='time-axis';
     for(let h=DAY_START;h<=DAY_END;h+=60){
       const sp=document.createElement('span');
@@ -957,6 +957,14 @@ function renderSched(){
       const tot=dayVisits(p.id,day,src).reduce((s,v)=>s+v.dur,0);
       const td=document.createElement('div');td.className='day-total '+(tot>QUOTA?'over':tot<QUOTA*0.6?'under':'ok');
       td.textContent=tot+"'";cell.appendChild(td);
+      /* v0.5.1: kişi+gün problem rozetleri — Sorun Merkezi sayaçları ilgili günün üstünde */
+      const pe=curIssues.filter(i=>i.personId===p.id&&i.day===day&&i.sev==='err').length;
+      const pw=curIssues.filter(i=>i.personId===p.id&&i.day===day&&i.sev==='warn').length;
+      if(pe||pw){
+        const ic=document.createElement('div');ic.className='day-issues';ic.title='Sorun Merkezi';
+        ic.innerHTML=(pe?`<span style="color:var(--red-d)">🔴${pe}</span>`:'')+(pw?`<span style="color:var(--amber-d)">🟡${pw}</span>`:'');
+        ic.onclick=openConflictCenter;cell.appendChild(ic);
+      }
       for(const v of dayVisits(p.id,day,src)){
         const s=store(v.storeId);
         const b=document.createElement('div');
