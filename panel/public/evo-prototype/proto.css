@@ -69,6 +69,7 @@ button.primary:hover{background:var(--blue);}
 .day-cell.dragover{border-color:var(--blue-d);background:var(--blue-l);}
 .day-total{position:absolute;top:2px;right:5px;font-size:10px;font-weight:600;z-index:3;color:var(--tx3);}
 .day-issues{position:absolute;top:2px;left:5px;font-size:9px;font-weight:700;z-index:3;cursor:pointer;display:flex;gap:3px;}
+.sched-hint{margin:18px auto;max-width:420px;text-align:center;color:var(--tx3);font-size:12px;background:var(--card);border:1px dashed var(--border2);border-radius:8px;padding:16px 18px;}
 .day-total.ok{color:var(--green);}
 .day-total.over{color:var(--red);}
 .day-total.under{color:var(--amber-d);}

@@ -20,12 +20,12 @@ const OUT = resolve(here, '../public/evo-prototype')
 mkdirSync(OUT, { recursive: true })
 
 const lines = readFileSync(SRC, 'utf8').split('\n')
-// 1-indexed tag boundaries: <style>67 </style>300  <body>302 <script>439 </script>3603
+// 1-indexed tag boundaries: <style>67 </style>301  <body>303 <script>440 </script>3603
 const slice = (a, b) => lines.slice(a - 1, b).join('\n')
 
-let css = slice(68, 299)
-let body = slice(303, 438)
-let script = slice(440, 3602)
+let css = slice(68, 300)
+let body = slice(304, 439)
+let script = slice(441, 3602)
 
 // Give the region button an id so the province control can wire it (it's a static mock otherwise).
 body = body.replace('<button>Ankara ▾</button>', '<button id="evoRegionBtn">Ankara ▾</button>')

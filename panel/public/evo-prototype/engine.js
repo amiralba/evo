@@ -909,6 +909,12 @@ function renderSched(){
   const el=$('#schedScroll');el.innerHTML='';
   if(isRO())el.innerHTML='<div style="background:var(--gray-l);color:var(--tx2);border-radius:6px;padding:5px 10px;font-size:11px;margin-bottom:8px;">🔒 Geçmiş hafta — salt okunur. Gerçek sistemde burada plan vs gerçekleşen (sonuç kodlarıyla) görünür.</div>';
   computeIssues(); /* v0.5: kart durumu + gün başlığı sayaçları için */
+  /* v0.5.1: seçim yoksa takvim çizilmez — kullanıcı bir rut ya da kişi seçmeli. Kişi seçimi
+     rutu da açar (aşağıda, arama onclick'i); rutu olmayan kişi boş takvim görür. */
+  if(!filter){
+    el.innerHTML+='<div class="sched-hint">Takvimi görmek için soldan bir <b>rut</b> seçin ya da <b>arama</b> (/ veya ⌘K) ile kişi/rut bulun.</div>';
+    return;
+  }
   const grid=document.createElement('div');grid.className='sched-grid';
   grid.appendChild(document.createElement('div'));
   /* v0.5.1: gün başlığı sayaçları kişi satırına taşındı (kapsam-bazlı yerleşim: kişi+gün) —
@@ -930,13 +936,6 @@ function renderSched(){
       <div class="meta">%${pct} yük</div>`;
     pc.querySelector('.nm').onclick=()=>{ if(filter&&filter.type==='person'&&filter.id===p.id){setFilter(null);}else{setFilter({type:'person',id:p.id});setFocus({type:'person',id:p.id});} };
     grid.appendChild(pc);
-    /* v0.5.1: boş takvim çizme — bu hafta ziyareti olmayan kişi yalnızca bilgi satırı olarak
-       görünür (bir filtre aktifken tam ızgara kalır: seçilen rut/kişi için plan kurulabilsin). */
-    if(!filter&&!visits.some(v=>v.personId===p.id)){
-      const nn=document.createElement('div');nn.className='meta';nn.style.color='var(--tx3)';
-      nn.textContent='Bu hafta planlanmış ziyaret yok';pc.appendChild(nn);
-      continue;
-    }
     const ax=document.createElement('div');ax.className='time-axis';
     for(let h=DAY_START;h<=DAY_END;h+=60){
       const sp=document.createElement('span');
@@ -2080,7 +2079,7 @@ gs.oninput=()=>{
       sr.style.display='none';gs.value='';
       if(t==='store'){const s=store(id);if(s.route)expandedRoutes.add(s.route);setFocus({type:'store',id});renderAll();requestAnimationFrame(()=>scrollToStore(id));} /* v0.5: bloğa kaydır + vurgula */
       else if(t==='route'){toggleRouteFilter(id,false);}
-      else{setFilter({type:'person',id});setFocus({type:'person',id});}
+      else{const pr=personRoute(id);if(pr)expandedRoutes.add(pr.id);setFilter({type:'person',id});setFocus({type:'person',id});}
     };
   });
 };
