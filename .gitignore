@@ -33,3 +33,6 @@ panel/src/api/generated/
 meetings/
 **/meetings/
 *.m4a
+
+# Playwright MCP session artifacts
+.playwright-mcp/

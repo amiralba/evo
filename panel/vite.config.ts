@@ -11,6 +11,9 @@ export default defineConfig({
     include: ['@fullcalendar/core', '@fullcalendar/react', '@fullcalendar/multimonth', '@fullcalendar/daygrid'],
   },
   server: {
+    // Allow ngrok/cloudflare tunnel hosts so the dev server doesn't reject shared demo URLs.
+    // Local-demo convenience only; harmless to keep.
+    allowedHosts: ['.ngrok-free.app', '.ngrok.io', '.trycloudflare.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:5076',

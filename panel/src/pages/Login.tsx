@@ -61,7 +61,7 @@ export function Login() {
 
       <main className="auth__panel">
         <form className="auth__card" onSubmit={handleSubmit}>
-          <h1>Tekrar hoş geldiniz</h1>
+          <h1>Hoş geldiniz</h1>
           <p className="auth__lead">Devam etmek için hesabınıza giriş yapın.</p>
 
           {error && (
