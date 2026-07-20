@@ -23,7 +23,9 @@ interface SchedState {
 }
 type SchedWindow = Window & {
   __evoState?: () => SchedState
-  logChange?: (desc: string, pid: unknown, day: unknown, undo: () => void, patch?: boolean) => void
+  // Engine-scope helper (extractor footer): toggles a routed store's visit day, reconciles the live
+  // visits[] for an immediate calendar preview, and buffers it via logChange with a faithful undo.
+  __evoToggleStoreDay?: (sid: string, dayIndex: number) => void
 }
 
 const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum']
@@ -58,17 +60,10 @@ function wire(body: HTMLElement, store: SchedStore): void {
     el.onclick = () => {
       const w = window as SchedWindow
       const i = Number(el.dataset.day)
-      const prevMask = store.weekdayMask ?? null
-      const prevFreq = store.freqNum ?? null
-      const mask = maskFor(store) ^ (1 << i)
-      store.freqNum = 2 // Weekly — the mask now drives which days are visited
-      store.weekdayMask = mask
-      const days = DAYS.filter((_, k) => (mask & (1 << k)) !== 0).join(', ') || 'yok'
-      // logChange records it (Yayınla count + undo) and re-renders, which re-runs this editor.
-      w.logChange?.(`${store.name}: ziyaret günleri → ${days}`, null, null, () => {
-        store.weekdayMask = prevMask
-        store.freqNum = prevFreq
-      })
+      // The engine owns the mutation: it flips the mask, adds/removes this store's visits on that
+      // weekday (live calendar preview), and buffers it via logChange (which re-renders + re-runs
+      // this editor, so the chips reflect the new mask). Publish diffs freqNum/weekdayMask on Yayınla.
+      w.__evoToggleStoreDay?.(store.id, i)
     }
   })
 }

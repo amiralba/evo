@@ -3229,4 +3229,56 @@ window.__evoFocusStore = function (id) {
   } catch (e) { console.error('[evo] focusStore', e); }
 };
 
+// L4 schedule-days LIVE preview: toggle a routed store's visit day on/off and reconcile the live
+// visits[] so the calendar updates immediately — the store's weekdayMask alone doesn't drive
+// rendering (visits[] does). Runs in engine scope so it can reassign visits/baseVisits and reuse the
+// prototype's own V/reflow/dayVisits helpers, exactly like moveStoreTo. Buffered via logChange (undo
+// restores the prior visits snapshot); persisted to the backend on Yayınla by the publish bridge.
+window.__evoToggleStoreDay = function (sid, i) {
+  try {
+    var s = stores.find(function (x) { return x.id === sid; });
+    if (!s || !s.route) return;
+    var r = route(s.route);
+    var pid = r && r.person;
+    var prevMask = (typeof s.weekdayMask === 'number') ? s.weekdayMask : null;
+    var prevFreq = (typeof s.freqNum === 'number') ? s.freqNum : null;
+    var curMask = s.freqNum === 1 ? 31 : (s.weekdayMask || 0);
+    var newMask = curMask ^ (1 << i);
+    // Snapshot this store's visits for a faithful undo (moveStoreTo pattern).
+    var oldV = visits.filter(function (v) { return v.storeId === sid; }).map(function (v) { return Object.assign({}, v); });
+    var oldB = baseVisits.filter(function (v) { return v.storeId === sid; }).map(function (v) { return Object.assign({}, v); });
+    s.freqNum = 2; // days now drive it -> Weekly
+    s.weekdayMask = newMask;
+    var dur = storeDur(s) || 45;
+    var touched = {};
+    for (var d = 0; d < 5; d++) {
+      var want = (newMask & (1 << d)) !== 0;
+      var has = visits.some(function (v) { return v.storeId === sid && v.day === d; });
+      if (pid && want && !has) {
+        var dv = dayVisits(pid, d);
+        var start = dv.length ? dv[dv.length - 1].start + dv[dv.length - 1].dur : DAY_START;
+        var nv = V(sid, pid, d, skipBreaks(start), dur);
+        visits.push(nv);
+        baseVisits.push(Object.assign({}, nv));
+        touched[d] = 1;
+      } else if (!want && has) {
+        visits = visits.filter(function (v) { return !(v.storeId === sid && v.day === d); });
+        baseVisits = baseVisits.filter(function (v) { return !(v.storeId === sid && v.day === d); });
+        touched[d] = 1;
+      }
+    }
+    if (pid) { Object.keys(touched).forEach(function (d) { reflow(pid, +d); }); }
+    clearFutureWeeks();
+    var names = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'];
+    var lbl = names.filter(function (_, k) { return (newMask & (1 << k)) !== 0; }).join(', ') || 'yok';
+    logChange(s.name + ': ziyaret günleri → ' + lbl, pid || null, null, function () {
+      s.weekdayMask = prevMask;
+      s.freqNum = prevFreq;
+      visits = visits.filter(function (v) { return v.storeId !== sid; }).concat(oldV.map(function (v) { return Object.assign({}, v); }));
+      baseVisits = baseVisits.filter(function (v) { return v.storeId !== sid; }).concat(oldB.map(function (v) { return Object.assign({}, v); }));
+      clearFutureWeeks();
+    });
+  } catch (e) { console.error('[evo] toggleStoreDay', e); }
+};
+
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }
