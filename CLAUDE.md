@@ -61,6 +61,9 @@
 
 ## Conventions
 
+- **NEVER `git push` unless the human explicitly asks in the current conversation.** Committing
+  locally is fine per the checkpoint flow; pushing to the remote always requires an explicit
+  instruction ("push", "clean and push", …) — when in doubt, ask first.
 - Code style: C# — .NET defaults + `dotnet format`; TypeScript strict — eslint + prettier
 - Commits: conventional commits referencing spec slug (e.g. `feat(002): patch expiry job`)
 - Error handling: shared ProblemDetails-based error shape across the whole API (define in platform spec, document in docs/API.md)
@@ -116,6 +119,15 @@ it redirects to `/login`; sign in with `admin@evo.local` / `Demo1234!` (see docs
   soft-close per no-delete); **L4** schedule-days editor (visit only Mon/Wed/Fri or zero days via
   `updateStop {frequency, weekdayMask}`). Panel bridges: `scheduleBridge`/`afterPanel` + the
   `publishBridge` diff gained schedule/remove/status ops.
+- Latest session (2026-07-21): scheduler UX pass on the hosted prototype — per-person layout is now
+  info row → Pzt–Cum header (per-person Sorun Merkezi 🔴/🟡 badges under the day names) → hour grid;
+  the TAKVİM pane renders NOTHING until a route/person is selected (hint card instead); selecting a
+  person from global search also expands their route card in the rail. New React surface:
+  `PersonOverviewModal` (FullCalendar `multiMonth`, free MIT tier, `@fullcalendar/react` pinned
+  6.1.21 + Vite `optimizeDeps`) opened per person via the injected "📅 Aylık" chip
+  (`window.__evoPersonOverview`) — a read-only 3-month projection of the current weekly pattern
+  (patches/expiries NOT resolved; needs a backend endpoint if ever wanted). Prototype edits live in
+  the source HTML + anchored replaces in `extract-prototype.mjs` (slice bounds updated per edit).
 - Active feature: none. Audit backlog (docs/audit/TODO-from-audit.md): C1–C5, P0, P3 and the contained
   half of P2 are DONE (the standing eslint parse error is now also resolved). Next candidates: the
   **D2b engine.js→TS adoption session** (clears the inline-handler CSP exception), the deferred P2
