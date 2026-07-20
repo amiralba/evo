@@ -101,9 +101,12 @@ export function Login() {
             {isSubmitting ? 'Giriş yapılıyor…' : 'Giriş yap'}
           </button>
 
-          <p className="auth__hint">
-            Demo girişi: <code>admin@evo.local</code> / <code>Demo1234!</code>
-          </p>
+          {/* Dev-only convenience — NEVER render seed credentials in a production build. */}
+          {import.meta.env.DEV && (
+            <p className="auth__hint">
+              Demo girişi: <code>admin@evo.local</code> / <code>Demo1234!</code>
+            </p>
+          )}
         </form>
       </main>
     </div>
