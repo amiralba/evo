@@ -30,6 +30,13 @@ let script = slice(438, 3593)
 // Give the region button an id so the province control can wire it (it's a static mock otherwise).
 body = body.replace('<button>Ankara ▾</button>', '<button id="evoRegionBtn">Ankara ▾</button>')
 
+// Drop the three map-tool buttons (▭ Seç / ≡ Katman / ⚗ Simüle). They were decorative in the v0.5
+// prototype — never wired to a click handler — and don't apply to the React MapLibre map that
+// replaced the SVG map. (Lasso-select happens by dragging on the map directly.)
+const mapToolsRe = /\s*<div class="map-tools">[\s\S]*?<\/div>/
+if (!mapToolsRe.test(body)) throw new Error('extract: <div class="map-tools"> block not found (prototype changed?)')
+body = body.replace(mapToolsRe, '')
+
 // --- Inbox resolve ---
 // The "Çözüldü" button marks a field note done locally; also persist it (NoteStatus 3) via the
 // notes bridge. Note status is field comms, not a schedule effect — immediate, no Yayınla.
