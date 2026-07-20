@@ -916,13 +916,8 @@ function renderSched(){
     return;
   }
   const grid=document.createElement('div');grid.className='sched-grid';
-  grid.appendChild(document.createElement('div'));
-  /* v0.5.1: gün başlığı sayaçları kişi satırına taşındı (kapsam-bazlı yerleşim: kişi+gün) —
-     başlıkta yalnızca gün adları kalır; rozetler her kişinin ilgili gün sütununda görünür. */
-  DAYS.forEach(d=>{
-    const h=document.createElement('div');h.className='day-head';h.textContent=d;
-    grid.appendChild(h);
-  });
+  /* v0.5.1: gün başlıkları kişi satırının ALTINA taşındı — her kişi için: bilgi satırı, sonra
+     Pzt–Cum başlık satırı (Sorun Merkezi rozetleri gün adının altında), sonra saat ızgarası. */
   const src=mode==='base'?baseVisits:visits;
   for(const p of visiblePeople()){
     const pc=document.createElement('div');pc.className='person-cell';
@@ -936,6 +931,19 @@ function renderSched(){
       <div class="meta">%${pct} yük</div>`;
     pc.querySelector('.nm').onclick=()=>{ if(filter&&filter.type==='person'&&filter.id===p.id){setFilter(null);}else{setFilter({type:'person',id:p.id});setFocus({type:'person',id:p.id});} };
     grid.appendChild(pc);
+    grid.appendChild(document.createElement('div')); /* eksen sütununun başlık hücresi boş */
+    DAYS.forEach((d,di)=>{
+      const h=document.createElement('div');h.className='day-head';h.textContent=d;
+      const pe=curIssues.filter(i=>i.personId===p.id&&i.day===di&&i.sev==='err').length;
+      const pw=curIssues.filter(i=>i.personId===p.id&&i.day===di&&i.sev==='warn').length;
+      if(pe||pw){
+        const c=document.createElement('div');c.className='dhc';
+        c.innerHTML=(pe?`<span style="color:var(--red-d)">🔴${pe}</span>`:'')+(pw?` <span style="color:var(--amber-d)">🟡${pw}</span>`:'');
+        c.style.cursor='pointer';c.title='Sorun Merkezi';c.onclick=openConflictCenter;
+        h.appendChild(c);
+      }
+      grid.appendChild(h);
+    });
     const ax=document.createElement('div');ax.className='time-axis';
     for(let h=DAY_START;h<=DAY_END;h+=60){
       const sp=document.createElement('span');
@@ -956,14 +964,6 @@ function renderSched(){
       const tot=dayVisits(p.id,day,src).reduce((s,v)=>s+v.dur,0);
       const td=document.createElement('div');td.className='day-total '+(tot>QUOTA?'over':tot<QUOTA*0.6?'under':'ok');
       td.textContent=tot+"'";cell.appendChild(td);
-      /* v0.5.1: kişi+gün problem rozetleri — Sorun Merkezi sayaçları ilgili günün üstünde */
-      const pe=curIssues.filter(i=>i.personId===p.id&&i.day===day&&i.sev==='err').length;
-      const pw=curIssues.filter(i=>i.personId===p.id&&i.day===day&&i.sev==='warn').length;
-      if(pe||pw){
-        const ic=document.createElement('div');ic.className='day-issues';ic.title='Sorun Merkezi';
-        ic.innerHTML=(pe?`<span style="color:var(--red-d)">🔴${pe}</span>`:'')+(pw?`<span style="color:var(--amber-d)">🟡${pw}</span>`:'');
-        ic.onclick=openConflictCenter;cell.appendChild(ic);
-      }
       for(const v of dayVisits(p.id,day,src)){
         const s=store(v.storeId);
         const b=document.createElement('div');
