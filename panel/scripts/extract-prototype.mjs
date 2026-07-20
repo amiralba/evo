@@ -192,7 +192,10 @@ window.__evoToggleStoreDay = function (sid, i) {
     var pid = r && r.person;
     var prevMask = (typeof s.weekdayMask === 'number') ? s.weekdayMask : null;
     var prevFreq = (typeof s.freqNum === 'number') ? s.freqNum : null;
-    var curMask = s.freqNum === 1 ? 31 : (s.weekdayMask || 0);
+    // Derive the current mask from the LIVE visits (the calendar's source of truth), not the stored
+    // weekdayMask — so a chip click after a scheduler drag operates on what's actually shown.
+    var curMask = 0;
+    for (var dd = 0; dd < 5; dd++) { if (visits.some(function (v) { return v.storeId === sid && v.day === dd; })) curMask |= (1 << dd); }
     var newMask = curMask ^ (1 << i);
     // Snapshot this store's visits for a faithful undo (moveStoreTo pattern).
     var oldV = visits.filter(function (v) { return v.storeId === sid; }).map(function (v) { return Object.assign({}, v); });

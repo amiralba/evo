@@ -16,10 +16,15 @@ interface SchedStore {
   weekdayMask?: number | null
   route?: string | null
 }
+interface SchedVisit {
+  storeId: string
+  day: number
+}
 interface SchedState {
   focus: { type: string; id?: string } | null
   panelTab: string
   stores: SchedStore[]
+  visits: SchedVisit[]
 }
 type SchedWindow = Window & {
   __evoState?: () => SchedState
@@ -30,9 +35,19 @@ type SchedWindow = Window & {
 
 const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum']
 
-/** Daily stops visit every weekday, so show them as all-5-on; otherwise use the stored mask. */
+/**
+ * The visited weekdays derived from the LIVE visits[] — the single source of truth the calendar
+ * also renders from. Reading the store's stored weekdayMask instead would leave the chips stale
+ * after a scheduler drag (which changes visits[] but not the mask); deriving from visits keeps the
+ * editor and the calendar in sync BOTH ways.
+ */
 function maskFor(s: SchedStore): number {
-  return s.freqNum === 1 ? 31 : (s.weekdayMask ?? 0)
+  const visits = (window as SchedWindow).__evoState?.().visits ?? []
+  let mask = 0
+  for (const v of visits) {
+    if (v.storeId === s.id && v.day >= 0 && v.day < 5) mask |= 1 << v.day
+  }
+  return mask
 }
 
 function editorHtml(store: SchedStore): string {
