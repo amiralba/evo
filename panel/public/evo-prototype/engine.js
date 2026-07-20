@@ -911,7 +911,6 @@ function renderSched(){
   computeIssues(); /* v0.5: kart durumu + gün başlığı sayaçları için */
   const grid=document.createElement('div');grid.className='sched-grid';
   grid.appendChild(document.createElement('div'));
-  grid.appendChild(document.createElement('div'));
   DAYS.forEach((d,di)=>{
     const h=document.createElement('div');h.className='day-head';h.textContent=d;
     /* v0.5: gün başlığı problem sayacı (kapsam-bazlı yerleşim: gün-seviyesi) */

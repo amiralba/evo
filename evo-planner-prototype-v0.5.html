@@ -120,12 +120,13 @@ button.primary:hover{background:var(--blue);}
 .popover .actions button{font-size:11px;padding:3px 8px;white-space:nowrap;flex:0 0 auto;}
 #schedPane{background:var(--bg);}
 .sched-scroll{flex:1;overflow:auto;padding:10px;}
-.sched-grid{display:grid;grid-template-columns:110px 36px repeat(5,minmax(120px,1fr));column-gap:4px;row-gap:26px;}
+.sched-grid{display:grid;grid-template-columns:36px repeat(5,minmax(120px,1fr));column-gap:4px;row-gap:8px;}
 .time-axis{position:relative;height:510px;}
 .time-axis span{position:absolute;right:4px;font-size:9px;color:var(--tx3);transform:translateY(-50%);}
 .hline{position:absolute;left:0;right:0;border-top:1px dashed var(--gray-l);pointer-events:none;z-index:0;}
 .day-head{text-align:center;font-size:11px;color:var(--tx2);padding:3px 0;position:sticky;top:0;background:var(--bg);z-index:2;}
-.person-cell{padding:8px 6px;font-size:12px;}
+.person-cell{grid-column:1/-1;padding:8px 6px 0;font-size:12px;margin-top:10px;}
+.person-cell .loadbar{max-width:200px;}
 .person-cell .nm{font-weight:600;cursor:pointer;}
 .person-cell .nm:hover{color:var(--blue-d);}
 .person-cell .meta{color:var(--tx2);font-size:11px;margin-top:3px;}
@@ -1347,7 +1348,6 @@ function renderSched(){
   if(isRO())el.innerHTML='<div style="background:var(--gray-l);color:var(--tx2);border-radius:6px;padding:5px 10px;font-size:11px;margin-bottom:8px;">🔒 Geçmiş hafta — salt okunur. Gerçek sistemde burada plan vs gerçekleşen (sonuç kodlarıyla) görünür.</div>';
   computeIssues(); /* v0.5: kart durumu + gün başlığı sayaçları için */
   const grid=document.createElement('div');grid.className='sched-grid';
-  grid.appendChild(document.createElement('div'));
   grid.appendChild(document.createElement('div'));
   DAYS.forEach((d,di)=>{
     const h=document.createElement('div');h.className='day-head';h.textContent=d;
