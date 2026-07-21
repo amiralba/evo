@@ -251,6 +251,14 @@ window.__evoToggleStoreDay = function (sid, i) {
   } catch (e) { console.error('[evo] toggleStoreDay', e); }
 };
 
+// Unsaved-draft guard: the prototype buffers every edit in changes[] until Yayınla flushes it.
+// If the tab is refreshed/closed while that buffer is non-empty, the whole draft would be lost
+// silently — so trigger the browser's native "unsaved changes" confirmation. (Runs in engine
+// scope: changes is the live let-binding.)
+window.addEventListener('beforeunload', function (e) {
+  if (typeof changes !== 'undefined' && changes.length) { e.preventDefault(); e.returnValue = ''; }
+});
+
 if (typeof window.__evoOnBoot === 'function') { try { window.__evoOnBoot(); } catch (e) { console.error('[evo] onBoot', e); } }
 `
 
